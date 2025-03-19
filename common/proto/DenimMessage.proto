@@ -19,16 +19,17 @@ message BlockRequest {
 }
 
 message KeyRequest {
-  required ProtocolAddress address = 1;
+  required bytes account_id = 1;
+  repeated uint32 specific_device_ids = 2;
 }
 
 message KeyResponse {
-  required bytes id_key = 1;
+  required bytes identity_key = 1;
   repeated KeyBundle key_bundle = 2;
 }
 
 message KeyUpdate {
-  required SignedKeyStruct signed_pre_key = 3;
+  required SignedKeyStruct signed_pre_key = 1;
 }
 
 message SeedUpdate {
@@ -38,7 +39,7 @@ message SeedUpdate {
 
 message Error {
   required string error = 1;
-  optional ProtocolAddress receiver = 2;
+  optional bytes account_id = 2;
 }
 
 message DummyPadding {
