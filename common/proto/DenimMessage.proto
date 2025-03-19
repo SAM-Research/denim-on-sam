@@ -1,0 +1,96 @@
+package denim_message;
+
+enum MessageType {
+  SIGNAL_MESSAGE = 1;
+  PRE_KEY_SIGNAL_MESSAGE = 2;
+  SENDER_KEY_MESSAGE = 3;
+  PLAINTEXT_CONTENT  = 4;
+}
+
+message Message {
+  required bytes destination_account_id = 1;
+  required uint32 destination_device_id = 2;
+  required MessageType message_type  = 3;
+  required bytes content = 4;
+}
+
+message BlockRequest {
+  required string account_id = 1;
+}
+
+message KeyRequest {
+  required ProtocolAddress address = 1;
+}
+
+message KeyResponse {
+  required bytes id_key = 1;
+  repeated KeyBundle key_bundle = 2;
+}
+
+message KeyUpdate {
+  required SignedKeyStruct signed_pre_key = 3;
+}
+
+message SeedUpdate {
+  required bytes pre_key_seed = 1;
+  required bytes pq_pre_key_seed = 2;
+}
+
+message Error {
+  required string error = 1;
+  optional ProtocolAddress receiver = 2;
+}
+
+message DummyPadding {
+  required bytes padding = 1;
+}
+
+message DeniablePayload {
+  oneof message_kind {
+    BlockRequest block_request = 1;
+    Message user_message = 2;
+    KeyRequest key_request = 3;
+    KeyResponse key_response = 4;
+    KeyUpdate key_refill = 5;
+    SeedUpdate seed_update = 6;
+    DummyPadding dummy = 7;
+    Error error = 8;
+  }
+}
+
+message DenimChunk {
+  required bytes chunk = 1;
+  required uint32 sequence_number = 2;
+  required int32 flag = 3;
+}
+
+message DenimMessage {
+  required bytes sam_message = 1;
+  repeated DenimChunk chunks = 2;
+  optional double q = 4;
+  required int32 ballast = 5;
+  optional int32 extra_ballast = 6;
+}
+
+message ProtocolAddress {
+  required string name = 1;
+  required int32 device_id = 2;
+}
+
+message KeyStruct {
+  required int32 id = 1;
+  required bytes key = 2;
+}
+
+message SignedKeyStruct {
+  required KeyStruct tuple = 1;
+  required bytes signature = 2;
+}
+
+message KeyBundle {
+  required uint32 device_id = 1;
+  required uint32 registration_id = 2;
+  required KeyStruct pre_key = 3;
+  required SignedKeyStruct pq_pre_key = 4;
+  required SignedKeyStruct signed_pre_key = 5;
+}
