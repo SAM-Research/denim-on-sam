@@ -1,0 +1,15 @@
+[package]
+name = "denim-sam-example"
+version = "0.1.0"
+edition = "2021"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+sam-server = { workspace = true }
+denim-sam-proxy = { workspace = true }
+
+tokio = { workspace = true, features = ["full"] }
+env_logger = { workspace = true }
+clap = { workspace = true }

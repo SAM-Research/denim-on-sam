@@ -21,3 +21,5 @@ base64 = { workspace = true }
 tokio-tungstenite = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+bon = { workspace = true }
+clap = { workspace = true }

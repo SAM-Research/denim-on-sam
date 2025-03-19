@@ -795,6 +795,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "denim-sam-example"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "denim-sam-proxy",
+ "env_logger",
+ "sam-server",
+ "tokio",
+]
+
+[[package]]
 name = "denim-sam-proxy"
 version = "0.1.0"
 dependencies = [
@@ -803,6 +814,8 @@ dependencies = [
  "axum-extra",
  "axum-server",
  "base64 0.21.7",
+ "bon",
+ "clap",
  "derive_more",
  "env_logger",
  "futures-util",

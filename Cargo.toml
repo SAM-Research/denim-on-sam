@@ -6,12 +6,13 @@ repository = "https://github.com/SAM-Research/denim-on-sam"
 [workspace]
 resolver = "2"
 
-members = ["proxy", "common", "client"]
+members = ["proxy", "common", "client", "example"]
 
 [workspace.dependencies]
-denim-sam-proxi = { path = "proxy" }
+denim-sam-proxy = { path = "proxy" }
 denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
+denim-sam-example = { path = "example" }
 
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
@@ -24,6 +25,8 @@ derive_more = { version = "2.0.1" }
 futures-util = { version = "0.3.30" }
 tokio-tungstenite = { version = "0.26.2" }
 base64 = "0.21.7"
+bon = "3.3.2"
 async-trait = "0.1.83"
 env_logger = "0.11.6"
 log = "0.4.25"
+clap = "4.5.32"
