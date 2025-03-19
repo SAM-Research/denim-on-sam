@@ -13,7 +13,13 @@ denim-sam-proxi = { path = "proxy" }
 denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-tokio = { version = "1.40.0", features = ["full"] }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+tokio = { version = "1.40.0" }
+axum = { version = "0.8.1" }
+axum-extra = { version = "0.10.0" }
+axum-server = { version = "0.7" }
+derive_more = { version = "2.0.1" }
+env_logger = "0.11.6"
+log = "0.4.25"

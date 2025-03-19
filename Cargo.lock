@@ -550,6 +550,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap"
+version = "4.5.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6088f3ae8c3608d19260cd7445411865a485688711b78b5be70d78cd96136f83"
+dependencies = [
+ "clap_builder",
+]
+
+[[package]]
+name = "clap_builder"
+version = "4.5.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22a7ef7f676155edfb82daa97f99441f3ebf4a58d5e32f295a56259f1b6facc8"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap_lex",
+ "strsim",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
+
+[[package]]
 name = "cmake"
 version = "0.1.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -771,6 +798,13 @@ dependencies = [
 name = "denim-sam-proxy"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "axum-extra",
+ "axum-server",
+ "derive_more",
+ "env_logger",
+ "log",
+ "sam-client",
  "sam-common",
  "sam-server",
  "tokio",
@@ -2077,12 +2111,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
 name = "pem-rfc7468"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2695,10 +2723,10 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "sam-client"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git#901bdd94aad1ae76dbd422f710e3e0bcaeeba740"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
+ "base64 0.21.7",
  "bon",
  "derive_more",
  "env_logger",
@@ -2706,7 +2734,6 @@ dependencies = [
  "libsignal-core",
  "libsignal-protocol",
  "log",
- "paste",
  "prost",
  "rand 0.8.5",
  "reqwest",
@@ -2722,11 +2749,11 @@ dependencies = [
 [[package]]
 name = "sam-common"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git#901bdd94aad1ae76dbd422f710e3e0bcaeeba740"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
 dependencies = [
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.21.7",
  "bon",
  "derive_more",
  "futures-util",
@@ -2744,7 +2771,7 @@ dependencies = [
 [[package]]
 name = "sam-server"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git#901bdd94aad1ae76dbd422f710e3e0bcaeeba740"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
 dependencies = [
  "argon2",
  "async-trait",
@@ -2753,10 +2780,10 @@ dependencies = [
  "axum-server",
  "base64 0.21.7",
  "bon",
+ "clap",
  "derive_more",
  "env_logger",
  "futures-util",
- "hex",
  "hkdf",
  "libsignal-protocol",
  "log",
