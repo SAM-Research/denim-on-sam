@@ -2,6 +2,9 @@
 name = "denim-sam-common"
 version = "0.1.0"
 edition = "2021"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+sam-common = { workspace = true }

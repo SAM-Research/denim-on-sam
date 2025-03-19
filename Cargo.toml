@@ -1,4 +1,19 @@
+[workspace.package]
+authors = ["SAM Research"]
+license = "MIT"
+repository = "https://github.com/SAM-Research/denim-on-sam"
+
 [workspace]
 resolver = "2"
 
 members = ["proxy", "common", "client"]
+
+[workspace.dependencies]
+denim-sam-proxi = { path = "proxy" }
+denim-sam-client = { path = "client" }
+denim-sam-common = { path = "common" }
+
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+tokio = { version = "1.40.0", features = ["full"] }
