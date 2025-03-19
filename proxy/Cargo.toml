@@ -1,0 +1,9 @@
+[package]
+name = "denim-sam-proxy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+tokio = { version = "1.40.0", features = ["full"] }

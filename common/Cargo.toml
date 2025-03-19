@@ -1,0 +1,7 @@
+[package]
+name = "denim-sam-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
