@@ -1,0 +1,186 @@
+name: Rust
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up cache for Protobuf
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/protoc
+            ~/.cache/protobuf
+          key: ${{ runner.os }}-protobuf-${{ hashFiles('/home/runner/.local/include/google/protobuf/descriptor.proto') }}
+          restore-keys: |
+            ${{ runner.os }}-protobuf-
+
+      - name: Install Protobuf
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # Install Protoc.
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v21.3/protoc-21.3-linux-x86_64.zip
+          unzip -o protoc-21.3-linux-x86_64.zip -d ~/.local
+
+      - name: Cache Cargo bin (for sqlx-cli)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/sqlx
+          key: sqlx-cli-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            sqlx-cli-${{ runner.os }}-
+
+      - name: Install SQLx CLI if not cached
+        run: |
+          if ! command -v sqlx &> /dev/null; then
+            cargo install sqlx-cli
+          else
+            echo "sqlx-cli found in cache, skipping installation"
+          fi
+
+      - name: Verify SQLx installation
+        run: sqlx --version
+
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+
+      - name: Run fmt
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upgrade rust
+        run: rustup upgrade
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up cache for Protobuf
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/protoc
+            ~/.cache/protobuf
+          key: ${{ runner.os }}-protobuf-${{ hashFiles('/home/runner/.local/include/google/protobuf/descriptor.proto') }}
+          restore-keys: |
+            ${{ runner.os }}-protobuf-
+
+      - name: Install Protobuf
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # Install Protoc.
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v21.3/protoc-21.3-linux-x86_64.zip
+          unzip -o protoc-21.3-linux-x86_64.zip -d ~/.local
+
+      - name: Cache Cargo bin (for sqlx-cli)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/sqlx
+          key: sqlx-cli-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            sqlx-cli-${{ runner.os }}-
+
+      - name: Install SQLx CLI if not cached
+        run: |
+          if ! command -v sqlx &> /dev/null; then
+            cargo install sqlx-cli
+          else
+            echo "sqlx-cli found in cache, skipping installation"
+          fi
+
+      - name: Verify SQLx installation
+        run: sqlx --version
+
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upgrade rust
+        run: rustup upgrade
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up cache for Protobuf
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin/protoc
+            ~/.cache/protobuf
+          key: ${{ runner.os }}-protobuf-${{ hashFiles('/home/runner/.local/include/google/protobuf/descriptor.proto') }}
+          restore-keys: |
+            ${{ runner.os }}-protobuf-
+
+      - name: Install Protobuf
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # Install Protoc.
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v21.3/protoc-21.3-linux-x86_64.zip
+          unzip -o protoc-21.3-linux-x86_64.zip -d ~/.local
+
+      - name: Cache Cargo bin (for sqlx)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/sqlx
+          key: sqlx-cli-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            sqlx-cli-${{ runner.os }}-
+
+      - name: Install SQLx CLI if not cached
+        run: |
+          if ! command -v sqlx &> /dev/null; then
+            cargo install sqlx-cli
+          else
+            echo "sqlx-cli found in cache, skipping installation"
+          fi
+
+      - name: Verify SQLx installation
+        run: sqlx --version
+
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+
+      - name: Cache Cargo bin (for llvm-cov)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-llvm-cov
+          key: cargo-llvm-cov-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-llvm-cov-${{ runner.os }}-
+
+      - name: Install cargo-llvm-cov if not cached
+        run: |
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            cargo install cargo-llvm-cov
+          else
+            echo "cargo-llvm-cov found in cache, skipping installation"
+          fi
+
+      #- name: Generate Certificates
+      #  run: cd ./e2e/cert && ./generate_cert.sh
+
+      - name: Test & Coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: SAM-Research/denim-on-sam

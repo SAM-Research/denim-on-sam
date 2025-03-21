@@ -1,0 +1,16 @@
+[package]
+name = "e2e"
+version = "0.1.0"
+edition = "2021"
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+sam-server = { workspace = true }
+sam-client = { workspace = true }
+denim-sam-proxy = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+env_logger = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }

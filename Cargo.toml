@@ -6,14 +6,29 @@ repository = "https://github.com/SAM-Research/denim-on-sam"
 [workspace]
 resolver = "2"
 
-members = ["proxy", "common", "client"]
+members = ["proxy", "common", "client", "e2e"]
 
 [workspace.dependencies]
-denim-sam-proxi = { path = "proxy" }
+denim-sam-proxy = { path = "proxy" }
 denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
+e2e = { path = "e2e" }
 
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-tokio = { version = "1.40.0", features = ["full"] }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+rustls = { version = "0.23.15" }
+rustls-pemfile = "2.2.0"
+tokio = { version = "1.40.0" }
+axum = { version = "0.8.1" }
+axum-extra = { version = "0.10.0" }
+axum-server = { version = "0.7" }
+derive_more = { version = "2.0.1" }
+futures-util = { version = "0.3.30" }
+tokio-tungstenite = { version = "0.26.2" }
+base64 = "0.21.7"
+bon = "3.3.2"
+async-trait = "0.1.83"
+env_logger = "0.11.6"
+log = "0.4.25"
+clap = "4.5.32"
