@@ -20,4 +20,3 @@ tokio = { version = "1.40.0", features = ["full"] }
 prost-build = { version = "0.13.5" }
 prost = { version = "0.13.5" }
 bon =  "3.5.0"
-math = "0.11.0"
