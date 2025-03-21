@@ -5,9 +5,9 @@ pub struct DenimState {
 }
 
 impl DenimState {
-    pub fn new(sam_url: String, channel_buffer: usize) -> Self {
+    pub fn new(sam_addr: String, channel_buffer: usize) -> Self {
         Self {
-            sam_url,
+            sam_url: format!("ws://{sam_addr}"),
             channel_buffer,
         }
     }

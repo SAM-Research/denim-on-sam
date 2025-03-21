@@ -53,7 +53,7 @@ async fn main() {
         .expect("Unable to parse socket address");
 
     let config = DenimConfig {
-        state: DenimState::new(format!("ws://{}:{}", sam_ip, sam_port), 10),
+        state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10),
         addr: addr,
     };
 

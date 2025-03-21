@@ -5,6 +5,7 @@ use futures_util::{
 };
 use log::{error, info};
 use sam_client::net::protocol::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
+use sam_common::{AccountId, DeviceId};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
@@ -41,6 +42,8 @@ pub async fn init_proxy_service(
     socket: AxumWebSocket,
     server_client: WebSocketClient,
     server_receiver: Receiver<ProxyMessage>,
+    _account_id: AccountId,
+    _device_id: DeviceId,
 ) {
     let (sender, receiver) = socket.split();
 

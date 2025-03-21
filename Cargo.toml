@@ -6,17 +6,19 @@ repository = "https://github.com/SAM-Research/denim-on-sam"
 [workspace]
 resolver = "2"
 
-members = ["proxy", "common", "client", "example"]
+members = ["proxy", "common", "client", "e2e"]
 
 [workspace.dependencies]
 denim-sam-proxy = { path = "proxy" }
 denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
-denim-sam-example = { path = "example" }
+e2e = { path = "e2e" }
 
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+rustls = { version = "0.23.15" }
+rustls-pemfile = "2.2.0"
 tokio = { version = "1.40.0" }
 axum = { version = "0.8.1" }
 axum-extra = { version = "0.10.0" }

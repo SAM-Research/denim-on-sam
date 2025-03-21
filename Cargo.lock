@@ -795,17 +795,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "denim-sam-example"
-version = "0.1.0"
-dependencies = [
- "clap",
- "denim-sam-proxy",
- "env_logger",
- "sam-server",
- "tokio",
-]
-
-[[package]]
 name = "denim-sam-proxy"
 version = "0.1.0"
 dependencies = [
@@ -914,6 +903,19 @@ name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
+name = "e2e"
+version = "0.1.0"
+dependencies = [
+ "denim-sam-proxy",
+ "env_logger",
+ "rustls",
+ "rustls-pemfile",
+ "sam-client",
+ "sam-server",
+ "tokio",
+]
 
 [[package]]
 name = "either"
@@ -1766,7 +1768,7 @@ checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 [[package]]
 name = "libsignal-core"
 version = "0.1.0"
-source = "git+https://github.com/signalapp/libsignal.git#5cec74cb24b8131a94f9151af370075166a0f4e4"
+source = "git+https://github.com/signalapp/libsignal.git#d760934874d1abcc6849f7ed4813807acb463108"
 dependencies = [
  "curve25519-dalek",
  "derive_more",
@@ -1782,7 +1784,7 @@ dependencies = [
 [[package]]
 name = "libsignal-protocol"
 version = "0.1.0"
-source = "git+https://github.com/signalapp/libsignal.git#5cec74cb24b8131a94f9151af370075166a0f4e4"
+source = "git+https://github.com/signalapp/libsignal.git#d760934874d1abcc6849f7ed4813807acb463108"
 dependencies = [
  "aes",
  "aes-gcm-siv",
@@ -2740,7 +2742,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "sam-client"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#0dc15dec9a1eaf7a93d93351a0b45b8f5932c53b"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -2766,7 +2768,7 @@ dependencies = [
 [[package]]
 name = "sam-common"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#0dc15dec9a1eaf7a93d93351a0b45b8f5932c53b"
 dependencies = [
  "async-trait",
  "axum",
@@ -2788,7 +2790,7 @@ dependencies = [
 [[package]]
 name = "sam-server"
 version = "0.1.0"
-source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#937471eb0b3873b935674969f1e72b7e38ea0f60"
+source = "git+https://github.com/SAM-Research/sam-instant-messenger.git?branch=main#0dc15dec9a1eaf7a93d93351a0b45b8f5932c53b"
 dependencies = [
  "argon2",
  "async-trait",
@@ -2985,7 +2987,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "signal-crypto"
 version = "0.1.0"
-source = "git+https://github.com/signalapp/libsignal.git#5cec74cb24b8131a94f9151af370075166a0f4e4"
+source = "git+https://github.com/signalapp/libsignal.git#d760934874d1abcc6849f7ed4813807acb463108"
 dependencies = [
  "aes",
  "cbc",
