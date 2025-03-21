@@ -8,3 +8,8 @@ license.workspace = true
 
 [dependencies]
 sam-common = { workspace = true }
+prost = { workspace = true }
+bon = { workspace = true }
+
+[build-dependencies]
+prost-build = { workspace = true }

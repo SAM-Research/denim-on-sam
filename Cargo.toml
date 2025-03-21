@@ -17,3 +17,7 @@ sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git"
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
 tokio = { version = "1.40.0", features = ["full"] }
+prost-build = { version = "0.13.5" }
+prost = { version = "0.13.5" }
+bon =  "3.5.0"
+math = "0.11.0"
