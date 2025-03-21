@@ -73,9 +73,6 @@ message DenimChunk {
 message DenimMessage {
   required bytes sam_message = 1;
   repeated DenimChunk chunks = 2;
-  optional double q = 4;
-  required int32 ballast = 5;
-  optional int32 extra_ballast = 6;
 }
 
 message KeyStruct {
