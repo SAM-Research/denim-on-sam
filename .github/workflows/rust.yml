@@ -173,8 +173,8 @@ jobs:
             echo "cargo-llvm-cov found in cache, skipping installation"
           fi
 
-      - name: Generate Certificates
-        run: cd ./e2e/cert && ./generate_cert.sh
+      #- name: Generate Certificates
+      #  run: cd ./e2e/cert && ./generate_cert.sh
 
       - name: Test & Coverage
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
