@@ -54,7 +54,7 @@ async fn main() {
 
     let config = DenimConfig {
         state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10),
-        addr: addr,
+        addr,
     };
 
     start_proxy(config).await.unwrap()

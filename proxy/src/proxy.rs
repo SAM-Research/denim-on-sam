@@ -29,7 +29,7 @@ pub async fn connect_to_sam_server(
         .and_then(|h| h.to_str().ok())
         .ok_or(ServerError::SAMUnAuth)?
         .to_string();
-    let mut client: WebSocketClient = websocket_config(basic, &state)?.into();
+    let mut client: WebSocketClient = websocket_config(basic, state)?.into();
 
     let queue = client
         .connect(ProxyWebSocketReceiver {})

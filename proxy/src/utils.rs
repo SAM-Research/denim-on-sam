@@ -21,9 +21,9 @@ pub fn into_axum_message(msg: Message) -> Option<AxumMessage> {
                 .ok()?
                 .into(),
         ),
-        Message::Binary(bytes) => AxumMessage::Binary(bytes.into()),
-        Message::Ping(bytes) => AxumMessage::Ping(bytes.into()),
-        Message::Pong(bytes) => AxumMessage::Pong(bytes.into()),
+        Message::Binary(bytes) => AxumMessage::Binary(bytes),
+        Message::Ping(bytes) => AxumMessage::Ping(bytes),
+        Message::Pong(bytes) => AxumMessage::Pong(bytes),
         Message::Close(Some(close_frame)) => AxumMessage::Close(Some(AxumCloseFrame {
             code: close_frame.code.into(),
             reason: close_frame.reason.to_string().into(),
@@ -38,9 +38,9 @@ pub fn into_axum_message(msg: Message) -> Option<AxumMessage> {
 pub fn into_tungstenite_message(msg: AxumMessage) -> Option<TungsteniteMessage> {
     Some(match msg {
         AxumMessage::Text(text) => TungsteniteMessage::Text(text.to_string().into()),
-        AxumMessage::Binary(bytes) => TungsteniteMessage::Binary(bytes.into()),
-        AxumMessage::Ping(bytes) => TungsteniteMessage::Ping(bytes.into()),
-        AxumMessage::Pong(bytes) => TungsteniteMessage::Pong(bytes.into()),
+        AxumMessage::Binary(bytes) => TungsteniteMessage::Binary(bytes),
+        AxumMessage::Ping(bytes) => TungsteniteMessage::Ping(bytes),
+        AxumMessage::Pong(bytes) => TungsteniteMessage::Pong(bytes),
         AxumMessage::Close(Some(close_frame)) => {
             TungsteniteMessage::Close(Some(TungsteniteCloseFrame {
                 code: close_frame.code.into(),

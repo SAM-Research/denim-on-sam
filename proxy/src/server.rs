@@ -16,7 +16,7 @@ pub async fn start_proxy(config: DenimConfig) -> Result<(), std::io::Error> {
         .with_state(config.state);
 
     info!("Starting DenIM Proxy on http://{}...", config.addr);
-    Ok(axum_server::bind(config.addr)
+    axum_server::bind(config.addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await?)
+        .await
 }
