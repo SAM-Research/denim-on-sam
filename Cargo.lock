@@ -764,6 +764,9 @@ dependencies = [
 name = "denim-sam-common"
 version = "0.1.0"
 dependencies = [
+ "bon",
+ "prost",
+ "prost-build",
  "sam-common",
 ]
 
