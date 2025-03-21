@@ -52,8 +52,8 @@ jobs:
       - name: Verify SQLx installation
         run: sqlx --version
 
-      - name: Setup sqlx
-        run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
 
       - name: Run fmt
         run: cargo fmt --all -- --check
@@ -103,8 +103,8 @@ jobs:
       - name: Verify SQLx installation
         run: sqlx --version
 
-      - name: Setup sqlx
-        run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
 
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -154,8 +154,8 @@ jobs:
       - name: Verify SQLx installation
         run: sqlx --version
 
-      - name: Setup sqlx
-        run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+      #- name: Setup sqlx
+      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
 
       - name: Cache Cargo bin (for llvm-cov)
         uses: actions/cache@v4
