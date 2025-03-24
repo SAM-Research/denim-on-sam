@@ -17,6 +17,8 @@ Cargo.lock
 **.db*
 .idea/
 
-e2e/cert/rootCA.crt
-e2e/cert/server.crt
-e2e/cert/server.key
+**/rootCA.crt
+**/server.crt
+**/server.key
+**/client.key
+**/client.crt

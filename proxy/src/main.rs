@@ -53,8 +53,9 @@ async fn main() {
         .expect("Unable to parse socket address");
 
     let config = DenimConfig {
-        state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10),
+        state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10, None),
         addr,
+        tls_config: None,
     };
 
     start_proxy(config).await.unwrap()

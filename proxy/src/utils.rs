@@ -4,7 +4,10 @@ use axum::{
 };
 use log::debug;
 use sam_client::net::protocol::websocket::WebSocketClientConfig;
-use tokio_tungstenite::tungstenite::{protocol::CloseFrame, Message};
+use tokio_tungstenite::{
+    tungstenite::{protocol::CloseFrame, Message},
+    Connector,
+};
 
 use crate::{error::ServerError, state::DenimState};
 
@@ -55,9 +58,17 @@ pub fn websocket_config(
     basic: String,
     state: &DenimState,
 ) -> Result<WebSocketClientConfig, ServerError> {
+    let (url, connector) = match state.ws_proxy_tls_config() {
+        None => (format!("ws://{}", state.sam_url()), None),
+        Some(config) => (
+            format!("wss://{}", state.sam_url()),
+            Some(Connector::Rustls(config)),
+        ),
+    };
     Ok(WebSocketClientConfig::builder()
         .buffer(state.channel_buffer())
-        .url(format!("{}/api/v1/websocket", state.sam_url()))
+        .maybe_tls(connector)
+        .url(format!("{}/api/v1/websocket", url))
         .headers(vec![(
             http::header::AUTHORIZATION,
             http::HeaderValue::from_str(&basic)

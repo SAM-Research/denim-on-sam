@@ -14,3 +14,4 @@ tokio = { workspace = true, features = ["full"] }
 env_logger = { workspace = true }
 rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
+rstest = { workspace = true }

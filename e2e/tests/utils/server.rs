@@ -71,8 +71,9 @@ impl Drop for TestDenimProxy {
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str) -> Self {
         let config = DenimConfig {
-            state: DenimState::new(sam_addr.to_string(), 10),
+            state: DenimState::new(sam_addr.to_string(), 10, None),
             addr: proxy_addr.parse().expect("Unable to parse socket address"),
+            tls_config: None,
         };
         let (tx, started_rx) = oneshot::channel::<()>();
         let thread = tokio::spawn(async move {
