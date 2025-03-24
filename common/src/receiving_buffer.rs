@@ -1,6 +1,9 @@
+use std::fmt::Display;
 use std::hash::Hash;
 use std::{collections::HashMap, mem::take};
 
+use derive_more::{Display, Error};
+use log::error;
 use prost::Message;
 
 use crate::denim_message::{DeniablePayload, DenimChunk, Flag};
@@ -10,15 +13,33 @@ pub struct InMemoryReceivingBuffer<T: Eq + Hash> {
     buffers: HashMap<T, Vec<DenimChunk>>,
 }
 
-impl<T: Eq + Hash> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
+#[derive(Debug, Display)]
+pub enum ChunkDecodeErrorType {
+    #[display("Failed to decode message")]
+    ChunkDecodeFailed,
+}
+
+#[derive(Debug, Display, Error)]
+#[display("Message from {sender} failed to be delivered: {}", r#type)]
+pub struct ChunkDecodeError {
+    #[error(not(source))]
+    sender: String,
+    r#type: ChunkDecodeErrorType,
+}
+
+impl<T: Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
     async fn process_chunks(
         &mut self,
         sender: T,
         mut chunks: Vec<DenimChunk>,
-    ) -> Vec<DeniablePayload> {
+    ) -> Vec<Result<DeniablePayload, ChunkDecodeError>> {
         let completed: Vec<u32> = chunks
             .iter()
-            .filter(|chunk| chunk.flag.is_some_and(|flag| flag == Flag::Final.into()))
+            .filter(|chunk| {
+                chunk
+                    .flag
+                    .is_some_and(|flag| flag == i32::from(Flag::Final))
+            })
             .map(|chunk| chunk.message_id)
             .collect();
 
@@ -42,7 +63,13 @@ impl<T: Eq + Hash> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
                 .collect::<Vec<Vec<u8>>>()
                 .concat();
 
-            let message = DeniablePayload::decode(message_bytes.as_slice()).unwrap();
+            let message = DeniablePayload::decode(message_bytes.as_slice())
+                .inspect_err(|err| error!("{err}"))
+                .map_err(|_| ChunkDecodeError {
+                    sender: sender.to_string(),
+                    r#type: ChunkDecodeErrorType::ChunkDecodeFailed,
+                });
+
             messages.push(message);
         }
 
@@ -51,7 +78,11 @@ impl<T: Eq + Hash> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
 }
 
 pub trait ReceivingBuffer<T: Eq + Hash> {
-    async fn process_chunks(&mut self, sender: T, chunks: Vec<DenimChunk>) -> Vec<DeniablePayload>;
+    async fn process_chunks(
+        &mut self,
+        sender: T,
+        chunks: Vec<DenimChunk>,
+    ) -> Vec<Result<DeniablePayload, ChunkDecodeError>>;
 }
 
 #[cfg(test)]
@@ -95,7 +126,13 @@ mod test {
             .chunk(part2.to_vec())
             .build();
 
-        let actual = buffer.process_chunks(1, vec![chunk1, chunk2]).await;
+        let actual: Vec<DeniablePayload> = buffer
+            .process_chunks(1, vec![chunk1, chunk2])
+            .await
+            .into_iter()
+            .map(|payload| payload.expect("can decode payload"))
+            .collect();
+
         let expect = vec![payload];
 
         assert!(actual == expect);

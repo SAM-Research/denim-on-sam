@@ -19,4 +19,7 @@ sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git"
 tokio = { version = "1.40.0", features = ["full"] }
 prost-build = { version = "0.13.5" }
 prost = { version = "0.13.5" }
-bon =  "3.5.0"
+bon = "3.5.0"
+env_logger = "0.11.6"
+log = "0.4.25"
+derive_more = { version = "2.0.1" }
