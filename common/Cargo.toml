@@ -10,6 +10,7 @@ license.workspace = true
 sam-common = { workspace = true }
 prost = { workspace = true }
 bon = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 prost-build = { workspace = true }

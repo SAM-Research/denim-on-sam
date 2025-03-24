@@ -66,8 +66,9 @@ enum Flag {
 
 message DenimChunk {
   required bytes chunk = 1;
-  required uint32 sequence_number = 2;
-  required Flag flag = 3;
+  required uint32 message_id = 2;
+  required uint32 sequence_number = 3;
+  optional Flag flag = 4;
 }
 
 message DenimMessage {

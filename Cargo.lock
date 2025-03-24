@@ -768,6 +768,7 @@ dependencies = [
  "prost",
  "prost-build",
  "sam-common",
+ "tokio",
 ]
 
 [[package]]
