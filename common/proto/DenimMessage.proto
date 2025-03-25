@@ -60,14 +60,16 @@ message DeniablePayload {
 }
 
 enum Flag {
-  FINAL = 1;
-  DUMMY_PADDING = 2;
+  NONE = 1;
+  FINAL = 2;
+  DUMMY_PADDING = 3;
 }
 
 message DenimChunk {
   required bytes chunk = 1;
-  required uint32 sequence_number = 2;
-  required Flag flag = 3;
+  required uint32 message_id = 2;
+  required uint32 sequence_number = 3;
+  required Flag flag = 4;
 }
 
 message DenimMessage {

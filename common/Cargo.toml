@@ -10,6 +10,11 @@ license.workspace = true
 sam-common = { workspace = true }
 prost = { workspace = true }
 bon = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+log = { workspace = true }
+env_logger = { workspace = true }
+derive_more = { workspace = true, features = ["display", "error", "from"] }
+async-trait = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true }
