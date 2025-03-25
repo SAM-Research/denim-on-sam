@@ -12,7 +12,7 @@ prost = { workspace = true }
 bon = { workspace = true }
 rand = {workspace = true}
 log = {workspace = true}
-flatbuffers = { workspace = true }
+bincode = {workspace = true}
 
 [build-dependencies]
 prost-build = { workspace = true }

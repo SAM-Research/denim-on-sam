@@ -42,10 +42,6 @@ message Error {
   optional bytes account_id = 2;
 }
 
-message DummyPadding {
-  required bytes padding = 1;
-}
-
 message DeniableMessage {
   required uint32 message_id = 1;
   oneof message_kind {
@@ -55,31 +51,9 @@ message DeniableMessage {
     KeyResponse key_response = 5;
     KeyUpdate key_refill = 6;
     SeedUpdate seed_update = 7;
-    DummyPadding dummy = 8;
-    Error error = 9;
+    Error error = 8;
   }
 }
-
-/*
-enum Flag {
-  FINAL = 1;
-  NOT_FINAL = 2;
-  DUMMY_PADDING = 3;
-}
-
-message DenimChunk {
-  required bytes chunk = 1;
-  required uint32 sequence_number = 2;
-  required Flag flag = 3;
-}
-
-message DenimMessage {
-  required bytes sam_message = 1;
-  repeated DenimChunk chunks = 2;
-  required bytes ballast = 3;
-}
-
- */
 
 message KeyStruct {
   required int32 id = 1;

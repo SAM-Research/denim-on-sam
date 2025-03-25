@@ -1,16 +1,14 @@
 use crate::denim_message::{DeniableMessage, UserMessage};
-use crate::denim_message_flatbuffer::{DenimChunkArgs, DenimChunkT, Flag};
-use flatbuffers::FlatBufferBuilder;
+use bincode::{Encode, config, Decode};
 use log::info;
 use prost::Message;
 use rand::RngCore;
 use std::collections::VecDeque;
+use crate::error::LibError;
 
-const PROTOBUF_LENGTH_PREFIX: usize = 1;
+const DENIM_CHUNK_WITHOUT_PAYLOAD: usize = 4;
 
-const PROTOBUF_TAG_SIZE: usize = 1;
-const DENIM_CHUNK_WITHOUT_PAYLOAD: usize = 6;
-const DUMMY_PAYLOAD_WITHOUT_CONTENT: usize = 4;
+const DENIABLE_PAYLOAD_MIN_LENGTH: usize = 20;
 
 struct Buffer {
     content: Vec<u8>,
@@ -24,22 +22,37 @@ struct SendingBuffer {
     buffer: Buffer,
 }
 
+#[derive(Encode, Decode)]
+struct DenimChunk {
+    chunk: Vec<u8>,
+    message_id: u32,
+    sequence_number: u32,
+    flag: Flag
+}
+
+#[derive(Encode, Decode)]
+enum Flag {
+    NotFinal = 1,
+    Final = 2,
+    DummyPadding = 3,
+}
+
 struct DeniablePayload {
     denim_chunks: Vec<Vec<u8>>,
     garbage: Option<Vec<u8>>,
 }
 
 impl SendingBuffer {
-    pub fn get_deniable_payload(&mut self, reg_message_len: u32) -> Option<DeniablePayload> {
+    pub fn get_deniable_payload(&mut self, reg_message_len: u32) -> Result<Option<DeniablePayload>, LibError> {
         if self.q == 0.0 {
-            return None;
-        } // no deniable traffic
+            return Ok(None);
+        }
 
-        let deniable_payload_length = self.calculate_deniable_payload_length(reg_message_len);
+        let mut available_bytes = self.calculate_deniable_payload_length(reg_message_len);
 
-        let mut available_bytes = deniable_payload_length;
-
-        let mut builder = FlatBufferBuilder::new();
+        if available_bytes < DENIABLE_PAYLOAD_MIN_LENGTH {
+            return Ok(Some(DeniablePayload{ denim_chunks: vec![], garbage: Some(self.create_n_random_bytes(available_bytes)) }))
+        }
 
         let mut denim_chunks: Vec<Vec<u8>> = Vec::new();
 
@@ -56,32 +69,27 @@ impl SendingBuffer {
                 None => {
                     break;
                 }
-                Some(chunk_t) => {
-                    let denim_chunk = chunk_t.pack(&mut builder);
-                    builder.finish(denim_chunk, None);
-                    let chunk_serialized = builder.finished_data();
-                    available_bytes -= chunk_serialized.len();
+                Some(chunk) => {
+                    let encoded_chunk = bincode::encode_to_vec(chunk, config::standard()).map_err(|_| LibError::EncodingError)?;
+                    available_bytes -= encoded_chunk.len();
                     info!(
                         "Denim chunk piggybacked has size {:?}",
-                        chunk_serialized.len()
+                        encoded_chunk.len()
                     );
                     self.buffer.next_sequence_number += 1;
-                    denim_chunks.push(chunk_serialized.to_owned());
+                    denim_chunks.push(encoded_chunk);
                 }
             }
         }
-        if available_bytes >= DENIM_CHUNK_WITHOUT_PAYLOAD + DUMMY_PAYLOAD_WITHOUT_CONTENT {
+        if available_bytes >= DENIM_CHUNK_WITHOUT_PAYLOAD {
             // Send deniable payload
             let dummy_chunk_length =
-                available_bytes - (DENIM_CHUNK_WITHOUT_PAYLOAD + DUMMY_PAYLOAD_WITHOUT_CONTENT);
+                available_bytes - DENIM_CHUNK_WITHOUT_PAYLOAD;
 
-            let dummy_chunk_t = self.create_dummy_chunk(dummy_chunk_length);
+            let dummy_chunk = self.create_dummy_chunk(dummy_chunk_length);
+            let encoded_chunk = bincode::encode_to_vec(dummy_chunk, config::standard()).map_err(|_| LibError::EncodingError)?;
 
-            let denim_chunk = dummy_chunk_t.pack(&mut builder);
-            builder.finish(denim_chunk, None);
-            let chunk_serialized = builder.finished_data();
-
-            denim_chunks.push(chunk_serialized.to_owned());
+            denim_chunks.push(encoded_chunk);
         }
 
         info!(
@@ -93,23 +101,23 @@ impl SendingBuffer {
         if available_bytes > 0 {
             let mut random_bytes = vec![0u8; available_bytes];
             rand::rng().fill_bytes(&mut random_bytes);
-            return Some(DeniablePayload {
+            return Ok(Some(DeniablePayload {
                 denim_chunks,
                 garbage: Some(random_bytes),
-            });
+            }));
         }
 
-        Some(DeniablePayload {
+        Ok(Some(DeniablePayload {
             denim_chunks,
             garbage: None,
-        })
+        }))
     }
 
     pub fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
         (reg_message_len as f32 * self.q).ceil() as usize
     }
 
-    pub fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunkT> {
+    pub fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {
         if self.buffer.content.is_empty() {
             self.buffer = match self.outgoing_messages.pop_front() {
                 None => return None,
@@ -121,33 +129,39 @@ impl SendingBuffer {
             }
         }
         if available_bytes >= self.buffer.content.len() {
-            return Some(DenimChunkT {
+            return Some(DenimChunk {
                 chunk: std::mem::take(&mut self.buffer.content),
-                message_id: 0,
+                message_id: self.buffer.message_id,
                 sequence_number: self.buffer.next_sequence_number as u32,
-                flag: Flag::NOT_FINAL,
+                flag: Flag::NotFinal,
             });
         };
 
         let next_chunk: Vec<u8> = self.buffer.content.drain(..available_bytes).collect();
 
-        Some(DenimChunkT {
+        Some(DenimChunk {
             chunk: next_chunk,
-            message_id: 0,
+            message_id: self.buffer.message_id,
             sequence_number: self.buffer.next_sequence_number as u32,
-            flag: Flag::IS_FINAL,
+            flag: Flag::Final,
         })
     }
 
-    pub fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunkT {
+    pub fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
         let mut random_bytes = vec![0u8; available_bytes];
         rand::rng().fill_bytes(&mut random_bytes);
-        DenimChunkT {
+        DenimChunk {
             chunk: random_bytes,
             message_id: 0,
             sequence_number: 0,
-            flag: Flag::DUMMY_PADDING,
+            flag: Flag::DummyPadding,
         }
+    }
+
+    fn create_n_random_bytes(&self, n: usize) -> Vec<u8> {
+        let mut random_bytes = vec![0u8; n];
+        rand::rng().fill_bytes(&mut random_bytes);
+        random_bytes
     }
 }
 
@@ -155,7 +169,7 @@ impl SendingBuffer {
 mod test {
     use super::*;
     use crate::denim_message::deniable_message::MessageKind;
-    use crate::denim_message::{DummyPadding, MessageType};
+    use crate::denim_message::{MessageType};
     use rand::RngCore;
 
     fn make_deniable_messages() -> VecDeque<DeniableMessage> {
@@ -197,41 +211,38 @@ mod test {
 
     #[test]
     fn get_next_chunk() {
-        let mut builder = FlatBufferBuilder::new();
         let q = 1.0;
         let regular_msg_len = 20;
         let deniable_content_length = (regular_msg_len as f32 * q) as usize;
-        let mut random_bytes = vec![0u8; deniable_content_length * 2];
+        let mut random_bytes = vec![0u8; 10];
         rand::rng().fill_bytes(&mut random_bytes);
 
-        let deniable_payload = DeniableMessage::builder()
-            .message_kind(MessageKind::Dummy(DummyPadding {
-                padding: random_bytes.clone(),
-            }))
-            .message_id(0)
-            .build();
+        let deniable_payload = random_bytes.clone();
 
         let mut sending_buffer = SendingBuffer {
             q: q,
             outgoing_messages: VecDeque::new(),
             buffer: Buffer {
-                content: deniable_payload.encode_to_vec(),
+                content: deniable_payload,
                 message_id: 0,
                 next_sequence_number: 0,
             },
         };
 
-        let denim_chunk_t = sending_buffer.get_next_chunk(deniable_content_length);
+        let denim_chunk = sending_buffer.get_next_chunk(deniable_content_length).expect("Should return Chunk");
 
-        let denim_chunk = denim_chunk_t.unwrap().pack(&mut builder);
-        builder.finish(denim_chunk, None);
-        let chunk_serialized = builder.finished_data();
+        println!("DenimChunk content size: {:?}", denim_chunk.chunk.len());
+        let denim_chunk_serialized = bincode::encode_to_vec(denim_chunk, config::standard()).expect("Can encode DenimChunk");
+
+
+
 
         assert_eq!(
-            chunk_serialized.len(),
-            random_bytes.len() / 2 + DENIM_CHUNK_WITHOUT_PAYLOAD
+            denim_chunk_serialized.len(),
+            random_bytes.len() + DENIM_CHUNK_WITHOUT_PAYLOAD
         );
     }
+
 
     #[test]
     fn get_deniable_payload() {
@@ -241,11 +252,7 @@ mod test {
         let mut random_bytes = vec![0u8; 4];
         rand::rng().fill_bytes(&mut random_bytes);
 
-        let deniable_payload = DeniableMessage::builder()
-            .message_kind(MessageKind::Dummy(DummyPadding {
-                padding: random_bytes.clone(),
-            }))
-            .build();
+        let deniable_payload = random_bytes.clone();
 
         let deniable_messages = make_deniable_messages();
 
@@ -253,31 +260,35 @@ mod test {
             q: q,
             outgoing_messages: deniable_messages,
             buffer: Buffer {
-                content: deniable_payload.encode_to_vec(),
+                content: deniable_payload,
                 message_id: 0,
                 next_sequence_number: 0,
             },
         };
 
-        let first_message = sending_buffer.outgoing_messages[0].to_owned();
+        let deniable_payload = sending_buffer.get_deniable_payload(regular_msg_len).unwrap().expect("Should be Some");
+        let first_chunk = deniable_payload.denim_chunks[0].to_owned();
 
-        let deniable_payload = sending_buffer.get_deniable_payload(regular_msg_len);
-
-        let first_chunk = deniable_payload[0].to_owned();
         assert_eq!(
-            first_chunk.encode_to_vec().len(),
-            random_bytes.len() + DENIM_CHUNK_WITHOUT_PAYLOAD + DUMMY_PAYLOAD_WITHOUT_CONTENT
+            first_chunk.len(),
+            random_bytes.len() + DENIM_CHUNK_WITHOUT_PAYLOAD
         );
 
-        let second_chunk = deniable_payload[1].to_owned();
+
+
+        //let second_chunk = deniable_payload.denim_chunks[1].to_owned();
         //assert_eq!(second_chunk.encode_to_vec().len(), )
 
-        let total_size: usize = deniable_payload
-            .unwrap()
+        let mut total_size: usize = deniable_payload
             .denim_chunks
             .iter()
             .map(|chunk| chunk.len())
             .sum::<usize>();
+
+        if let Some(garbage) = deniable_payload.garbage {
+            total_size += garbage.len();
+        }
+
         println!("Deniable payload length: {:?}", total_size);
         assert_eq!(total_size, (q * regular_msg_len as f32) as usize);
     }
