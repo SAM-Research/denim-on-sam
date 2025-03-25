@@ -1,7 +1,7 @@
 use std::io::BufReader;
 
-use sam_client::net::tls::{create_tls_config, MutualTLSConfig};
-use sam_server::{create_tls_config as create_server_tls_config, error::TLSConfigError};
+use sam_client::net::tls::{create_tls_config, MutualTlsConfig};
+use sam_server::{create_tls_config as create_server_tls_config, error::TlsConfigError};
 use serde::{Deserialize, Serialize};
 
 use crate::error::TLSError;
@@ -23,7 +23,7 @@ pub struct MtlsClientConfig {
 }
 
 impl TlsConfig {
-    pub fn load(path: String) -> Result<Self, TLSConfigError> {
+    pub fn load(path: String) -> Result<Self, TlsConfigError> {
         let file = std::fs::File::open(path)?;
         let reader = BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
@@ -36,7 +36,7 @@ impl TlsConfig {
             Some(&self.ca_cert_path),
         )?;
         let mutual = if let Some(config) = self.proxy_client {
-            Some(MutualTLSConfig::new(config.key_path, config.cert_path))
+            Some(MutualTlsConfig::new(config.key_path, config.cert_path))
         } else {
             None
         };
