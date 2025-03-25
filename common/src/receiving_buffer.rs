@@ -1,16 +1,34 @@
-use std::fmt::Display;
-use std::hash::Hash;
-use std::{collections::HashMap, mem::take};
-
+use async_trait::async_trait;
 use derive_more::{Display, Error};
 use log::error;
 use prost::Message;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt::Display;
+use std::hash::Hash;
 
 use crate::denim_message::{DeniablePayload, DenimChunk, Flag};
 
+#[derive(Debug)]
+pub struct ChunkBuffer {
+    chunks: HashMap<u32, Vec<u8>>,
+    waiting_for: HashSet<u32>,
+}
+
+impl Default for ChunkBuffer {
+    fn default() -> Self {
+        let mut waiting_for = HashSet::new();
+        waiting_for.insert(0);
+        ChunkBuffer {
+            chunks: Default::default(),
+            waiting_for,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
-pub struct InMemoryReceivingBuffer<T: Eq + Hash> {
-    buffers: HashMap<T, Vec<DenimChunk>>,
+pub struct InMemoryReceivingBuffer<Sender: Eq + Hash> {
+    buffers: HashMap<Sender, HashMap<u32, ChunkBuffer>>,
 }
 
 #[derive(Debug, Display)]
@@ -27,56 +45,55 @@ pub struct ChunkDecodeError {
     r#type: ChunkDecodeErrorType,
 }
 
-impl<T: Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
+#[async_trait]
+impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
     async fn process_chunks(
         &mut self,
         sender: T,
-        mut chunks: Vec<DenimChunk>,
+        chunks: Vec<DenimChunk>,
     ) -> Vec<Result<DeniablePayload, ChunkDecodeError>> {
-        let completed: Vec<u32> = chunks
-            .iter()
-            .filter(|chunk| {
-                chunk
-                    .flag
-                    .is_some_and(|flag| flag == i32::from(Flag::Final))
-            })
-            .map(|chunk| chunk.message_id)
-            .collect();
-
         let buffer = self.buffers.entry(sender).or_default();
-        buffer.append(&mut chunks);
-
         let mut messages = Vec::new();
-        for message_id in completed {
-            let (mut message_chunks, chunks): (Vec<_>, Vec<_>) = take(buffer)
-                .into_iter()
-                .partition(|chunk| chunk.message_id == message_id);
-            buffer.extend(chunks);
+        for chunk in chunks {
+            let message_id = chunk.message_id;
+            let chunk_buffer = buffer.entry(message_id).or_default();
 
-            message_chunks.sort_unstable_by(|a, b| a.sequence_number.cmp(&b.sequence_number));
-            // Todo: check missing sequence numbers
-            // Todo: check duplicate sequence numbers
+            if !chunk_buffer.waiting_for.contains(&chunk.sequence_number) {
+                todo!("Handle duplicate sequence_number");
+            } else {
+                chunk_buffer.waiting_for.remove(&chunk.sequence_number);
+                let next = chunk.sequence_number + 1;
+                chunk_buffer
+                    .chunks
+                    .insert(chunk.sequence_number, chunk.chunk);
+                if chunk.flag != Flag::Final.into() {
+                    chunk_buffer.waiting_for.insert(next);
+                    println!("next {}", next);
+                }
+            }
+            if chunk_buffer.waiting_for.is_empty() {
+                let chunk_buffer = buffer.remove(&message_id).unwrap();
+                let seq_num_max: u32 = chunk_buffer.chunks.keys().max().cloned().unwrap_or(0u32);
+                let mut completed = Vec::with_capacity(seq_num_max as usize);
+                for (id, chunk) in chunk_buffer.chunks {
+                    completed.insert(id as usize, chunk);
+                }
 
-            let message_bytes: Vec<u8> = message_chunks
-                .into_iter()
-                .map(|chunk| chunk.chunk)
-                .collect::<Vec<Vec<u8>>>()
-                .concat();
-
-            let message = DeniablePayload::decode(message_bytes.as_slice())
-                .inspect_err(|err| error!("{err}"))
-                .map_err(|_| ChunkDecodeError {
-                    sender: sender.to_string(),
-                    r#type: ChunkDecodeErrorType::ChunkDecodeFailed,
-                });
-
-            messages.push(message);
+                let bytes = completed.concat();
+                let payload = DeniablePayload::decode(bytes.as_slice())
+                    .inspect_err(|err| error!("{err}"))
+                    .map_err(|_| ChunkDecodeError {
+                        sender: sender.to_string(),
+                        r#type: ChunkDecodeErrorType::ChunkDecodeFailed,
+                    });
+                messages.push(payload);
+            }
         }
-
         messages
     }
 }
 
+#[async_trait]
 pub trait ReceivingBuffer<T: Eq + Hash> {
     async fn process_chunks(
         &mut self,
@@ -96,6 +113,7 @@ mod test {
 
     #[tokio::test]
     async fn in_memory_receiving_buffer() {
+        _ = env_logger::try_init();
         let mut buffer = InMemoryReceivingBuffer::default();
 
         let payload = DeniablePayload::builder()
@@ -117,6 +135,7 @@ mod test {
             .message_id(0)
             .sequence_number(0)
             .chunk(part1.to_vec())
+            .flag(Flag::None.into())
             .build();
 
         let chunk2 = DenimChunk::builder()
