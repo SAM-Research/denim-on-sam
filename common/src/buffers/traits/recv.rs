@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use derive_more::{Display, Error};
 use std::hash::Hash;
 
+use crate::{buffers::DenimChunk, denim_message::DeniableMessage};
+
 #[derive(Debug, Display, Error)]
 #[display("Message from {sender} failed to be decoded")]
 pub struct ChunkDecodeError {
@@ -15,13 +17,11 @@ impl ChunkDecodeError {
     }
 }
 
-use crate::denim_message::{DeniablePayload, DenimChunk};
-
 #[async_trait]
 pub trait ReceivingBuffer<T: Eq + Hash> {
     async fn process_chunks(
         &mut self,
         sender: T,
         chunks: Vec<DenimChunk>,
-    ) -> Vec<Result<DeniablePayload, ChunkDecodeError>>;
+    ) -> Vec<Result<DeniableMessage, ChunkDecodeError>>;
 }

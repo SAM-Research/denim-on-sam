@@ -1,14 +1,17 @@
 use async_trait::async_trait;
 use log::error;
-use prost::Message;
+use prost::Message as _;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::mem::take;
 
 use crate::buffers::ChunkDecodeError;
+use crate::buffers::DenimChunk;
+use crate::buffers::Flag;
 use crate::buffers::ReceivingBuffer;
-use crate::denim_message::{DeniablePayload, DenimChunk, Flag};
+use crate::denim_message::DeniableMessage;
 
 #[derive(Debug)]
 pub struct ChunkBuffer {
@@ -38,22 +41,22 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
         &mut self,
         sender: T,
         chunks: Vec<DenimChunk>,
-    ) -> Vec<Result<DeniablePayload, ChunkDecodeError>> {
+    ) -> Vec<Result<DeniableMessage, ChunkDecodeError>> {
         let buffer = self.buffers.entry(sender).or_default();
         let mut messages = Vec::new();
-        for chunk in chunks {
-            let message_id = chunk.message_id;
+        for mut chunk in chunks {
+            let message_id = chunk.message_id();
             let chunk_buffer = buffer.entry(message_id).or_default();
 
-            if !chunk_buffer.waiting_for.contains(&chunk.sequence_number) {
+            if !chunk_buffer.waiting_for.contains(&chunk.sequence_number()) {
                 todo!("Handle duplicate sequence_number");
             } else {
-                chunk_buffer.waiting_for.remove(&chunk.sequence_number);
-                let next = chunk.sequence_number + 1;
+                chunk_buffer.waiting_for.remove(&chunk.sequence_number());
+                let next = chunk.sequence_number() + 1;
                 chunk_buffer
                     .chunks
-                    .insert(chunk.sequence_number, chunk.chunk);
-                if chunk.flag != i32::from(Flag::Final) {
+                    .insert(chunk.sequence_number(), take(chunk.chunk_mut()));
+                if chunk.flag() != Flag::Final {
                     chunk_buffer.waiting_for.insert(next);
                     println!("next {}", next);
                 }
@@ -73,7 +76,7 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                             acc
                         });
 
-                let payload = DeniablePayload::decode(bytes.as_slice())
+                let payload = DeniableMessage::decode(bytes.as_slice())
                     .inspect_err(|err| error!("{err}"))
                     .map_err(|_| ChunkDecodeError::new(sender.to_string()));
                 messages.push(payload);
@@ -85,8 +88,10 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
 
 #[cfg(test)]
 mod test {
-    use crate::buffers::{InMemoryReceivingBuffer, ReceivingBuffer};
-    use crate::denim_message::{DeniablePayload, DenimChunk, Flag};
+    use crate::{
+        buffers::{DenimChunk, Flag, InMemoryReceivingBuffer, ReceivingBuffer},
+        denim_message::{deniable_message::MessageKind, DeniableMessage},
+    };
     use bon::vec;
     use prost::Message;
 
@@ -95,15 +100,12 @@ mod test {
         _ = env_logger::try_init();
         let mut buffer = InMemoryReceivingBuffer::default();
 
-        let payload = DeniablePayload::builder()
-            .message_kind(
-                crate::denim_message::deniable_payload::MessageKind::SeedUpdate(
-                    crate::denim_message::SeedUpdate {
-                        pre_key_seed: vec![1],
-                        pq_pre_key_seed: vec![2],
-                    },
-                ),
-            )
+        let payload = DeniableMessage::builder()
+            .message_id(0)
+            .message_kind(MessageKind::SeedUpdate(crate::denim_message::SeedUpdate {
+                pre_key_seed: vec![1],
+                pq_pre_key_seed: vec![2],
+            }))
             .build();
 
         let bytes = payload.encode_to_vec();
@@ -114,17 +116,17 @@ mod test {
             .message_id(0)
             .sequence_number(0)
             .chunk(part1.to_vec())
-            .flag(Flag::None.into())
+            .flag(Flag::None)
             .build();
 
         let chunk2 = DenimChunk::builder()
             .message_id(0)
             .sequence_number(1)
-            .flag(Flag::Final.into())
+            .flag(Flag::Final)
             .chunk(part2.to_vec())
             .build();
 
-        let actual: Vec<DeniablePayload> = buffer
+        let actual: Vec<DeniableMessage> = buffer
             .process_chunks(1, vec![chunk1, chunk2])
             .await
             .into_iter()
