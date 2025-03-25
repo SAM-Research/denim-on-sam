@@ -8,3 +8,14 @@ to update sam dependencies just do:
 ```sh
 cargo update -p sam-server
 ```
+
+# End-To-End tests
+
+In order to run the end-to-end tests, you need to generate certificates.
+
+1. Go into `scripts`
+2. Generate certificates by running the following
+
+```zsh
+./generate_cert.sh ../e2e/cert
+```

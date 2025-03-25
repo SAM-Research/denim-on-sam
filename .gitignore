@@ -22,3 +22,6 @@ Cargo.lock
 **/server.key
 **/client.key
 **/client.crt
+**/proxy.key
+**/proxy.crt
+config.json

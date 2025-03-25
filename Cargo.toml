@@ -14,9 +14,9 @@ denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 e2e = { path = "e2e" }
 
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "tls-config" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "tls-config" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "tls-config" }
 rustls = { version = "0.23.15" }
 rustls-pemfile = "2.2.0"
 tokio = { version = "1.40.0" }
@@ -32,6 +32,9 @@ async-trait = "0.1.83"
 env_logger = "0.11.6"
 log = "0.4.25"
 clap = "4.5.32"
+serde_json = "1.0.139"
+serde = { version = "1.0.210" }
+
 
 # Dev dependencies
 rstest = "0.24.0"
