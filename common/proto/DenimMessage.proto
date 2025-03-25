@@ -7,7 +7,7 @@ enum MessageType {
   PLAINTEXT_CONTENT  = 4;
 }
 
-message DeniableMessage {
+message UserMessage {
   required bytes destination_account_id = 1;
   required uint32 destination_device_id = 2;
   required MessageType message_type  = 3;
@@ -46,22 +46,25 @@ message DummyPadding {
   required bytes padding = 1;
 }
 
-message DeniablePayload {
+message DeniableMessage {
+  required uint32 message_id = 1;
   oneof message_kind {
-    BlockRequest block_request = 1;
-    DeniableMessage user_message = 2;
-    KeyRequest key_request = 3;
-    KeyResponse key_response = 4;
-    KeyUpdate key_refill = 5;
-    SeedUpdate seed_update = 6;
-    DummyPadding dummy = 7;
-    Error error = 8;
+    BlockRequest block_request = 2;
+    UserMessage deniable_message = 3;
+    KeyRequest key_request = 4;
+    KeyResponse key_response = 5;
+    KeyUpdate key_refill = 6;
+    SeedUpdate seed_update = 7;
+    DummyPadding dummy = 8;
+    Error error = 9;
   }
 }
 
+/*
 enum Flag {
   FINAL = 1;
-  DUMMY_PADDING = 2;
+  NOT_FINAL = 2;
+  DUMMY_PADDING = 3;
 }
 
 message DenimChunk {
@@ -73,7 +76,10 @@ message DenimChunk {
 message DenimMessage {
   required bytes sam_message = 1;
   repeated DenimChunk chunks = 2;
+  required bytes ballast = 3;
 }
+
+ */
 
 message KeyStruct {
   required int32 id = 1;

@@ -10,6 +10,9 @@ license.workspace = true
 sam-common = { workspace = true }
 prost = { workspace = true }
 bon = { workspace = true }
+rand = {workspace = true}
+log = {workspace = true}
+flatbuffers = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true }
