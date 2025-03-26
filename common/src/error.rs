@@ -1,5 +1,9 @@
+use derive_more::{Display, Error};
 
-#[derive(Debug)]
+use crate::buffers::ChunkDecodeError;
+
+#[derive(Debug, Display, Error)]
 pub enum LibError {
-    EncodingError
+    ChunkDecode(ChunkDecodeError),
+    ChunkEncode,
 }

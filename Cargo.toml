@@ -16,10 +16,13 @@ denim-sam-common = { path = "common" }
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+env_logger = "0.11.6"
+derive_more = "2.0.1"
+log = "0.4.25"
+async-trait = "0.1.83"
 tokio = { version = "1.40.0", features = ["full"] }
 prost-build = { version = "0.13.5" }
 prost = { version = "0.13.5" }
-bon =  "3.5.0"
+bon = "3.5.0"
 rand = "0.9.0"
-log = "0.4.26"
 bincode = "2.0.1"
