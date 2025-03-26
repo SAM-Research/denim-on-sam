@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use clap::{Arg, Command};
 use config::TlsConfig;
 use error::CLIError;
@@ -83,13 +81,9 @@ async fn cli() -> Result<(), CLIError> {
 
     let config = if let Some((server, client)) = tls_config {
         DenimConfig {
-            state: DenimState::new(
-                format!("{}:{}", sam_ip, sam_port),
-                10,
-                Some(Arc::new(client)),
-            ),
+            state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10, Some(client)),
             addr,
-            tls_config: Some(Arc::new(server)),
+            tls_config: Some(server),
         }
     } else {
         DenimConfig {

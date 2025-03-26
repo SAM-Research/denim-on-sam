@@ -11,12 +11,12 @@ impl DenimState {
     pub fn new(
         sam_addr: String,
         channel_buffer: usize,
-        ws_proxy_tls_config: Option<Arc<rustls::ClientConfig>>,
+        ws_proxy_tls_config: Option<rustls::ClientConfig>,
     ) -> Self {
         Self {
             sam_url: sam_addr,
             channel_buffer,
-            ws_proxy_tls_config,
+            ws_proxy_tls_config: ws_proxy_tls_config.map(Arc::new),
         }
     }
 

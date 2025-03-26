@@ -9,7 +9,7 @@ use crate::{routes::websocket_endpoint, state::DenimState};
 pub struct DenimConfig {
     pub state: DenimState,
     pub addr: SocketAddr,
-    pub tls_config: Option<Arc<rustls::ServerConfig>>,
+    pub tls_config: Option<rustls::ServerConfig>,
 }
 
 pub async fn start_proxy(config: DenimConfig) -> Result<(), std::io::Error> {
@@ -23,7 +23,7 @@ pub async fn start_proxy(config: DenimConfig) -> Result<(), std::io::Error> {
         config.addr
     );
     if let Some(tls_config) = config.tls_config {
-        let axum_tls_config = RustlsConfig::from_config(tls_config);
+        let axum_tls_config = RustlsConfig::from_config(Arc::new(tls_config));
         axum_server::bind_rustls(config.addr, axum_tls_config)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;

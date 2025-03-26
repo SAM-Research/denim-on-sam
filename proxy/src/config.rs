@@ -12,12 +12,13 @@ pub struct TlsConfig {
     pub ca_cert_path: String,
     pub proxy_cert_path: String,
     pub proxy_key_path: String,
-    pub proxy_client: Option<MtlsClientConfig>,
+    pub proxy_client: Option<ProxyMtlsConfig>,
+    pub proxy_mtls: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MtlsClientConfig {
+pub struct ProxyMtlsConfig {
     pub cert_path: String,
     pub key_path: String,
 }
@@ -30,11 +31,13 @@ impl TlsConfig {
     }
 
     pub fn create(self) -> Result<(rustls::ServerConfig, rustls::ClientConfig), TLSError> {
-        let server = create_server_tls_config(
-            &self.proxy_cert_path,
-            &self.proxy_key_path,
-            Some(&self.ca_cert_path),
-        )?;
+        let mtls = if self.proxy_mtls {
+            Some(self.ca_cert_path.clone())
+        } else {
+            None
+        };
+        let server =
+            create_server_tls_config(&self.proxy_cert_path, &self.proxy_key_path, mtls.as_deref())?;
         let mutual = if let Some(config) = self.proxy_client {
             Some(MutualTlsConfig::new(config.key_path, config.cert_path))
         } else {

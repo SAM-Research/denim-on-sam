@@ -1,4 +1,5 @@
 use denim_sam_proxy::{
+    config::TlsConfig,
     server::{start_proxy, DenimConfig},
     state::DenimState,
 };
@@ -9,7 +10,7 @@ use sam_server::{
     },
     start_server, ServerConfig, ServerState,
 };
-use std::sync::Arc;
+
 use tokio::{
     sync::oneshot::{self, Receiver},
     task::JoinHandle,
@@ -27,7 +28,7 @@ impl Drop for TestSamServer {
 }
 
 impl TestSamServer {
-    pub async fn start(address: &str, tls_config: Option<Arc<rustls::ServerConfig>>) -> Self {
+    pub async fn start(address: &str, tls_config: Option<rustls::ServerConfig>) -> Self {
         let config = ServerConfig {
             state: in_memory_server_state(),
             addr: address.parse().expect("Unable to parse socket address"),
@@ -69,11 +70,20 @@ impl Drop for TestDenimProxy {
 }
 
 impl TestDenimProxy {
-    pub async fn start(sam_addr: &str, proxy_addr: &str) -> Self {
-        let config = DenimConfig {
-            state: DenimState::new(sam_addr.to_string(), 10, None),
-            addr: proxy_addr.parse().expect("Unable to parse socket address"),
-            tls_config: None,
+    pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
+        let config = if let Some(tls) = config {
+            let (server, client) = tls.create().expect("Can create tls config");
+            DenimConfig {
+                state: DenimState::new(sam_addr.to_string(), 10, Some(client)),
+                addr: proxy_addr.parse().expect("Unable to parse socket address"),
+                tls_config: Some(server),
+            }
+        } else {
+            DenimConfig {
+                state: DenimState::new(sam_addr.to_string(), 10, None),
+                addr: proxy_addr.parse().expect("Unable to parse socket address"),
+                tls_config: None,
+            }
         };
         let (tx, started_rx) = oneshot::channel::<()>();
         let thread = tokio::spawn(async move {
