@@ -2,7 +2,7 @@ use std::io::BufReader;
 
 use clap::{Arg, Command};
 use config::TlsConfig;
-use error::CLIError;
+use error::CliError;
 
 use log::{debug, error, info};
 use server::{start_proxy, DenimConfig};
@@ -17,7 +17,7 @@ mod server;
 mod state;
 mod utils;
 
-async fn cli() -> Result<(), CLIError> {
+async fn cli() -> Result<(), CliError> {
     let matches = Command::new("sam_server")
         .arg(
             Arg::new("sam_ip")
@@ -58,21 +58,21 @@ async fn cli() -> Result<(), CLIError> {
 
     let ip = matches
         .get_one::<String>("proxy_ip")
-        .ok_or(CLIError::ArgumentError("Expected Proxy IP".to_string()))?;
+        .ok_or(CliError::ArgumentError("Expected Proxy IP".to_string()))?;
     let port = matches
         .get_one::<String>("proxy_port")
-        .ok_or(CLIError::ArgumentError("Expected Proxy port".to_string()))?;
+        .ok_or(CliError::ArgumentError("Expected Proxy port".to_string()))?;
     let sam_ip = matches
         .get_one::<String>("sam_ip")
-        .ok_or(CLIError::ArgumentError("Expected SAM IP".to_string()))?;
+        .ok_or(CliError::ArgumentError("Expected SAM IP".to_string()))?;
     let sam_port = matches
         .get_one::<String>("sam_port")
-        .ok_or(CLIError::ArgumentError("Expected SAM port".to_string()))?;
+        .ok_or(CliError::ArgumentError("Expected SAM port".to_string()))?;
 
     let addr = format!("{}:{}", ip, port)
         .parse()
         .inspect_err(|e| debug!("{e}"))
-        .map_err(|_| CLIError::AddressParseError)?;
+        .map_err(|_| CliError::AddressParseError)?;
 
     let tls_config = if let Some(config_path) = matches.get_one::<String>("config") {
         let _ = rustls::crypto::ring::default_provider().install_default();
@@ -100,7 +100,7 @@ async fn cli() -> Result<(), CLIError> {
     start_proxy(config)
         .await
         .inspect_err(|e| debug!("{e}"))
-        .map_err(|_| CLIError::FailedToStartProxy)
+        .map_err(|_| CliError::FailedToStartProxy)
 }
 
 #[tokio::main]

@@ -2,7 +2,7 @@ use sam_client::net::tls::{create_tls_config, MutualTlsConfig};
 use sam_server::create_tls_config as create_server_tls_config;
 use serde::{Deserialize, Serialize};
 
-use crate::error::TLSError;
+use crate::error::TlsError;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,7 +26,7 @@ impl TlsConfig {
         serde_json::from_reader(reader)
     }
 
-    pub fn create(self) -> Result<(rustls::ServerConfig, rustls::ClientConfig), TLSError> {
+    pub fn create(self) -> Result<(rustls::ServerConfig, rustls::ClientConfig), TlsError> {
         let mtls = if self.proxy_mtls {
             Some(self.ca_cert_path.clone())
         } else {

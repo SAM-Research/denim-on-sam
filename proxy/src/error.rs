@@ -19,18 +19,18 @@ impl IntoResponse for ServerError {
 }
 
 #[derive(Debug, Display, Error, From)]
-pub enum CLIError {
+pub enum CliError {
     AddressParseError,
     FailedToStartProxy,
     #[error(ignore)]
     ArgumentError(String),
-    TLSError(TLSError),
+    TLSError(TlsError),
     SerdeError(serde_json::Error),
     IoError(std::io::Error),
 }
 
 #[derive(Debug, Display, Error, From)]
-pub enum TLSError {
+pub enum TlsError {
     Client(ClientTlsError),
     Server(ServerTlsError),
 }
