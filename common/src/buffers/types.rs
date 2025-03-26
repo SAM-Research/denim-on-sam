@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 use bon::Builder;
 
-#[derive(Encode, Decode, Builder)]
+#[derive(Encode, Decode, Builder, Clone)]
 pub struct DenimChunk {
     chunk: Vec<u8>,
     message_id: u32,

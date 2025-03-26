@@ -1,6 +1,6 @@
 use async_trait::async_trait;
+use log::debug;
 use log::error;
-use log::info;
 use prost::Message as _;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -46,7 +46,6 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
         let buffer = self.buffers.entry(sender).or_default();
         let mut messages = Vec::new();
         for mut chunk in chunks {
-            info!("Chunk {}", chunk.sequence_number());
             let message_id = chunk.message_id();
             let chunk_buffer = buffer.entry(message_id).or_default();
             let seq = chunk.sequence_number();
@@ -57,7 +56,7 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                         chunk_buffer.waiting_for.insert(id);
                     }
                 }
-                info!(
+                debug!(
                     "Recieved message chunk out of order. Waiting for {:?}",
                     chunk_buffer.waiting_for
                 )
@@ -70,8 +69,8 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
             }
             chunk_buffer.chunks.insert(seq, take(chunk.chunk_mut()));
 
-            info!(
-                "Received {:?}, waiting for {:?}",
+            debug!(
+                "Received DenIM chunk {:?}, waiting for {:?}",
                 chunk_buffer.chunks.keys(),
                 chunk_buffer.waiting_for
             );
@@ -81,7 +80,6 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                 let mut completed: Vec<(u32, Vec<u8>)> = chunk_buffer.chunks.into_iter().collect();
                 completed.sort_by_key(|(seq, _)| *seq);
                 let size = completed.len();
-                info!("Completed {:?}", completed);
 
                 let bytes =
                     completed
@@ -144,7 +142,6 @@ mod test {
 
     #[tokio::test]
     async fn in_memory_receiving_buffer() {
-        _ = env_logger::try_init();
         let mut buffer = InMemoryReceivingBuffer::default();
 
         let (chunk1, chunk2) = chunks();
@@ -169,6 +166,24 @@ mod test {
 
         let actual: Vec<DeniableMessage> = buffer
             .process_chunks(1, vec![chunk2, chunk1])
+            .await
+            .into_iter()
+            .map(|payload| payload.expect("can decode payload"))
+            .collect();
+
+        let expect = vec![payload()];
+
+        assert!(actual == expect);
+    }
+
+    #[tokio::test]
+    async fn duplicate_chunk_id() {
+        let mut buffer = InMemoryReceivingBuffer::default();
+
+        let (chunk1, chunk2) = chunks();
+
+        let actual: Vec<DeniableMessage> = buffer
+            .process_chunks(1, vec![chunk1.clone(), chunk1, chunk2])
             .await
             .into_iter()
             .map(|payload| payload.expect("can decode payload"))
