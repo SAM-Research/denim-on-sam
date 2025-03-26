@@ -1,3 +1,5 @@
+use std::io::BufReader;
+
 use clap::{Arg, Command};
 use config::TlsConfig;
 use error::CLIError;
@@ -74,7 +76,9 @@ async fn cli() -> Result<(), CLIError> {
 
     let tls_config = if let Some(config_path) = matches.get_one::<String>("config") {
         let _ = rustls::crypto::ring::default_provider().install_default();
-        Some(TlsConfig::load(config_path.clone())?.create()?)
+        let file = std::fs::File::open(config_path)?;
+        let reader = BufReader::new(file);
+        Some(TlsConfig::load(reader)?.create()?)
     } else {
         None
     };

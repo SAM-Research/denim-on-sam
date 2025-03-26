@@ -2,7 +2,7 @@ use axum::{http::StatusCode, response::IntoResponse};
 use derive_more::{Display, Error, From};
 use log::error;
 use sam_client::net::error::TlsError as ClientTlsError;
-use sam_server::error::{TlsConfigError, TlsError as ServerTlsError};
+use sam_server::error::TlsError as ServerTlsError;
 
 #[derive(Debug, Display, Error, From)]
 pub enum ServerError {
@@ -25,7 +25,8 @@ pub enum CLIError {
     #[error(ignore)]
     ArgumentError(String),
     TLSError(TLSError),
-    TLSConfigError(TlsConfigError),
+    SerdeError(serde_json::Error),
+    IoError(std::io::Error),
 }
 
 #[derive(Debug, Display, Error, From)]
