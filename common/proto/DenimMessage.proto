@@ -4,13 +4,13 @@ enum MessageType {
   SIGNAL_MESSAGE = 1;
   PRE_KEY_SIGNAL_MESSAGE = 2;
   SENDER_KEY_MESSAGE = 3;
-  PLAINTEXT_CONTENT  = 4;
+  PLAINTEXT_CONTENT = 4;
 }
 
 message UserMessage {
   required bytes destination_account_id = 1;
   required uint32 destination_device_id = 2;
-  required MessageType message_type  = 3;
+  required MessageType message_type = 3;
   required bytes content = 4;
 }
 

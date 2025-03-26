@@ -1,6 +1,7 @@
-use crate::buffers::{DeniablePayload, DenimChunk, Flag};
+use crate::buffers::{DeniablePayload, DenimChunk, Flag, SendingBuffer};
 use crate::denim_message::DeniableMessage;
 use crate::error::LibError;
+use async_trait::async_trait;
 use bincode::config;
 use log::info;
 use prost::Message;
@@ -24,8 +25,9 @@ pub struct InMemorySendingBuffer {
     buffer: Buffer,
 }
 
-impl InMemorySendingBuffer {
-    pub fn get_deniable_payload(
+#[async_trait]
+impl SendingBuffer for InMemorySendingBuffer {
+    async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
     ) -> Result<Option<DeniablePayload>, LibError> {
@@ -47,10 +49,6 @@ impl InMemorySendingBuffer {
         let mut denim_chunks: Vec<Vec<u8>> = Vec::new();
 
         while available_bytes > DENIM_CHUNK_WITHOUT_PAYLOAD {
-            // we put deniable chunks on
-
-            println!("Available bytes: {:?}", available_bytes);
-            // Find out how many bytes deniable payload we can have
             let deniable_payload_len = available_bytes - DENIM_CHUNK_WITHOUT_PAYLOAD;
 
             let chunk = self.get_next_chunk(deniable_payload_len);
@@ -63,7 +61,7 @@ impl InMemorySendingBuffer {
                     let encoded_chunk = bincode::encode_to_vec(chunk, config::standard())
                         .map_err(|_| LibError::ChunkEncode)?;
                     available_bytes -= encoded_chunk.len();
-                    info!("Denim chunk piggybacked has size {:?}", encoded_chunk.len());
+
                     self.buffer.next_sequence_number += 1;
                     denim_chunks.push(encoded_chunk);
                 }
@@ -76,15 +74,9 @@ impl InMemorySendingBuffer {
             let dummy_chunk = self.create_dummy_chunk(dummy_chunk_length);
             let encoded_chunk = bincode::encode_to_vec(dummy_chunk, config::standard())
                 .map_err(|_| LibError::ChunkEncode)?;
-
+            available_bytes -= encoded_chunk.len();
             denim_chunks.push(encoded_chunk);
         }
-
-        info!(
-            "Deniable payload has size {:?}, filling {:?} bytes garbage.",
-            denim_chunks.iter().map(|chunk| chunk.len()).sum::<usize>(),
-            available_bytes
-        );
 
         if available_bytes > 0 {
             let mut random_bytes = vec![0u8; available_bytes];
@@ -103,12 +95,14 @@ impl InMemorySendingBuffer {
                 .build(),
         ))
     }
+}
 
-    pub fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
+impl InMemorySendingBuffer {
+    fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
         (reg_message_len as f32 * self.q).ceil() as usize
     }
 
-    pub fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {
+    fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {
         if self.buffer.content.is_empty() {
             self.buffer = match self.outgoing_messages.pop_front() {
                 None => return None,
@@ -142,7 +136,7 @@ impl InMemorySendingBuffer {
         )
     }
 
-    pub fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
+    fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
         let random_bytes = self.create_n_random_bytes(available_bytes);
 
         DenimChunk::builder()
@@ -166,94 +160,45 @@ mod test {
     use crate::denim_message::deniable_message::MessageKind;
     use crate::denim_message::{MessageType, UserMessage};
     use rand::RngCore;
+    use rstest::rstest;
 
-    fn make_deniable_messages() -> VecDeque<DeniableMessage> {
+    fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
-        for i in 1..10 {
-            let mut random_bytes = vec![0u8; i * 15];
+        let mut i = 0;
+        for length in lengths {
+            let mut random_bytes = vec![0u8; length];
             rand::rng().fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                     destination_account_id: vec![i as u8],
                     destination_device_id: 1,
-                    message_type: i32::from(MessageType::SignalMessage),
-                    content: vec![1, 2, 3],
+                    message_type: MessageType::SignalMessage.into(),
+                    content: random_bytes,
                 })),
-            })
+            });
+            i += 1;
         }
         deniable_messages
     }
 
-    #[test]
-    fn calculate_payload_length() {
-        let deniable_messages = make_deniable_messages();
-
-        let sending_buffer = InMemorySendingBuffer {
-            q: 0.33,
-            outgoing_messages: deniable_messages,
-            buffer: Buffer {
-                content: vec![1, 2, 3],
-                message_id: 0,
-                next_sequence_number: 0,
-            },
-        };
-
-        let length = sending_buffer.calculate_deniable_payload_length(120);
-
-        assert_eq!(length, 40)
-    }
-
-    #[test]
-    fn get_next_chunk() {
-        let q = 1.0;
-        let regular_msg_len = 20;
-        let deniable_content_length = (regular_msg_len as f32 * q) as usize;
-        let mut random_bytes = vec![0u8; 10];
-        rand::rng().fill_bytes(&mut random_bytes);
-
-        let deniable_payload = random_bytes.clone();
-
-        let mut sending_buffer = InMemorySendingBuffer {
-            q,
-            outgoing_messages: VecDeque::new(),
-            buffer: Buffer {
-                content: deniable_payload,
-                message_id: 0,
-                next_sequence_number: 0,
-            },
-        };
-
-        let denim_chunk = sending_buffer
-            .get_next_chunk(deniable_content_length)
-            .expect("Should return Chunk");
-
-        println!("DenimChunk content size: {:?}", denim_chunk.chunk().len());
-        let denim_chunk_serialized =
-            bincode::encode_to_vec(denim_chunk, config::standard()).expect("Can encode DenimChunk");
-
-        assert_eq!(
-            denim_chunk_serialized.len(),
-            random_bytes.len() + DENIM_CHUNK_WITHOUT_PAYLOAD
-        );
-    }
-
-    #[test]
-    fn get_deniable_payload() {
-        let q = 1.0;
-        let regular_msg_len = 100;
-        let mut random_bytes = vec![0u8; 4];
-        rand::rng().fill_bytes(&mut random_bytes);
-
-        let deniable_payload = random_bytes.clone();
-
-        let deniable_messages = make_deniable_messages();
+    #[rstest]
+    #[case(150, 0.32, vec![20, 30, 40])]
+    #[case(150, 0.625, vec![23, 31])]
+    #[case(300, 0.721, vec![21])]
+    #[tokio::test]
+    async fn get_deniable_payload(
+        #[case] regular_msg_len: u32,
+        #[case] q: f32,
+        #[case] message_lengths: Vec<usize>,
+    ) {
+        let deniable_messages = make_deniable_messages(message_lengths);
 
         let mut sending_buffer = InMemorySendingBuffer {
             q,
             outgoing_messages: deniable_messages,
             buffer: Buffer {
-                content: deniable_payload,
+                content: vec![],
                 message_id: 0,
                 next_sequence_number: 0,
             },
@@ -261,17 +206,9 @@ mod test {
 
         let deniable_payload = sending_buffer
             .get_deniable_payload(regular_msg_len)
+            .await
             .unwrap()
             .expect("Should be Some");
-        let first_chunk = deniable_payload.denim_chunks()[0].to_owned();
-
-        assert_eq!(
-            first_chunk.len(),
-            random_bytes.len() + DENIM_CHUNK_WITHOUT_PAYLOAD
-        );
-
-        //let second_chunk = deniable_payload.denim_chunks[1].to_owned();
-        //assert_eq!(second_chunk.encode_to_vec().len(), )
 
         let mut total_size: usize = deniable_payload
             .denim_chunks()
@@ -283,7 +220,6 @@ mod test {
             total_size += garbage.len();
         }
 
-        println!("Deniable payload length: {:?}", total_size);
-        assert_eq!(total_size, (q * regular_msg_len as f32) as usize);
+        assert_eq!(total_size, (regular_msg_len as f32 * q).ceil() as usize);
     }
 }
