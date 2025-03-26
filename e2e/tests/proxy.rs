@@ -84,7 +84,7 @@ async fn can_connect(
         )
         .await;
         let mut proxy =
-            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(|x| proxy_config(x))).await;
+            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(proxy_config)).await;
         server
             .started_rx()
             .await
@@ -99,8 +99,8 @@ async fn can_connect(
             &sam_addr,
             "alice",
             "alice device",
-            client_https.map(|x| client_config(x)),
-            client_wss.map(|x| client_config(x)),
+            client_https.map(client_config),
+            client_wss.map(client_config),
         )
         .await;
         sleep(Duration::from_millis(300)).await;
@@ -135,7 +135,7 @@ async fn can_send_message(
         )
         .await;
         let mut proxy =
-            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(|x| proxy_config(x))).await;
+            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(proxy_config)).await;
         server
             .started_rx()
             .await
@@ -150,8 +150,8 @@ async fn can_send_message(
             &sam_addr,
             "alice",
             "alice device",
-            client_https.map(|x| client_config(x)),
-            client_wss.map(|x| client_config(x)),
+            client_https.map(client_config),
+            client_wss.map(client_config),
         )
         .await;
         let mut bob = client_with_proxy(
@@ -159,8 +159,8 @@ async fn can_send_message(
             &sam_addr,
             "bob",
             "bob device",
-            client_https.map(|x| client_config(x)),
-            client_wss.map(|x| client_config(x)),
+            client_https.map(client_config),
+            client_wss.map(client_config),
         )
         .await;
 
