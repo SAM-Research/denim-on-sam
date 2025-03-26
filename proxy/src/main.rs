@@ -1,21 +1,14 @@
+use clap::{Arg, Command};
+use denim_sam_proxy::managers::in_mem::{InMemoryBufferManager, InMemoryKeyDistributionCenter};
+use log::{debug, error, info};
 use std::io::BufReader;
 
-use clap::{Arg, Command};
-use config::TlsConfig;
-use error::CliError;
-
-use log::{debug, error, info};
-use server::{start_proxy, DenimConfig};
-
-use state::DenimState;
-
-pub mod config;
-mod error;
-mod proxy;
-mod routes;
-mod server;
-mod state;
-mod utils;
+use denim_sam_proxy::{
+    config::TlsConfig,
+    error::CliError,
+    server::{start_proxy, DenimConfig},
+    state::{DenimState, InMemory},
+};
 
 async fn cli() -> Result<(), CliError> {
     let matches = Command::new("sam_server")
@@ -83,15 +76,27 @@ async fn cli() -> Result<(), CliError> {
         None
     };
 
-    let config = if let Some((server, client)) = tls_config {
+    let config: DenimConfig<InMemory> = if let Some((server, client)) = tls_config {
         DenimConfig {
-            state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10, Some(client)),
+            state: DenimState::new(
+                format!("{}:{}", sam_ip, sam_port),
+                10,
+                Some(client),
+                InMemoryBufferManager::default(),
+                InMemoryKeyDistributionCenter::default(),
+            ),
             addr,
             tls_config: Some(server),
         }
     } else {
         DenimConfig {
-            state: DenimState::new(format!("{}:{}", sam_ip, sam_port), 10, None),
+            state: DenimState::new(
+                format!("{}:{}", sam_ip, sam_port),
+                10,
+                None,
+                InMemoryBufferManager::default(),
+                InMemoryKeyDistributionCenter::default(),
+            ),
             addr,
             tls_config: None,
         }

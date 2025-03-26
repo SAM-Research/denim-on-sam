@@ -4,15 +4,18 @@ use axum::{routing::get, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use log::info;
 
-use crate::{routes::websocket_endpoint, state::DenimState};
+use crate::{
+    routes::websocket_endpoint,
+    state::{DenimState, StateType},
+};
 
-pub struct DenimConfig {
-    pub state: DenimState,
+pub struct DenimConfig<T: StateType> {
+    pub state: DenimState<T>,
     pub addr: SocketAddr,
     pub tls_config: Option<rustls::ServerConfig>,
 }
 
-pub async fn start_proxy(config: DenimConfig) -> Result<(), std::io::Error> {
+pub async fn start_proxy<T: StateType>(config: DenimConfig<T>) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/api/v1/websocket", get(websocket_endpoint))
         .with_state(config.state);

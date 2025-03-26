@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     error::ServerError,
-    state::DenimState,
+    state::{DenimState, StateType},
     utils::{
         into_axum_message, into_tungstenite_message, websocket_config, AxumMessage, AxumWebSocket,
     },
@@ -20,9 +20,9 @@ use crate::{
 type ProxyMessage = AxumMessage;
 
 /// Try and establish connection to sam server using clients credentials
-pub async fn connect_to_sam_server(
+pub async fn connect_to_sam_server<T: StateType>(
     headers: HeaderMap,
-    state: &DenimState,
+    state: &DenimState<T>,
 ) -> Result<(WebSocketClient, Receiver<ProxyMessage>), ServerError> {
     let basic = headers
         .get("authorization")

@@ -1,7 +1,8 @@
 use denim_sam_proxy::{
     config::TlsConfig,
+    managers::in_mem::{InMemoryBufferManager, InMemoryKeyDistributionCenter},
     server::{start_proxy, DenimConfig},
-    state::DenimState,
+    state::{DenimState, InMemory},
 };
 use sam_server::{
     managers::in_memory::{
@@ -71,16 +72,28 @@ impl Drop for TestDenimProxy {
 
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
-        let config = if let Some(tls) = config {
+        let config: DenimConfig<InMemory> = if let Some(tls) = config {
             let (server, client) = tls.create().expect("Can create tls config");
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, Some(client)),
+                state: DenimState::new(
+                    sam_addr.to_string(),
+                    10,
+                    Some(client),
+                    InMemoryBufferManager::default(),
+                    InMemoryKeyDistributionCenter::default(),
+                ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: Some(server),
             }
         } else {
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, None),
+                state: DenimState::new(
+                    sam_addr.to_string(),
+                    10,
+                    None,
+                    InMemoryBufferManager::default(),
+                    InMemoryKeyDistributionCenter::default(),
+                ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: None,
             }
