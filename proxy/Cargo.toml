@@ -23,3 +23,7 @@ env_logger = { workspace = true }
 log = { workspace = true }
 bon = { workspace = true }
 clap = { workspace = true }
+rustls = { workspace = true, features = ["ring"] }
+rustls-pemfile = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
