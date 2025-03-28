@@ -17,15 +17,15 @@ e2e = { path = "e2e" }
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-rustls = { version = "0.23.15" }
+rustls = "0.23.15"
 rustls-pemfile = "2.2.0"
-tokio = { version = "1.40.0" }
-axum = { version = "0.8.1" }
-axum-extra = { version = "0.10.0" }
-axum-server = { version = "0.7" }
-derive_more = { version = "2.0.1" }
-futures-util = { version = "0.3.30" }
-tokio-tungstenite = { version = "0.26.2" }
+tokio = "1.40.0"
+axum = "0.8.1"
+axum-extra = "0.10.0"
+axum-server = "0.7"
+derive_more = "2.0.1"
+futures-util = "0.3.30"
+tokio-tungstenite = "0.26.2"
 base64 = "0.21.7"
 bon = "3.3.2"
 async-trait = "0.1.83"
@@ -33,7 +33,11 @@ env_logger = "0.11.6"
 log = "0.4.25"
 clap = "4.5.32"
 serde_json = "1.0.139"
-serde = { version = "1.0.210" }
+serde = "1.0.210"
+prost-build = "0.13.5"
+prost = "0.13.5"
+rand = "0.9.0"
+bincode = "2.0.1"
 
 
 # Dev dependencies
