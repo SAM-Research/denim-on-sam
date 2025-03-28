@@ -63,13 +63,11 @@ impl SendingBuffer for InMemorySendingBuffer {
                         .map_err(|_| LibError::ChunkEncode)?;
                     available_bytes -= encoded_chunk.len();
 
-                    self.buffer.next_sequence_number += 1; // todo() do this inside get_next_chunk
                     denim_chunks.push(encoded_chunk);
                 }
             }
         }
         if available_bytes >= DENIM_CHUNK_WITHOUT_PAYLOAD {
-            // Send deniable payload
             let dummy_chunk_length = available_bytes - DENIM_CHUNK_WITHOUT_PAYLOAD;
 
             let dummy_chunk = self.create_dummy_chunk(dummy_chunk_length);
@@ -80,12 +78,12 @@ impl SendingBuffer for InMemorySendingBuffer {
         }
 
         if available_bytes > 0 {
-            let mut random_bytes = vec![0u8; available_bytes];
-            rand::rng().fill_bytes(&mut random_bytes);
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(denim_chunks)
-                    .garbage(random_bytes)
+                    .garbage(InMemorySendingBuffer::create_n_random_bytes(
+                        available_bytes,
+                    ))
                     .build(),
             ));
         }
@@ -129,25 +127,26 @@ impl InMemorySendingBuffer {
                 },
             }
         }
-        let denim_chunk;
+        let chunk_bytes;
+        let flag;
+        let sequence_number = self.buffer.next_sequence_number as u32;
+        self.buffer.next_sequence_number += 1;
         if available_bytes >= self.buffer.content.len() {
-            denim_chunk = DenimChunk::builder()
-                .message_id(self.buffer.message_id)
-                .sequence_number(self.buffer.next_sequence_number as u32)
-                .flag(Flag::Final)
-                .chunk(take(&mut self.buffer.content))
-                .build();
+            chunk_bytes = take(&mut self.buffer.content);
+            flag = Flag::Final;
         } else {
-            let next_chunk: Vec<u8> = self.buffer.content.drain(..available_bytes).collect();
-            denim_chunk = DenimChunk::builder()
-                .message_id(self.buffer.message_id)
-                .sequence_number(self.buffer.next_sequence_number as u32)
-                .flag(Flag::None)
-                .chunk(next_chunk)
-                .build();
+            chunk_bytes = self.buffer.content.drain(..available_bytes).collect();
+            flag = Flag::None;
         }
 
-        Some(denim_chunk)
+        Some(
+            DenimChunk::builder()
+                .message_id(self.buffer.message_id)
+                .sequence_number(sequence_number)
+                .flag(flag)
+                .chunk(chunk_bytes)
+                .build(),
+        )
     }
 
     fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
@@ -186,7 +185,6 @@ mod test {
                 message_id: i as u32,
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                     destination_account_id: vec![i as u8],
-                    destination_device_id: 1,
                     message_type: MessageType::SignalMessage.into(),
                     content: random_bytes,
                 })),

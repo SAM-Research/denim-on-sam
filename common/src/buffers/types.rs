@@ -1,4 +1,4 @@
-use bincode::{config, Decode, Encode};
+use bincode::{Decode, Encode};
 use bon::Builder;
 
 #[derive(Encode, Decode, Builder)]

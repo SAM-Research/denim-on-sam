@@ -5,10 +5,8 @@ use denim_sam_common::buffers::{
 };
 use denim_sam_common::denim_message::deniable_message::MessageKind;
 use denim_sam_common::denim_message::{DeniableMessage, MessageType, UserMessage};
-use log::info;
-use prost::Message;
 use rand::seq::SliceRandom;
-use rand::{RngCore, SeedableRng};
+use rand::SeedableRng;
 use rstest::rstest;
 use std::collections::VecDeque;
 
@@ -27,12 +25,12 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
     let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
     let mut i = 0;
     for length in lengths {
-        let mut random_bytes = vec![0u8; length];
+        let random_bytes = vec![0u8; length];
         deniable_messages.push_back(DeniableMessage {
             message_id: i as u32,
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                 destination_account_id: vec![i as u8],
-                destination_device_id: 1,
+
                 message_type: MessageType::SignalMessage.into(),
                 content: random_bytes,
             })),
@@ -95,12 +93,11 @@ pub async fn send_recv_buffer_send_in_order(
 
     assert_eq!(messages.len(), message_lengths.len());
     for (i, message) in messages.iter().enumerate() {
-        let mut random_bytes = vec![0u8; message_lengths[i]];
+        let random_bytes = vec![0u8; message_lengths[i]];
         assert_eq!(
             message.clone().message_kind.expect("Should be a message"),
             MessageKind::DeniableMessage(UserMessage {
                 destination_account_id: vec![i as u8],
-                destination_device_id: 1,
                 message_type: MessageType::SignalMessage.into(),
                 content: random_bytes,
             })

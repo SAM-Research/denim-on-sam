@@ -64,7 +64,8 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                     chunk_buffer.waiting_for.insert(next);
                 }
                 info!(
-                    "Received message chunk out of order from sender {} for message {:?}. Waiting for {:?}",
+                    "Received message chunk {:?} out of order from sender {} for message {:?}. Waiting for {:?}",
+                    chunk.sequence_number(),
                     sender,
                     chunk.message_id(),
                     chunk_buffer.waiting_for

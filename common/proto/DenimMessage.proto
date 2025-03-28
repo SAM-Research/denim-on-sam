@@ -9,7 +9,6 @@ enum MessageType {
 
 message UserMessage {
   required bytes destination_account_id = 1;
-  required uint32 destination_device_id = 2;
   required MessageType message_type = 3;
   required bytes content = 4;
 }
