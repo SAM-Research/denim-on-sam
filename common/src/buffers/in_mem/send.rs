@@ -95,7 +95,7 @@ impl SendingBuffer for InMemorySendingBuffer {
         ))
     }
 
-    fn queue_message(&mut self, deniable_message: DeniableMessage) -> () {
+    fn queue_message(&mut self, deniable_message: DeniableMessage) {
         self.outgoing_messages.push_back(deniable_message);
     }
 }

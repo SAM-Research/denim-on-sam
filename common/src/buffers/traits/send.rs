@@ -10,5 +10,5 @@ pub trait SendingBuffer {
         reg_message_len: u32,
     ) -> Result<Option<DeniablePayload>, LibError>;
 
-    fn queue_message(&mut self, deniable_message: DeniableMessage) -> ();
+    fn queue_message(&mut self, deniable_message: DeniableMessage);
 }
