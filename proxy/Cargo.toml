@@ -7,6 +7,23 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", version = "0.1.0" }
+sam-server = { workspace = true }
+sam-common = { workspace = true }
+sam-client = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+axum = { workspace = true, features = ["ws", "macros"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
+axum-server = { workspace = true, features = ["tls-rustls"] }
+derive_more = { workspace = true, features = ["display", "error", "from"] }
+base64 = { workspace = true }
+tokio-tungstenite = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+bon = { workspace = true }
+clap = { workspace = true }
+rustls = { workspace = true, features = ["ring"] }
+rustls-pemfile = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
