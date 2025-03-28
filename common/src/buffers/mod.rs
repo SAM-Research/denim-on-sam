@@ -1,6 +1,6 @@
-mod in_mem;
+pub mod in_mem;
 mod traits;
-mod types;
+pub mod types;
 
 pub use in_mem::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 pub use traits::{ChunkDecodeError, ReceivingBuffer, SendingBuffer};

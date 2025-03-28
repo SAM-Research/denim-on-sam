@@ -1,4 +1,4 @@
-use bincode::{Decode, Encode};
+use bincode::{config, Decode, Encode};
 use bon::Builder;
 
 #[derive(Encode, Decode, Builder)]
@@ -52,6 +52,10 @@ pub struct DeniablePayload {
 impl DeniablePayload {
     pub fn denim_chunks(&self) -> &Vec<Vec<u8>> {
         &self.denim_chunks
+    }
+
+    pub fn denim_chunks_mut(&mut self) -> &mut Vec<Vec<u8>> {
+        &mut self.denim_chunks
     }
 
     pub fn garbage(&self) -> &Option<Vec<u8>> {

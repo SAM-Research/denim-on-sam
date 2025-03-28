@@ -41,7 +41,9 @@ impl SendingBuffer for InMemorySendingBuffer {
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(vec![])
-                    .garbage(self.create_n_random_bytes(available_bytes))
+                    .garbage(InMemorySendingBuffer::create_n_random_bytes(
+                        available_bytes,
+                    ))
                     .build(),
             ));
         }
@@ -62,7 +64,7 @@ impl SendingBuffer for InMemorySendingBuffer {
                         .map_err(|_| LibError::ChunkEncode)?;
                     available_bytes -= encoded_chunk.len();
 
-                    self.buffer.next_sequence_number += 1;
+                    self.buffer.next_sequence_number += 1; // todo() do this inside get_next_chunk
                     denim_chunks.push(encoded_chunk);
                 }
             }
@@ -98,6 +100,17 @@ impl SendingBuffer for InMemorySendingBuffer {
 }
 
 impl InMemorySendingBuffer {
+    pub fn new(q: f32, outgoing_messages: VecDeque<DeniableMessage>) -> Self {
+        Self {
+            q,
+            outgoing_messages,
+            buffer: Buffer {
+                content: vec![],
+                message_id: 0,
+                next_sequence_number: 0,
+            },
+        }
+    }
     fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
         (reg_message_len as f32 * self.q).ceil() as usize
     }
@@ -137,7 +150,7 @@ impl InMemorySendingBuffer {
     }
 
     fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
-        let random_bytes = self.create_n_random_bytes(available_bytes);
+        let random_bytes = InMemorySendingBuffer::create_n_random_bytes(available_bytes);
 
         DenimChunk::builder()
             .chunk(random_bytes)
@@ -147,7 +160,7 @@ impl InMemorySendingBuffer {
             .build()
     }
 
-    fn create_n_random_bytes(&self, n: usize) -> Vec<u8> {
+    fn create_n_random_bytes(n: usize) -> Vec<u8> {
         let mut random_bytes = vec![0u8; n];
         rand::rng().fill_bytes(&mut random_bytes);
         random_bytes
@@ -194,15 +207,7 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer {
-            q,
-            outgoing_messages: deniable_messages,
-            buffer: Buffer {
-                content: vec![],
-                message_id: 0,
-                next_sequence_number: 0,
-            },
-        };
+        let mut sending_buffer = InMemorySendingBuffer::new(q, deniable_messages);
 
         let deniable_payload = sending_buffer
             .get_deniable_payload(regular_msg_len)
