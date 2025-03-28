@@ -46,7 +46,9 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
         let buffer = self.buffers.entry(sender).or_default();
         let mut messages = Vec::new();
         for mut chunk in chunks {
-            info!("Chunk {}", chunk.sequence_number());
+            if chunk.flag() == Flag::DummyPadding {
+                continue;
+            }
             let message_id = chunk.message_id();
             let chunk_buffer = buffer.entry(message_id).or_default();
             let seq = chunk.sequence_number();
@@ -57,8 +59,14 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                         chunk_buffer.waiting_for.insert(id);
                     }
                 }
+                let next = chunk.sequence_number() + 1;
+                if chunk.flag() != Flag::Final && !chunk_buffer.chunks.contains_key(&next) {
+                    chunk_buffer.waiting_for.insert(next);
+                }
                 info!(
-                    "Recieved message chunk out of order. Waiting for {:?}",
+                    "Received message chunk out of order from sender {} for message {:?}. Waiting for {:?}",
+                    sender,
+                    chunk.message_id(),
                     chunk_buffer.waiting_for
                 )
             } else {
@@ -71,7 +79,9 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
             chunk_buffer.chunks.insert(seq, take(chunk.chunk_mut()));
 
             info!(
-                "Received {:?}, waiting for {:?}",
+                "Sender {} Message id {:?}: Received Chunks {:?}, waiting for {:?}",
+                sender,
+                chunk.message_id(),
                 chunk_buffer.chunks.keys(),
                 chunk_buffer.waiting_for
             );
@@ -81,7 +91,11 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                 let mut completed: Vec<(u32, Vec<u8>)> = chunk_buffer.chunks.into_iter().collect();
                 completed.sort_by_key(|(seq, _)| *seq);
                 let size = completed.len();
-                info!("Completed {:?}", completed);
+                info!(
+                    "Completed message with id {:?}: chunks: {:?}",
+                    chunk.message_id(),
+                    completed
+                );
 
                 let bytes =
                     completed

@@ -35,7 +35,7 @@ impl DenimChunk {
     }
 }
 
-#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum Flag {
     None = 0,

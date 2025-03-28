@@ -3,7 +3,6 @@ use crate::denim_message::DeniableMessage;
 use crate::error::LibError;
 use async_trait::async_trait;
 use bincode::config;
-use log::info;
 use prost::Message;
 use rand::RngCore;
 use std::collections::VecDeque;
@@ -97,13 +96,17 @@ impl SendingBuffer for InMemorySendingBuffer {
                 .build(),
         ))
     }
+
+    fn queue_message(&mut self, deniable_message: DeniableMessage) -> () {
+        self.outgoing_messages.push_back(deniable_message);
+    }
 }
 
 impl InMemorySendingBuffer {
-    pub fn new(q: f32, outgoing_messages: VecDeque<DeniableMessage>) -> Self {
+    pub fn new(q: f32) -> Self {
         Self {
             q,
-            outgoing_messages,
+            outgoing_messages: VecDeque::new(),
             buffer: Buffer {
                 content: vec![],
                 message_id: 0,
@@ -126,27 +129,25 @@ impl InMemorySendingBuffer {
                 },
             }
         }
+        let denim_chunk;
         if available_bytes >= self.buffer.content.len() {
-            return Some(
-                DenimChunk::builder()
-                    .message_id(self.buffer.message_id)
-                    .sequence_number(self.buffer.next_sequence_number as u32)
-                    .flag(Flag::Final)
-                    .chunk(take(&mut self.buffer.content))
-                    .build(),
-            );
-        };
-
-        let next_chunk: Vec<u8> = self.buffer.content.drain(..available_bytes).collect();
-
-        Some(
-            DenimChunk::builder()
+            denim_chunk = DenimChunk::builder()
+                .message_id(self.buffer.message_id)
+                .sequence_number(self.buffer.next_sequence_number as u32)
+                .flag(Flag::Final)
+                .chunk(take(&mut self.buffer.content))
+                .build();
+        } else {
+            let next_chunk: Vec<u8> = self.buffer.content.drain(..available_bytes).collect();
+            denim_chunk = DenimChunk::builder()
                 .message_id(self.buffer.message_id)
                 .sequence_number(self.buffer.next_sequence_number as u32)
                 .flag(Flag::None)
                 .chunk(next_chunk)
-                .build(),
-        )
+                .build();
+        }
+
+        Some(denim_chunk)
     }
 
     fn create_dummy_chunk(&self, available_bytes: usize) -> DenimChunk {
@@ -207,7 +208,11 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer::new(q, deniable_messages);
+        let mut sending_buffer = InMemorySendingBuffer::new(q);
+
+        for message in deniable_messages {
+            sending_buffer.queue_message(message);
+        }
 
         let deniable_payload = sending_buffer
             .get_deniable_payload(regular_msg_len)
