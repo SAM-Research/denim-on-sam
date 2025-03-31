@@ -1,27 +1,26 @@
-use crate::buffers::{DeniablePayload, DenimChunk, Flag, SendingBuffer};
+use crate::buffers::{DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SequenceNumber};
 use crate::denim_message::DeniableMessage;
 use crate::error::LibError;
 use async_trait::async_trait;
-use bincode::config;
+use log::debug;
 use prost::Message;
 use rand::RngCore;
 use std::collections::VecDeque;
 use std::mem::take;
-
-const DENIM_CHUNK_WITHOUT_PAYLOAD: usize = 4;
-
-const DENIABLE_PAYLOAD_MIN_LENGTH: usize = 20;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 struct Buffer {
     content: Vec<u8>,
-    message_id: u32,
-    next_sequence_number: u8,
+    message_id: MessageId,
+    next_sequence_number: SequenceNumber,
 }
 
 pub struct InMemorySendingBuffer {
+    min_payload_length: u8,
     q: f32,
-    outgoing_messages: VecDeque<DeniableMessage>,
-    buffer: Buffer,
+    outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
+    buffer: Arc<Mutex<Buffer>>,
 }
 
 #[async_trait]
@@ -36,7 +35,7 @@ impl SendingBuffer for InMemorySendingBuffer {
 
         let mut available_bytes = self.calculate_deniable_payload_length(reg_message_len);
 
-        if available_bytes < DENIABLE_PAYLOAD_MIN_LENGTH {
+        if available_bytes < self.min_payload_length as usize {
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(vec![])
@@ -47,34 +46,39 @@ impl SendingBuffer for InMemorySendingBuffer {
             ));
         }
 
-        let mut denim_chunks: Vec<Vec<u8>> = Vec::new();
+        let mut denim_chunks: Vec<DenimChunk> = Vec::new();
 
-        while available_bytes > DENIM_CHUNK_WITHOUT_PAYLOAD {
-            let deniable_payload_len = available_bytes - DENIM_CHUNK_WITHOUT_PAYLOAD;
+        let chunk_size_without_payload = DenimChunk::get_size_without_payload();
 
-            let chunk = self.get_next_chunk(deniable_payload_len);
+        while available_bytes > chunk_size_without_payload {
+            let deniable_payload_len = available_bytes - chunk_size_without_payload;
+
+            let chunk = self.get_next_chunk(deniable_payload_len).await;
 
             match chunk {
                 None => {
                     break;
                 }
                 Some(chunk) => {
-                    let encoded_chunk = bincode::encode_to_vec(chunk, config::standard())
-                        .map_err(|_| LibError::ChunkEncode)?;
-                    available_bytes -= encoded_chunk.len();
+                    let encoded_chunk_size = chunk.get_size()?;
+                    debug!(
+                        "Size of chunk with payload {:?}, content size {:?}",
+                        encoded_chunk_size,
+                        chunk.chunk().len()
+                    );
+                    available_bytes -= encoded_chunk_size;
 
-                    denim_chunks.push(encoded_chunk);
+                    denim_chunks.push(chunk);
                 }
             }
         }
-        if available_bytes >= DENIM_CHUNK_WITHOUT_PAYLOAD {
-            let dummy_chunk_length = available_bytes - DENIM_CHUNK_WITHOUT_PAYLOAD;
+        if available_bytes >= chunk_size_without_payload {
+            let dummy_chunk_length = available_bytes - chunk_size_without_payload;
 
             let dummy_chunk = self.create_dummy_chunk(dummy_chunk_length);
-            let encoded_chunk = bincode::encode_to_vec(dummy_chunk, config::standard())
-                .map_err(|_| LibError::ChunkEncode)?;
-            available_bytes -= encoded_chunk.len();
-            denim_chunks.push(encoded_chunk);
+            let encoded_chunk_size = dummy_chunk.get_size()?;
+            available_bytes -= encoded_chunk_size;
+            denim_chunks.push(dummy_chunk);
         }
 
         if available_bytes > 0 {
@@ -95,53 +99,63 @@ impl SendingBuffer for InMemorySendingBuffer {
         ))
     }
 
-    fn queue_message(&mut self, deniable_message: DeniableMessage) {
-        self.outgoing_messages.push_back(deniable_message);
+    async fn queue_message(&mut self, deniable_message: DeniableMessage) {
+        self.outgoing_messages
+            .lock()
+            .await
+            .push_back(deniable_message);
     }
 }
 
 impl InMemorySendingBuffer {
-    pub fn new(q: f32) -> Self {
+    pub fn new(q: f32, min_payload_length: u8) -> Self {
         Self {
+            min_payload_length,
             q,
-            outgoing_messages: VecDeque::new(),
-            buffer: Buffer {
+            outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
+            buffer: Arc::new(Mutex::new(Buffer {
                 content: vec![],
                 message_id: 0,
                 next_sequence_number: 0,
-            },
+            })),
         }
     }
     fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
         (reg_message_len as f32 * self.q).ceil() as usize
     }
 
-    fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {
-        if self.buffer.content.is_empty() {
-            self.buffer = match self.outgoing_messages.pop_front() {
+    async fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {
+        if self.buffer.lock().await.content.is_empty() {
+            self.buffer = match self.outgoing_messages.lock().await.pop_front() {
                 None => return None,
-                Some(message) => Buffer {
+                Some(message) => Arc::new(Mutex::new(Buffer {
                     content: message.encode_to_vec(),
                     message_id: message.message_id,
                     next_sequence_number: 0,
-                },
+                })),
             }
         }
         let chunk_bytes;
         let flag;
-        let sequence_number = self.buffer.next_sequence_number as u32;
-        self.buffer.next_sequence_number += 1;
-        if available_bytes >= self.buffer.content.len() {
-            chunk_bytes = take(&mut self.buffer.content);
+        let sequence_number = self.buffer.lock().await.next_sequence_number;
+        self.buffer.lock().await.next_sequence_number += 1;
+        if available_bytes >= self.buffer.lock().await.content.len() {
+            chunk_bytes = take(&mut self.buffer.lock().await.content);
             flag = Flag::Final;
         } else {
-            chunk_bytes = self.buffer.content.drain(..available_bytes).collect();
+            chunk_bytes = self
+                .buffer
+                .lock()
+                .await
+                .content
+                .drain(..available_bytes)
+                .collect();
             flag = Flag::None;
         }
 
         Some(
             DenimChunk::builder()
-                .message_id(self.buffer.message_id)
+                .message_id(self.buffer.lock().await.message_id)
                 .sequence_number(sequence_number)
                 .flag(flag)
                 .chunk(chunk_bytes)
@@ -206,10 +220,10 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer::new(q);
+        let mut sending_buffer = InMemorySendingBuffer::new(q, 10);
 
         for message in deniable_messages {
-            sending_buffer.queue_message(message);
+            sending_buffer.queue_message(message).await;
         }
 
         let deniable_payload = sending_buffer
@@ -218,15 +232,12 @@ mod test {
             .unwrap()
             .expect("Should be Some");
 
-        let mut total_size: usize = deniable_payload
-            .denim_chunks()
+        let total_size: usize = deniable_payload
+            .to_bytes()
+            .expect("Should get bytes")
             .iter()
-            .map(|chunk| chunk.len())
+            .map(|bytes| bytes.len())
             .sum::<usize>();
-
-        if let Some(garbage) = deniable_payload.garbage() {
-            total_size += garbage.len();
-        }
 
         assert_eq!(total_size, (regular_msg_len as f32 * q).ceil() as usize);
     }

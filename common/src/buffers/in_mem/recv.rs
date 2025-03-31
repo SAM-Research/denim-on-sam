@@ -1,23 +1,23 @@
+use crate::buffers::ChunkDecodeError;
+use crate::buffers::DenimChunk;
+use crate::buffers::Flag;
+use crate::buffers::ReceivingBuffer;
+use crate::denim_message::DeniableMessage;
 use async_trait::async_trait;
-use log::error;
-use log::info;
+use log::{debug, error};
 use prost::Message as _;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::mem::take;
-
-use crate::buffers::ChunkDecodeError;
-use crate::buffers::DenimChunk;
-use crate::buffers::Flag;
-use crate::buffers::ReceivingBuffer;
-use crate::denim_message::DeniableMessage;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct ChunkBuffer {
-    chunks: HashMap<u32, Vec<u8>>,
-    waiting_for: HashSet<u32>,
+    chunks: Arc<Mutex<HashMap<u32, Vec<u8>>>>,
+    waiting_for: Arc<Mutex<HashSet<u32>>>,
 }
 
 impl Default for ChunkBuffer {
@@ -25,8 +25,8 @@ impl Default for ChunkBuffer {
         let mut waiting_for = HashSet::new();
         waiting_for.insert(0);
         ChunkBuffer {
-            chunks: Default::default(),
-            waiting_for,
+            chunks: Arc::new(Mutex::new(Default::default())),
+            waiting_for: Arc::new(Mutex::new(waiting_for)),
         }
     }
 }
@@ -37,7 +37,9 @@ pub struct InMemoryReceivingBuffer<Sender: Eq + Hash> {
 }
 
 #[async_trait]
-impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceivingBuffer<T> {
+impl<T: Send + Eq + Hash + Copy + Display + Sync> ReceivingBuffer<T>
+    for InMemoryReceivingBuffer<T>
+{
     async fn process_chunks(
         &mut self,
         sender: T,
@@ -53,17 +55,19 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
             let chunk_buffer = buffer.entry(message_id).or_default();
             let seq = chunk.sequence_number();
 
-            if !chunk_buffer.waiting_for.contains(&seq) {
+            if !chunk_buffer.waiting_for.lock().await.contains(&seq) {
                 for id in 0..seq {
-                    if !chunk_buffer.chunks.contains_key(&id) {
-                        chunk_buffer.waiting_for.insert(id);
+                    if !chunk_buffer.chunks.lock().await.contains_key(&id) {
+                        chunk_buffer.waiting_for.lock().await.insert(id);
                     }
                 }
                 let next = chunk.sequence_number() + 1;
-                if chunk.flag() != Flag::Final && !chunk_buffer.chunks.contains_key(&next) {
-                    chunk_buffer.waiting_for.insert(next);
+                if chunk.flag() != Flag::Final
+                    && !chunk_buffer.chunks.lock().await.contains_key(&next)
+                {
+                    chunk_buffer.waiting_for.lock().await.insert(next);
                 }
-                info!(
+                debug!(
                     "Received message chunk {:?} out of order from sender {} for message {:?}. Waiting for {:?}",
                     chunk.sequence_number(),
                     sender,
@@ -71,28 +75,35 @@ impl<T: Send + Eq + Hash + Copy + Display> ReceivingBuffer<T> for InMemoryReceiv
                     chunk_buffer.waiting_for
                 )
             } else {
-                chunk_buffer.waiting_for.remove(&seq);
+                chunk_buffer.waiting_for.lock().await.remove(&seq);
                 let next = seq + 1;
-                if chunk.flag() != Flag::Final && !chunk_buffer.chunks.contains_key(&next) {
-                    chunk_buffer.waiting_for.insert(next);
+                if chunk.flag() != Flag::Final
+                    && !chunk_buffer.chunks.lock().await.contains_key(&next)
+                {
+                    chunk_buffer.waiting_for.lock().await.insert(next);
                 }
             }
-            chunk_buffer.chunks.insert(seq, take(chunk.chunk_mut()));
+            chunk_buffer
+                .chunks
+                .lock()
+                .await
+                .insert(seq, take(chunk.chunk_mut()));
 
-            info!(
+            debug!(
                 "Sender {} Message id {:?}: Received Chunks {:?}, waiting for {:?}",
                 sender,
                 chunk.message_id(),
-                chunk_buffer.chunks.keys(),
+                chunk_buffer.chunks.lock().await.keys(),
                 chunk_buffer.waiting_for
             );
-            if chunk_buffer.waiting_for.is_empty() {
+            if chunk_buffer.waiting_for.lock().await.is_empty() {
                 let chunk_buffer = buffer.remove(&message_id).unwrap();
 
-                let mut completed: Vec<(u32, Vec<u8>)> = chunk_buffer.chunks.into_iter().collect();
+                let mut completed: Vec<(u32, Vec<u8>)> =
+                    chunk_buffer.chunks.lock().await.drain().collect();
                 completed.sort_by_key(|(seq, _)| *seq);
                 let size = completed.len();
-                info!(
+                debug!(
                     "Completed message with id {:?}: chunks: {:?}",
                     chunk.message_id(),
                     completed
@@ -159,7 +170,6 @@ mod test {
 
     #[tokio::test]
     async fn in_memory_receiving_buffer() {
-        _ = env_logger::try_init();
         let mut buffer = InMemoryReceivingBuffer::default();
 
         let (chunk1, chunk2) = chunks();
