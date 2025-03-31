@@ -12,8 +12,7 @@ use std::mem::take;
 
 pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
     let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
-    let mut i = 0;
-    for length in lengths {
+    for (i, length) in lengths.into_iter().enumerate() {
         let content = vec![0u8; length];
         deniable_messages.push_back(DeniableMessage {
             message_id: i as u32,
@@ -24,7 +23,6 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
                 content,
             })),
         });
-        i += 1;
     }
     deniable_messages
 }
@@ -48,7 +46,7 @@ pub async fn send_recv_buffer(
     let mut sending_buffer = InMemorySendingBuffer::new(q, 10);
 
     for message in deniable_messages {
-        sending_buffer.queue_message(message).await;
+        sending_buffer.enqueue_message(message).await;
     }
 
     let mut deniable_payloads: Vec<DeniablePayload> = Vec::new();
@@ -89,7 +87,7 @@ pub async fn send_recv_buffer(
     }
 
     assert_eq!(messages.len(), message_lengths.len());
-    if seed == None {
+    if seed.is_none() {
         for (i, message) in messages.iter().enumerate() {
             let content = vec![0u8; message_lengths[i]];
             assert_eq!(

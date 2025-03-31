@@ -99,7 +99,7 @@ impl SendingBuffer for InMemorySendingBuffer {
         ))
     }
 
-    async fn queue_message(&mut self, deniable_message: DeniableMessage) {
+    async fn enqueue_message(&mut self, deniable_message: DeniableMessage) {
         self.outgoing_messages
             .lock()
             .await
@@ -191,8 +191,7 @@ mod test {
 
     fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
-        let mut i = 0;
-        for length in lengths {
+        for (i, length) in lengths.into_iter().enumerate() {
             let mut random_bytes = vec![0u8; length];
             rand::rng().fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
@@ -203,7 +202,6 @@ mod test {
                     content: random_bytes,
                 })),
             });
-            i += 1;
         }
         deniable_messages
     }
@@ -223,7 +221,7 @@ mod test {
         let mut sending_buffer = InMemorySendingBuffer::new(q, 10);
 
         for message in deniable_messages {
-            sending_buffer.queue_message(message).await;
+            sending_buffer.enqueue_message(message).await;
         }
 
         let deniable_payload = sending_buffer
