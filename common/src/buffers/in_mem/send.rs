@@ -19,6 +19,7 @@ struct Buffer {
 pub struct InMemorySendingBuffer {
     min_payload_length: u8,
     q: f32,
+    chunk_size_without_payload: usize,
     outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
     buffer: Arc<Mutex<Buffer>>,
 }
@@ -35,7 +36,7 @@ impl SendingBuffer for InMemorySendingBuffer {
 
         let mut available_bytes = self.calculate_deniable_payload_length(reg_message_len);
 
-        if available_bytes < self.min_payload_length as usize {
+        if available_bytes < self.min_payload_length.into() {
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(vec![])
@@ -48,10 +49,8 @@ impl SendingBuffer for InMemorySendingBuffer {
 
         let mut denim_chunks: Vec<DenimChunk> = Vec::new();
 
-        let chunk_size_without_payload = DenimChunk::get_size_without_payload();
-
-        while available_bytes > chunk_size_without_payload {
-            let deniable_payload_len = available_bytes - chunk_size_without_payload;
+        while available_bytes > self.chunk_size_without_payload {
+            let deniable_payload_len = available_bytes - self.chunk_size_without_payload;
 
             let chunk = self.get_next_chunk(deniable_payload_len).await;
 
@@ -72,8 +71,8 @@ impl SendingBuffer for InMemorySendingBuffer {
                 }
             }
         }
-        if available_bytes >= chunk_size_without_payload {
-            let dummy_chunk_length = available_bytes - chunk_size_without_payload;
+        if available_bytes >= self.chunk_size_without_payload {
+            let dummy_chunk_length = available_bytes - self.chunk_size_without_payload;
 
             let dummy_chunk = self.create_dummy_chunk(dummy_chunk_length);
             let encoded_chunk_size = dummy_chunk.get_size()?;
@@ -112,9 +111,10 @@ impl InMemorySendingBuffer {
         Self {
             min_payload_length,
             q,
+            chunk_size_without_payload: DenimChunk::get_size_without_payload(),
             outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
             buffer: Arc::new(Mutex::new(Buffer {
-                content: vec![],
+                content: Vec::new(),
                 message_id: 0,
                 next_sequence_number: 0,
             })),
