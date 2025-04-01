@@ -83,7 +83,7 @@ impl SendingBuffer for InMemorySendingBuffer {
         if available_bytes > 0 {
             denim_chunks
                 .last_mut()
-                .ok_or(LibError::IllegalDeniablePayload)?
+                .ok_or(LibError::NoChunksInDeniablePayload)?
                 .set_garbage_flag();
             return Ok(Some(
                 DeniablePayload::builder()
@@ -115,13 +115,13 @@ impl InMemorySendingBuffer {
         let chunk_size_without_payload = DenimChunk::get_size_without_payload();
 
         if min_payload_length as usize > chunk_size_without_payload {
-            return Err(LibError::IllegalMinPayloadLength);
+            return Err(LibError::MinPayloadLengthTooHigh);
         }
 
         Ok(Self {
             min_payload_length,
             q,
-            chunk_size_without_payload: chunk_size_without_payload,
+            chunk_size_without_payload,
             outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
             buffer: Arc::new(Mutex::new(Buffer {
                 content: Vec::new(),

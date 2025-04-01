@@ -7,6 +7,6 @@ pub enum LibError {
     DenimMessageDecode(ChunkDecodeError),
     ChunkDecode,
     ChunkEncode,
-    IllegalMinPayloadLength,
-    IllegalDeniablePayload,
+    MinPayloadLengthTooHigh,
+    NoChunksInDeniablePayload,
 }
