@@ -3,7 +3,7 @@ use bincode::config;
 use bincode::{Decode, Encode};
 use bon::Builder;
 
-#[derive(Encode, Decode, Builder)]
+#[derive(Encode, Decode, Builder, Debug)]
 pub struct DenimChunk {
     chunk: Vec<u8>,
     message_id: MessageId,
@@ -32,6 +32,28 @@ impl DenimChunk {
     pub fn flag(&self) -> Flag {
         self.flag
     }
+    pub fn set_garbage_flag(&mut self) {
+        self.flag = match self.flag {
+            Flag::None => Flag::NoneNextGarbage,
+            Flag::Final => Flag::FinalNextGarbage,
+            Flag::DummyPadding => Flag::DummyPaddingNextGarbage,
+            _ => self.flag,
+        }
+    }
+    pub fn has_garbage_flag(&self) -> bool {
+        match self.flag {
+            Flag::NoneNextGarbage | Flag::FinalNextGarbage | Flag::DummyPaddingNextGarbage => true,
+            Flag::Final | Flag::DummyPadding | Flag::None => false,
+        }
+    }
+    pub fn remove_garbage_flag(&mut self) {
+        self.flag = match self.flag {
+            Flag::NoneNextGarbage => Flag::None,
+            Flag::FinalNextGarbage => Flag::Final,
+            Flag::DummyPaddingNextGarbage => Flag::DummyPadding,
+            _ => self.flag,
+        }
+    }
     pub fn chunk(&self) -> &Vec<u8> {
         &self.chunk
     }
@@ -58,8 +80,11 @@ impl DenimChunk {
 #[repr(u8)]
 pub enum Flag {
     None = 0,
-    Final = 1,
-    DummyPadding = 2,
+    NoneNextGarbage = 1,
+    Final = 2,
+    FinalNextGarbage = 3,
+    DummyPadding = 4,
+    DummyPaddingNextGarbage = 5,
 }
 
 #[derive(Encode, Decode, Builder)]
@@ -93,5 +118,23 @@ impl DeniablePayload {
             encoded_chunks.push(garbage);
         }
         Ok(encoded_chunks)
+    }
+
+    pub fn decode(bytes: Vec<Vec<u8>>) -> Result<Vec<DenimChunk>, LibError> {
+        let mut denim_chunks = Vec::new();
+        for chunk in bytes {
+            let (mut denim_chunk, _): (DenimChunk, usize) =
+                bincode::decode_from_slice(&chunk, config::standard().with_fixed_int_encoding())
+                    .map_err(|_| LibError::ChunkDecode)?;
+
+            if denim_chunk.has_garbage_flag() {
+                denim_chunk.remove_garbage_flag();
+                denim_chunks.push(denim_chunk);
+                return Ok(denim_chunks);
+            }
+            denim_chunks.push(denim_chunk);
+        }
+
+        Ok(denim_chunks)
     }
 }

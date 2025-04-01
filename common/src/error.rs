@@ -4,6 +4,9 @@ use crate::buffers::ChunkDecodeError;
 
 #[derive(Debug, Display, Error)]
 pub enum LibError {
-    ChunkDecode(ChunkDecodeError),
+    DenimMessageDecode(ChunkDecodeError),
+    ChunkDecode,
     ChunkEncode,
+    MinPayloadLengthTooHigh,
+    NoChunksInDeniablePayload,
 }

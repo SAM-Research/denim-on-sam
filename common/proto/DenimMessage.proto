@@ -71,3 +71,8 @@ message KeyBundle {
   required SignedKeyStruct pq_pre_key = 4;
   required SignedKeyStruct signed_pre_key = 5;
 }
+
+message DenimMessage {
+  required bytes regular_payload = 1;
+  repeated bytes deniable_payload = 2;
+}

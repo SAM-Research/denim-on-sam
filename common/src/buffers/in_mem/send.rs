@@ -81,6 +81,10 @@ impl SendingBuffer for InMemorySendingBuffer {
         }
 
         if available_bytes > 0 {
+            denim_chunks
+                .last_mut()
+                .ok_or(LibError::NoChunksInDeniablePayload)?
+                .set_garbage_flag();
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(denim_chunks)
@@ -107,18 +111,24 @@ impl SendingBuffer for InMemorySendingBuffer {
 }
 
 impl InMemorySendingBuffer {
-    pub fn new(q: f32, min_payload_length: u8) -> Self {
-        Self {
+    pub fn new(q: f32, min_payload_length: u8) -> Result<Self, LibError> {
+        let chunk_size_without_payload = DenimChunk::get_size_without_payload();
+
+        if min_payload_length as usize > chunk_size_without_payload {
+            return Err(LibError::MinPayloadLengthTooHigh);
+        }
+
+        Ok(Self {
             min_payload_length,
             q,
-            chunk_size_without_payload: DenimChunk::get_size_without_payload(),
+            chunk_size_without_payload,
             outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
             buffer: Arc::new(Mutex::new(Buffer {
                 content: Vec::new(),
                 message_id: 0,
                 next_sequence_number: 0,
             })),
-        }
+        })
     }
     fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
         (reg_message_len as f32 * self.q).ceil() as usize
@@ -185,7 +195,7 @@ impl InMemorySendingBuffer {
 mod test {
     use super::*;
     use crate::denim_message::deniable_message::MessageKind;
-    use crate::denim_message::{MessageType, UserMessage};
+    use crate::denim_message::{DenimMessage, MessageType, UserMessage};
     use rand::RngCore;
     use rstest::rstest;
 
@@ -218,7 +228,7 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer::new(q, 10);
+        let mut sending_buffer = InMemorySendingBuffer::new(q, 10).expect("Can make SendingBuffer");
 
         for message in deniable_messages {
             sending_buffer.enqueue_message(message).await;
@@ -238,5 +248,58 @@ mod test {
             .sum::<usize>();
 
         assert_eq!(total_size, (regular_msg_len as f32 * q).ceil() as usize);
+    }
+
+    #[rstest]
+    #[case(InMemorySendingBuffer::create_n_random_bytes(123), 0.32, vec![20, 30, 40])]
+    #[case(InMemorySendingBuffer::create_n_random_bytes(50), 0.625, vec![23, 31,15])]
+    #[case(InMemorySendingBuffer::create_n_random_bytes(1023), 0.721, vec![21,3,5,123])]
+    #[case(InMemorySendingBuffer::create_n_random_bytes(300), 1.0, vec![260])]
+    #[tokio::test]
+    async fn encode_and_decode_deniable_payload_in_denim_message(
+        #[case] regular_msg: Vec<u8>,
+        #[case] q: f32,
+        #[case] message_lengths: Vec<usize>,
+    ) {
+        let deniable_messages = make_deniable_messages(message_lengths);
+
+        let mut sending_buffer = InMemorySendingBuffer::new(q, 10).expect("Can make SendingBuffer");
+
+        for message in deniable_messages {
+            sending_buffer.enqueue_message(message).await;
+        }
+
+        let deniable_payload = sending_buffer
+            .get_deniable_payload(regular_msg.len() as u32)
+            .await
+            .unwrap()
+            .expect("Should be Some");
+
+        let deniable_payload_chunks = deniable_payload.denim_chunks().len();
+
+        let denim_message = DenimMessage::builder()
+            .deniable_payload(
+                deniable_payload
+                    .to_bytes()
+                    .expect("Should be able to make it to bytes"),
+            )
+            .regular_payload(regular_msg.clone())
+            .build();
+
+        let deniable_payload = DeniablePayload::decode(denim_message.deniable_payload.clone())
+            .expect("Should be able to decode deniable payload");
+
+        let deniable_payload_size = denim_message
+            .deniable_payload
+            .iter()
+            .map(|bytes| bytes.len())
+            .sum::<usize>();
+
+        assert_eq!(
+            deniable_payload_size,
+            (regular_msg.len() as f32 * q).ceil() as usize
+        );
+
+        assert_eq!(deniable_payload.len(), deniable_payload_chunks);
     }
 }

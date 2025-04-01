@@ -3,8 +3,12 @@ coverage:
   precision: 2
   status:
     project:
-      default:   # default is the status check's name, not default settings
-        target: 80 
+      default: # default is the status check's name, not default settings
+        target: 80
+        threshold: 20
+    patch:
+      default:
+        target: 80
         threshold: 20
 
 ignore:
