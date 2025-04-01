@@ -8,7 +8,6 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rstest::rstest;
 use std::collections::VecDeque;
-use std::mem::take;
 
 pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
     let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
@@ -26,6 +25,7 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
     }
     deniable_messages
 }
+
 #[rstest]
 #[case(150, 1.0, vec![10, 30, 16], None)]
 #[case(30, 1.0, vec![150, 31, 90], None)]
@@ -76,10 +76,11 @@ pub async fn send_recv_buffer(
         deniable_payloads.shuffle(&mut rng);
     }
 
-    for mut deniable_payload in deniable_payloads {
-        let result_from_process = receiving_buffer
-            .process_chunks("bob", take(deniable_payload.denim_chunks_mut()))
-            .await;
+    for deniable_payload in deniable_payloads {
+        let bytes = deniable_payload.to_bytes().expect("Can make it to bytes");
+        let denim_chunks = DeniablePayload::decode(bytes).expect("Can decode bytes");
+
+        let result_from_process = receiving_buffer.process_chunks("bob", denim_chunks).await;
         for result in result_from_process {
             let deniable_message = result.expect("Can decode message");
             messages.push(deniable_message);
