@@ -1,15 +1,16 @@
-use crate::buffers::ChunkDecodeError;
 use crate::buffers::DenimChunk;
 use crate::buffers::Flag;
+use crate::buffers::MessageId;
 use crate::buffers::ReceivingBuffer;
 use crate::denim_message::DeniableMessage;
+use crate::error::DenimBufferError;
 use async_trait::async_trait;
 use log::{debug, error};
+
 use prost::Message as _;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt::Display;
-use std::hash::Hash;
+
 use std::mem::take;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -32,27 +33,24 @@ impl Default for ChunkBuffer {
 }
 
 #[derive(Debug, Default)]
-pub struct InMemoryReceivingBuffer<Sender: Eq + Hash> {
-    buffers: HashMap<Sender, HashMap<u32, ChunkBuffer>>,
+pub struct InMemoryReceivingBuffer {
+    buffers: Arc<Mutex<HashMap<MessageId, ChunkBuffer>>>,
 }
 
 #[async_trait]
-impl<T: Send + Eq + Hash + Copy + Display + Sync> ReceivingBuffer<T>
-    for InMemoryReceivingBuffer<T>
-{
+impl ReceivingBuffer for InMemoryReceivingBuffer {
     async fn process_chunks(
         &mut self,
-        sender: T,
         chunks: Vec<DenimChunk>,
-    ) -> Vec<Result<DeniableMessage, ChunkDecodeError>> {
-        let buffer = self.buffers.entry(sender).or_default();
+    ) -> Vec<Result<DeniableMessage, DenimBufferError>> {
         let mut messages = Vec::new();
         for mut chunk in chunks {
             if chunk.flag() == Flag::DummyPadding {
                 continue;
             }
             let message_id = chunk.message_id();
-            let chunk_buffer = buffer.entry(message_id).or_default();
+            let mut buffer_guard = self.buffers.lock().await;
+            let chunk_buffer = buffer_guard.entry(message_id).or_default();
             let seq = chunk.sequence_number();
 
             if !chunk_buffer.waiting_for.lock().await.contains(&seq) {
@@ -68,9 +66,8 @@ impl<T: Send + Eq + Hash + Copy + Display + Sync> ReceivingBuffer<T>
                     chunk_buffer.waiting_for.lock().await.insert(next);
                 }
                 debug!(
-                    "Received message chunk {:?} out of order from sender {} for message {:?}. Waiting for {:?}",
+                    "Received message chunk {:?} out of order for message {:?}. Waiting for {:?}",
                     chunk.sequence_number(),
-                    sender,
                     chunk.message_id(),
                     chunk_buffer.waiting_for
                 )
@@ -90,38 +87,46 @@ impl<T: Send + Eq + Hash + Copy + Display + Sync> ReceivingBuffer<T>
                 .insert(seq, take(chunk.chunk_mut()));
 
             debug!(
-                "Sender {} Message id {:?}: Received Chunks {:?}, waiting for {:?}",
-                sender,
+                "Message id {:?}: Received Chunks {:?}, waiting for {:?}",
                 chunk.message_id(),
                 chunk_buffer.chunks.lock().await.keys(),
                 chunk_buffer.waiting_for
             );
-            if chunk_buffer.waiting_for.lock().await.is_empty() {
-                let chunk_buffer = buffer.remove(&message_id).unwrap();
 
-                let mut completed: Vec<(u32, Vec<u8>)> =
-                    chunk_buffer.chunks.lock().await.drain().collect();
-                completed.sort_by_key(|(seq, _)| *seq);
-                let size = completed.len();
-                debug!(
-                    "Completed message with id {:?}: chunks: {:?}",
-                    chunk.message_id(),
-                    completed
-                );
-
-                let bytes =
-                    completed
-                        .into_iter()
-                        .fold(Vec::with_capacity(size), |mut acc, (_, bytes)| {
-                            acc.extend(bytes);
-                            acc
-                        });
-
-                let payload = DeniableMessage::decode(bytes.as_slice())
-                    .inspect_err(|err| error!("{err}"))
-                    .map_err(|_| ChunkDecodeError::new(sender.to_string()));
-                messages.push(payload);
+            if !chunk_buffer.waiting_for.lock().await.is_empty() {
+                continue;
             }
+
+            let chunk_buffer = match buffer_guard.remove(&message_id) {
+                Some(x) => x,
+                None => {
+                    messages.push(Err(DenimBufferError::ChunkBufferNotFound));
+                    continue;
+                }
+            };
+
+            let mut completed: Vec<(u32, Vec<u8>)> =
+                chunk_buffer.chunks.lock().await.drain().collect();
+            completed.sort_by_key(|(seq, _)| *seq);
+            let size = completed.len();
+            debug!(
+                "Completed message with id {:?}: chunks: {:?}",
+                chunk.message_id(),
+                completed
+            );
+
+            let bytes =
+                completed
+                    .into_iter()
+                    .fold(Vec::with_capacity(size), |mut acc, (_, bytes)| {
+                        acc.extend(bytes);
+                        acc
+                    });
+
+            let payload = DeniableMessage::decode(bytes.as_slice())
+                .inspect_err(|err| error!("{err}"))
+                .map_err(|_| DenimBufferError::ChunkDecodeError);
+            messages.push(payload);
         }
         messages
     }
@@ -175,7 +180,7 @@ mod test {
         let (chunk1, chunk2) = chunks();
 
         let actual: Vec<DeniableMessage> = buffer
-            .process_chunks(1, vec![chunk1, chunk2])
+            .process_chunks(vec![chunk1, chunk2])
             .await
             .into_iter()
             .map(|payload| payload.expect("can decode payload"))
@@ -193,7 +198,7 @@ mod test {
         let (chunk1, chunk2) = chunks();
 
         let actual: Vec<DeniableMessage> = buffer
-            .process_chunks(1, vec![chunk2, chunk1])
+            .process_chunks(vec![chunk2, chunk1])
             .await
             .into_iter()
             .map(|payload| payload.expect("can decode payload"))

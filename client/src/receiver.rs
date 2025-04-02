@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use denim_sam_common::{
-    buffers::{DeniablePayload, DenimChunk, SendingBuffer},
-    denim_message::DenimMessage,
+    buffers::{DeniablePayload, DenimChunk, ReceivingBuffer, SendingBuffer},
+    denim_message::{DeniableMessage, DenimMessage},
 };
 use futures_util::{stream::SplitStream, StreamExt};
 use log::{debug, error};
@@ -22,27 +22,30 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
 
-pub struct DenimReceiver<T: SendingBuffer> {
+pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     enqueue_sam_envelope: Sender<ServerEnvelope>,
     enqueue_sam_status: Sender<ServerStatus>,
-    enqueue_chunks: Option<Sender<DenimChunk>>,
+    enqueue_deniable_message: Option<Sender<DeniableMessage>>,
     sending_buffer: T,
+    receiving_buffer: U,
 }
 
-impl<T: SendingBuffer> DenimReceiver<T> {
+impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     pub fn new(
         client: Arc<Mutex<WebSocketClient>>,
         enqueue_sam_envelope: Sender<ServerEnvelope>,
         enqueue_sam_status: Sender<ServerStatus>,
         sending_buffer: T,
+        receiving_buffer: U,
     ) -> Self {
         Self {
             client,
             enqueue_sam_envelope,
             enqueue_sam_status,
-            enqueue_chunks: None,
+            enqueue_deniable_message: None,
             sending_buffer,
+            receiving_buffer,
         }
     }
 
@@ -105,15 +108,20 @@ impl<T: SendingBuffer> DenimReceiver<T> {
     }
 
     async fn handle_chunks(&mut self, chunks: Vec<DenimChunk>) {
-        if let Some(sender) = &self.enqueue_chunks {
-            for chunk in chunks {
-                match sender.send(chunk).await {
-                    Ok(_) => continue,
+        if let Some(sender) = &self.enqueue_deniable_message {
+            let results = self.receiving_buffer.process_chunks(chunks).await;
+            for res in results {
+                let send_res = match res {
+                    Ok(msg) => sender.send(msg).await,
                     Err(e) => {
-                        error!("Failed to enqueue denim chunk: {e}");
+                        error!("Failed to handle deniable message: '{e}'");
                         continue;
                     }
                 };
+                match send_res {
+                    Ok(_) => continue,
+                    Err(e) => error!("Failed to enqueue denim chunk: {e}"),
+                }
             }
         }
     }
@@ -131,9 +139,15 @@ impl<T: SendingBuffer> DenimReceiver<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: SendingBuffer> WebSocketReceiver<DenimChunk> for DenimReceiver<T> {
-    async fn handler(&mut self, mut receiver: SplitStream<WebSocket>, enqueue: Sender<DenimChunk>) {
-        self.enqueue_chunks = Some(enqueue);
+impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<DeniableMessage>
+    for DenimReceiver<T, U>
+{
+    async fn handler(
+        &mut self,
+        mut receiver: SplitStream<WebSocket>,
+        enqueue: Sender<DeniableMessage>,
+    ) {
+        self.enqueue_deniable_message = Some(enqueue);
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
                 Message::Binary(b) => DenimMessage::decode(b),
@@ -180,7 +194,7 @@ impl<T: SendingBuffer> WebSocketReceiver<DenimChunk> for DenimReceiver<T> {
             };
         }
 
-        self.enqueue_chunks = None;
+        self.enqueue_deniable_message = None;
     }
 }
 
@@ -189,7 +203,7 @@ mod test {
     use std::{sync::Arc, time::Duration};
 
     use denim_sam_common::{
-        buffers::{Flag, InMemorySendingBuffer, SendingBuffer},
+        buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer, SendingBuffer},
         denim_message::{
             deniable_message::MessageKind, DeniableMessage, DenimMessage, MessageType, UserMessage,
         },
@@ -197,6 +211,7 @@ mod test {
     use futures_util::SinkExt;
     use prost::Message as PMessage;
     use rand::RngCore;
+    use rstest::rstest;
     use sam_client::net::protocol::websocket::{WebSocketClient, WebSocketClientConfig};
     use sam_common::{
         address::MessageId,
@@ -358,22 +373,22 @@ mod test {
             .build()
     }
 
+    #[rstest]
+    #[case(vec![ClientAction::Deniable, ClientAction::Regular, ClientAction::Status], "9080")]
+    #[case(vec![ClientAction::Deniable, ClientAction::Deniable, ClientAction::Deniable], "9081")]
+    #[case(vec![ClientAction::Regular, ClientAction::Regular, ClientAction::Regular], "9082")]
+    #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], "9083")]
     #[tokio::test]
-    async fn receive_denim_message() {
+    async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: &str) {
         let _ = env_logger::try_init();
         let (q, len) = (1.0, 10);
-        let addr = "127.0.0.1:9080";
-        let actions = vec![
-            ClientAction::Deniable,
-            ClientAction::Regular,
-            ClientAction::Status,
-        ];
+        let addr = format!("127.0.0.1:{port}");
 
         let envelope = create_envelope();
         let status = create_status();
         let (stop_tx, stop_rx) = oneshot::channel();
         let server_result = test_server(
-            addr,
+            &addr,
             actions.clone(),
             envelope.clone(),
             status.clone(),
@@ -390,8 +405,15 @@ mod test {
         ));
         let (env_tx, mut env_rx) = mpsc::channel(10);
         let (status_tx, mut status_rx) = mpsc::channel(10);
-        let buffer = InMemorySendingBuffer::new(q, len).expect("benis");
-        let receiver = DenimReceiver::new(client.clone(), env_tx, status_tx, buffer.clone());
+        let send_buffer = InMemorySendingBuffer::new(q, len).expect("benis");
+        let recv_buffer = InMemoryReceivingBuffer::default();
+        let receiver = DenimReceiver::new(
+            client.clone(),
+            env_tx,
+            status_tx,
+            send_buffer.clone(),
+            recv_buffer,
+        );
         let mut chunk_rx = client
             .lock()
             .await
@@ -401,50 +423,64 @@ mod test {
 
         let mut actual = Vec::new();
         for action in actions {
-            let data = match action {
-                ClientAction::Deniable | ClientAction::Regular => {
+            let (data, deniable_data) = match action {
+                ClientAction::Deniable => {
                     let a_env = tokio::time::timeout(Duration::from_millis(300), env_rx.recv())
                         .await
                         .expect("envelope does not timeout")
                         .expect("Can get envelope");
-                    Some(a_env.content)
+                    let a_deniable =
+                        tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
+                            .await
+                            .expect("chunk does not timeout")
+                            .expect("Can get chunk");
+                    (
+                        Some(a_env.content),
+                        Some(matches!(
+                            a_deniable.message_kind,
+                            Some(MessageKind::DeniableMessage(_))
+                        )),
+                    )
+                }
+                ClientAction::Regular => {
+                    let a_env = tokio::time::timeout(Duration::from_millis(300), env_rx.recv())
+                        .await
+                        .expect("envelope does not timeout")
+                        .expect("Can get envelope");
+                    (Some(a_env.content), None)
                 }
                 ClientAction::Status => {
                     tokio::time::timeout(Duration::from_millis(300), status_rx.recv())
                         .await
                         .expect("chunk does not timeout")
                         .expect("Can get status");
-                    None
+                    (None, None)
                 }
             };
-            let a_chunk = tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
-                .await
-                .expect("chunk does not timeout")
-                .expect("Can get chunk");
 
-            actual.push((action, data, a_chunk.flag()));
+            actual.push((action, data, deniable_data));
         }
         stop_tx.send(()).expect("Can stop server");
         server_result.await.expect("Server works");
-        for (action, data, flag) in actual {
+        for (action, data, is_denim) in actual {
             match action {
                 ClientAction::Deniable => {
                     assert!(
                         data.is_some_and(|x| x == vec![69; 100]),
                         "Deniable data did not match"
                     );
-                    assert!(flag == Flag::Final);
+                    assert!(matches!(is_denim, Some(true)));
                 }
                 ClientAction::Regular => {
                     assert!(
                         data.is_some_and(|x| x == vec![69; 100]),
                         "Regular data did not match"
                     );
-                    assert!(flag == Flag::DummyPadding)
+                    assert!(is_denim.is_none())
                 }
                 ClientAction::Status => {
                     assert!(data.is_none());
-                    assert!(flag == Flag::DummyPadding);
+                    assert!(is_denim.is_none());
                 }
             }
         }

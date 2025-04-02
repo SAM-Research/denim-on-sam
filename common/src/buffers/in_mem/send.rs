@@ -1,6 +1,6 @@
 use crate::buffers::{DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SequenceNumber};
 use crate::denim_message::DeniableMessage;
-use crate::error::LibError;
+use crate::error::DenimBufferError;
 use async_trait::async_trait;
 use log::debug;
 use prost::Message;
@@ -30,7 +30,7 @@ impl SendingBuffer for InMemorySendingBuffer {
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
-    ) -> Result<Option<DeniablePayload>, LibError> {
+    ) -> Result<Option<DeniablePayload>, DenimBufferError> {
         if self.q == 0.0 {
             return Ok(None);
         }
@@ -84,7 +84,7 @@ impl SendingBuffer for InMemorySendingBuffer {
         if available_bytes > 0 {
             denim_chunks
                 .last_mut()
-                .ok_or(LibError::NoChunksInDeniablePayload)?
+                .ok_or(DenimBufferError::NoChunksInDeniablePayloadError)?
                 .set_garbage_flag();
             return Ok(Some(
                 DeniablePayload::builder()
@@ -112,11 +112,11 @@ impl SendingBuffer for InMemorySendingBuffer {
 }
 
 impl InMemorySendingBuffer {
-    pub fn new(q: f32, min_payload_length: u8) -> Result<Self, LibError> {
-        let chunk_size_without_payload = DenimChunk::get_size_without_payload();
+    pub fn new(q: f32, min_payload_length: u8) -> Result<Self, DenimBufferError> {
+        let chunk_size_without_payload = DenimChunk::get_size_without_payload()?;
 
         if min_payload_length as usize > chunk_size_without_payload {
-            return Err(LibError::MinPayloadLengthTooHigh);
+            return Err(DenimBufferError::MinPayloadLengthTooHighError);
         }
 
         Ok(Self {
