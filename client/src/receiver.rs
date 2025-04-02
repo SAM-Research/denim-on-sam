@@ -476,11 +476,11 @@ mod test {
                         data.is_some_and(|x| x == vec![69; 100]),
                         "Regular data did not match"
                     );
-                    assert!(matches!(is_denim, None))
+                    assert!(is_denim.is_none())
                 }
                 ClientAction::Status => {
                     assert!(data.is_none());
-                    assert!(matches!(is_denim, None));
+                    assert!(is_denim.is_none());
                 }
             }
         }
