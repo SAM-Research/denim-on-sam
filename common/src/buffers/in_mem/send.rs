@@ -16,6 +16,7 @@ struct Buffer {
     next_sequence_number: SequenceNumber,
 }
 
+#[derive(Clone)]
 pub struct InMemorySendingBuffer {
     min_payload_length: u8,
     q: f32,
