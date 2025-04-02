@@ -105,19 +105,16 @@ impl<T: SendingBuffer> DenimReceiver<T> {
     }
 
     async fn handle_chunks(&mut self, chunks: Vec<DenimChunk>) {
-        match &self.enqueue_chunks {
-            Some(sender) => {
-                for chunk in chunks {
-                    match sender.send(chunk).await {
-                        Ok(_) => continue,
-                        Err(e) => {
-                            error!("Failed to enqueue denim chunk: {e}");
-                            continue;
-                        }
-                    };
-                }
+        if let Some(sender) = &self.enqueue_chunks {
+            for chunk in chunks {
+                match sender.send(chunk).await {
+                    Ok(_) => continue,
+                    Err(e) => {
+                        error!("Failed to enqueue denim chunk: {e}");
+                        continue;
+                    }
+                };
             }
-            None => return,
         }
     }
 
@@ -227,7 +224,7 @@ mod test {
         DeniableMessage {
             message_id: 1u32,
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
-                destination_account_id: vec![1 as u8],
+                destination_account_id: vec![1_u8],
                 message_type: MessageType::SignalMessage.into(),
                 content: random_bytes,
             })),
