@@ -1,12 +1,9 @@
-use derive_more::{Display, Error};
+use derive_more::{Display, Error, From};
 
-use crate::buffers::ChunkDecodeError;
-
-#[derive(Debug, Display, Error)]
-pub enum LibError {
-    DenimMessageDecode(ChunkDecodeError),
-    ChunkDecode,
-    ChunkEncode,
-    MinPayloadLengthTooHigh,
-    NoChunksInDeniablePayload,
+#[derive(Debug, Display, Error, From)]
+pub enum DenimBufferError {
+    ChunkDecodeError,
+    ChunkEncodeError,
+    MinPayloadLengthTooHighError,
+    NoChunksInDeniablePayloadError,
 }
