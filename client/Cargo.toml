@@ -9,4 +9,13 @@ license.workspace = true
 [dependencies]
 sam-client = { workspace = true }
 sam-common = { workspace = true }
+denim-sam-common = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
 tokio = { workspace = true, features = ["full"] }
+env_logger = { workspace = true }
+log = { workspace = true }
+derive_more = { workspace = true, features = ["display", "error", "from"] }
+prost = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }

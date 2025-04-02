@@ -4,7 +4,7 @@ use crate::denim_message::DeniableMessage;
 use crate::{buffers::DeniablePayload, LibError};
 
 #[async_trait]
-pub trait SendingBuffer {
+pub trait SendingBuffer: Send + 'static {
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
