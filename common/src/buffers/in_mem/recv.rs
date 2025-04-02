@@ -6,7 +6,7 @@ use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use async_trait::async_trait;
 use log::{debug, error};
-use prost::bytes::buf;
+
 use prost::Message as _;
 use std::collections::HashMap;
 use std::collections::HashSet;
