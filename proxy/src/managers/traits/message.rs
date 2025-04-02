@@ -1,1 +1,1 @@
-pub trait BufferManager {}
+pub trait BufferManager: Send + Sync + Clone {}

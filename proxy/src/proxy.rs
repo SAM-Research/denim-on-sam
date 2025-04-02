@@ -38,7 +38,8 @@ pub async fn connect_to_sam_server<T: StateType>(
     Ok((client, queue))
 }
 
-pub async fn init_proxy_service(
+pub async fn init_proxy_service<T: StateType>(
+    state: DenimState<T>,
     socket: AxumWebSocket,
     server_client: WebSocketClient,
     server_receiver: Receiver<ProxyMessage>,
@@ -47,18 +48,25 @@ pub async fn init_proxy_service(
 ) {
     let (sender, receiver) = socket.split();
 
-    tokio::spawn(sam_server_handler(server_receiver, sender));
-    tokio::spawn(denim_client_receiver(server_client, receiver));
+    tokio::spawn(sam_server_handler(state.clone(), server_receiver, sender));
+    tokio::spawn(denim_client_receiver(
+        state.clone(),
+        server_client,
+        receiver,
+    ));
 }
 
 /// Handles messages from SAM Server and send them to client
 /// This is here we should put piggy back denim messages to the client
-async fn sam_server_handler(
+async fn sam_server_handler<T: StateType>(
+    _state: DenimState<T>,
     mut server_receiver: Receiver<ProxyMessage>,
     mut client_sender: SplitSink<AxumWebSocket, AxumMessage>,
 ) {
     // SAM Server sends proxy a message
     while let Some(msg) = server_receiver.recv().await {
+        //Intercept Sam message and piggyback
+
         if client_sender.send(msg).await.is_err() {
             break; // disconnected
         }
@@ -68,7 +76,8 @@ async fn sam_server_handler(
 /// Handles messages from Denim Client and forward them to SAM Server
 /// This is here we should extract SAM Message and send it
 /// We should also build chunks to Denim Messages here
-async fn denim_client_receiver(
+async fn denim_client_receiver<T: StateType>(
+    _state: DenimState<T>,
     mut server_client: WebSocketClient,
     mut client_receiver: SplitStream<AxumWebSocket>,
 ) {

@@ -1,6 +1,7 @@
 use clap::{Arg, Command};
 use denim_sam_proxy::managers::in_mem::{InMemoryBufferManager, InMemoryKeyDistributionCenter};
 use log::{debug, error, info};
+use sam_server::managers::in_memory::account::InMemoryAccountManager;
 use std::io::BufReader;
 
 use denim_sam_proxy::{
@@ -84,6 +85,7 @@ async fn cli() -> Result<(), CliError> {
                 Some(client),
                 InMemoryBufferManager::default(),
                 InMemoryKeyDistributionCenter::default(),
+                InMemoryAccountManager::default(),
             ),
             addr,
             tls_config: Some(server),
@@ -96,6 +98,7 @@ async fn cli() -> Result<(), CliError> {
                 None,
                 InMemoryBufferManager::default(),
                 InMemoryKeyDistributionCenter::default(),
+                InMemoryAccountManager::default(),
             ),
             addr,
             tls_config: None,

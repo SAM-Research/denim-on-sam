@@ -29,6 +29,6 @@ pub async fn websocket_endpoint<T: StateType>(
     let (client, queue) = connect_to_sam_server(headers, &state).await?;
     Ok(ws.on_upgrade(move |socket| async move {
         info!("A User Connected");
-        init_proxy_service(socket, client, queue, account_id, device_id).await
+        init_proxy_service(state, socket, client, queue, account_id, device_id).await
     }))
 }
