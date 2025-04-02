@@ -1,6 +1,6 @@
 use sam_server::managers::in_memory::account::InMemoryAccountManager;
 
-use crate::managers::in_mem::{InMemoryBufferManager, InMemoryKeyDistributionCenter};
+use crate::managers::in_mem::{InMemoryBufferManager, InMemoryDenimKeyManager};
 
 use super::StateType;
 
@@ -10,7 +10,7 @@ pub struct InMemory;
 impl StateType for InMemory {
     type BufferManager = InMemoryBufferManager;
 
-    type KeyDistributionCenter = InMemoryKeyDistributionCenter;
+    type KeyDistributionCenter = InMemoryDenimKeyManager;
 
     type AccountManager = InMemoryAccountManager;
 }

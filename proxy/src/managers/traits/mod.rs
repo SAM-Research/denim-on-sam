@@ -1,5 +1,5 @@
 mod keys;
 mod message;
 
-pub use keys::KeyDistributionCenter;
+pub use keys::DenimKeyManager;
 pub use message::BufferManager;

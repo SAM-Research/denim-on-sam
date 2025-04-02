@@ -1,6 +1,6 @@
 use denim_sam_proxy::{
     config::TlsConfig,
-    managers::in_mem::{InMemoryBufferManager, InMemoryKeyDistributionCenter},
+    managers::in_mem::{InMemoryBufferManager, InMemoryDenimKeyManager},
     server::{start_proxy, DenimConfig},
     state::{DenimState, InMemory},
 };
@@ -80,7 +80,7 @@ impl TestDenimProxy {
                     10,
                     Some(client),
                     InMemoryBufferManager::default(),
-                    InMemoryKeyDistributionCenter::default(),
+                    InMemoryDenimKeyManager::default(),
                     InMemoryAccountManager::default(),
                 ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
@@ -93,7 +93,7 @@ impl TestDenimProxy {
                     10,
                     None,
                     InMemoryBufferManager::default(),
-                    InMemoryKeyDistributionCenter::default(),
+                    InMemoryDenimKeyManager::default(),
                     InMemoryAccountManager::default(),
                 ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),

@@ -1,1 +1,1 @@
-pub trait KeyDistributionCenter: Send + Sync + Clone {}
+pub trait DenimKeyManager: Send + Sync + Clone {}

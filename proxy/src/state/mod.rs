@@ -1,4 +1,4 @@
-use crate::managers::{BufferManager, KeyDistributionCenter};
+use crate::managers::{BufferManager, DenimKeyManager};
 use std::sync::Arc;
 mod in_mem;
 
@@ -7,7 +7,7 @@ use sam_server::managers::traits::account_manager::AccountManager;
 
 pub trait StateType: 'static + Clone {
     type BufferManager: BufferManager;
-    type KeyDistributionCenter: KeyDistributionCenter;
+    type KeyDistributionCenter: DenimKeyManager;
     type AccountManager: AccountManager;
 }
 
