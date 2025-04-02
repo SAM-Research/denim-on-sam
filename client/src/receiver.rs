@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use denim_sam_common::{
-    buffers::{DeniablePayload, DenimChunk, SendingBuffer},
+    buffers::{DeniablePayload, DenimChunk, ReceivingBuffer, SendingBuffer},
     denim_message::DenimMessage,
 };
 use futures_util::{stream::SplitStream, StreamExt};
@@ -22,20 +22,22 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
 
-pub struct DenimReceiver<T: SendingBuffer> {
+pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     enqueue_sam_envelope: Sender<ServerEnvelope>,
     enqueue_sam_status: Sender<ServerStatus>,
     enqueue_chunks: Option<Sender<DenimChunk>>,
     sending_buffer: T,
+    receiving_buffer: U,
 }
 
-impl<T: SendingBuffer> DenimReceiver<T> {
+impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     pub fn new(
         client: Arc<Mutex<WebSocketClient>>,
         enqueue_sam_envelope: Sender<ServerEnvelope>,
         enqueue_sam_status: Sender<ServerStatus>,
         sending_buffer: T,
+        receiving_buffer: U,
     ) -> Self {
         Self {
             client,
@@ -43,6 +45,7 @@ impl<T: SendingBuffer> DenimReceiver<T> {
             enqueue_sam_status,
             enqueue_chunks: None,
             sending_buffer,
+            receiving_buffer,
         }
     }
 
@@ -131,7 +134,7 @@ impl<T: SendingBuffer> DenimReceiver<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: SendingBuffer> WebSocketReceiver<DenimChunk> for DenimReceiver<T> {
+impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<DenimChunk> for DenimReceiver<T, U> {
     async fn handler(&mut self, mut receiver: SplitStream<WebSocket>, enqueue: Sender<DenimChunk>) {
         self.enqueue_chunks = Some(enqueue);
         while let Some(Ok(msg)) = receiver.next().await {
@@ -189,7 +192,7 @@ mod test {
     use std::{sync::Arc, time::Duration};
 
     use denim_sam_common::{
-        buffers::{Flag, InMemorySendingBuffer, SendingBuffer},
+        buffers::{Flag, InMemoryReceivingBuffer, InMemorySendingBuffer, SendingBuffer},
         denim_message::{
             deniable_message::MessageKind, DeniableMessage, DenimMessage, MessageType, UserMessage,
         },
@@ -390,8 +393,15 @@ mod test {
         ));
         let (env_tx, mut env_rx) = mpsc::channel(10);
         let (status_tx, mut status_rx) = mpsc::channel(10);
-        let buffer = InMemorySendingBuffer::new(q, len).expect("benis");
-        let receiver = DenimReceiver::new(client.clone(), env_tx, status_tx, buffer.clone());
+        let send_buffer = InMemorySendingBuffer::new(q, len).expect("benis");
+        let recv_buffer = InMemoryReceivingBuffer::default();
+        let receiver = DenimReceiver::new(
+            client.clone(),
+            env_tx,
+            status_tx,
+            send_buffer.clone(),
+            recv_buffer,
+        );
         let mut chunk_rx = client
             .lock()
             .await

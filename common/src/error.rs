@@ -5,5 +5,6 @@ pub enum DenimBufferError {
     ChunkDecodeError,
     ChunkEncodeError,
     MinPayloadLengthTooHighError,
+    ChunkBufferNotFound,
     NoChunksInDeniablePayloadError,
 }
