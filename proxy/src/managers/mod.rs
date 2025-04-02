@@ -1,4 +1,3 @@
-mod entities;
 pub mod in_mem;
 mod traits;
 
