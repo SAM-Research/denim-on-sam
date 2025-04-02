@@ -15,11 +15,11 @@ use sam_server::auth::get_credentials;
 use crate::{
     error::ServerError,
     proxy::{connect_to_sam_server, init_proxy_service},
-    state::DenimState,
+    state::{DenimState, StateType},
 };
 
-pub async fn websocket_endpoint(
-    State(state): State<DenimState>,
+pub async fn websocket_endpoint<T: StateType>(
+    State(state): State<DenimState<T>>,
     headers: HeaderMap,
     TypedHeader(Authorization(basic)): TypedHeader<Authorization<Basic>>,
     ws: WebSocketUpgrade,
@@ -29,6 +29,6 @@ pub async fn websocket_endpoint(
     let (client, queue) = connect_to_sam_server(headers, &state).await?;
     Ok(ws.on_upgrade(move |socket| async move {
         info!("A User Connected");
-        init_proxy_service(socket, client, queue, account_id, device_id).await
+        init_proxy_service(state, socket, client, queue, account_id, device_id).await
     }))
 }

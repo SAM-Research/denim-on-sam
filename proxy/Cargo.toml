@@ -10,6 +10,7 @@ license.workspace = true
 sam-server = { workspace = true }
 sam-common = { workspace = true }
 sam-client = { workspace = true }
+denim-sam-common = { workspace = true }
 async-trait = { workspace = true }
 futures-util = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

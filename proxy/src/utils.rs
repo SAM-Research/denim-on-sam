@@ -9,7 +9,10 @@ use tokio_tungstenite::{
     Connector,
 };
 
-use crate::{error::ServerError, state::DenimState};
+use crate::{
+    error::ServerError,
+    state::{DenimState, StateType},
+};
 
 pub type AxumWebSocket = WebSocket;
 pub type AxumMessage = AMessage;
@@ -54,14 +57,14 @@ pub fn into_tungstenite_message(msg: AxumMessage) -> Option<TungsteniteMessage> 
     })
 }
 
-pub fn websocket_config(
+pub fn websocket_config<T: StateType>(
     basic: String,
-    state: &DenimState,
+    state: &DenimState<T>,
 ) -> Result<WebSocketClientConfig, ServerError> {
     let (url, connector) = match state.ws_proxy_tls_config() {
-        None => (format!("ws://{}", state.sam_url()), None),
+        None => (format!("ws://{}", state.sam_address()), None),
         Some(config) => (
-            format!("wss://{}", state.sam_url()),
+            format!("wss://{}", state.sam_address()),
             Some(Connector::Rustls(config)),
         ),
     };
