@@ -2,7 +2,7 @@ use rustls::ClientConfig;
 use sam_client::client::InMemoryClientType;
 use sam_client::{
     net::{protocol::WebSocketProtocolClientConfig, HttpClientConfig},
-    storage::InMemoryStoreConfig,
+    storage::inmem::{InMemorySamStoreConfig, InMemorySignalStoreConfig},
     Client,
 };
 
@@ -34,7 +34,8 @@ pub async fn client_with_proxy(
     Client::from_registration()
         .username(username)
         .device_name(device_name)
-        .store_config(InMemoryStoreConfig::default())
+        .signal_store_config(InMemorySignalStoreConfig::default())
+        .sam_store_config(InMemorySamStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
         .protocol_config(ws_config(proxy_addr, wss))
         .upload_prekey_count(5)

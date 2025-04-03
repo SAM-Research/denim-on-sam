@@ -185,8 +185,9 @@ impl InMemorySendingBuffer {
     }
 
     fn create_n_random_bytes(n: usize) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
         let mut random_bytes = vec![0u8; n];
-        rand::rng().fill_bytes(&mut random_bytes);
+        rng.fill_bytes(&mut random_bytes);
         random_bytes
     }
 }
@@ -196,14 +197,14 @@ mod test {
     use super::*;
     use crate::denim_message::deniable_message::MessageKind;
     use crate::denim_message::{DenimMessage, MessageType, UserMessage};
-    use rand::RngCore;
     use rstest::rstest;
 
     fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
+        let mut rng = rand::thread_rng();
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
         for (i, length) in lengths.into_iter().enumerate() {
             let mut random_bytes = vec![0u8; length];
-            rand::rng().fill_bytes(&mut random_bytes);
+            rng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {

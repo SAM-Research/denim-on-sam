@@ -9,4 +9,8 @@ license.workspace = true
 [dependencies]
 sam-client = { workspace = true }
 sam-common = { workspace = true }
+libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+rand = { workspace = true }
+bon = { workspace = true }
+derive_more = { workspace = true, features = ["from"] }
