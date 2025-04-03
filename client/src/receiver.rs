@@ -22,11 +22,15 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
 
+pub enum SamDenimMessage {
+    Denim(DeniableMessage),
+    Sam(ServerEnvelope),
+}
+
 pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
-    enqueue_sam_envelope: Sender<ServerEnvelope>,
     enqueue_sam_status: Sender<ServerStatus>,
-    enqueue_deniable_message: Option<Sender<DeniableMessage>>,
+    enqueue_message: Option<Sender<SamDenimMessage>>,
     sending_buffer: T,
     receiving_buffer: U,
 }
@@ -34,16 +38,14 @@ pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
 impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     pub fn new(
         client: Arc<Mutex<WebSocketClient>>,
-        enqueue_sam_envelope: Sender<ServerEnvelope>,
         enqueue_sam_status: Sender<ServerStatus>,
         sending_buffer: T,
         receiving_buffer: U,
     ) -> Self {
         Self {
             client,
-            enqueue_sam_envelope,
             enqueue_sam_status,
-            enqueue_deniable_message: None,
+            enqueue_message: None,
             sending_buffer,
             receiving_buffer,
         }
@@ -87,12 +89,17 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         id: MessageId,
         envelope: ServerEnvelope,
     ) -> Result<Option<MessageId>, DenimProtocolError> {
-        self.enqueue_sam_envelope
-            .send(envelope)
-            .await
-            .inspect_err(|e| debug!("{e}"))
-            .map_err(|_| DenimProtocolError::WebSocketError(WebSocketError::Disconnected))
-            .map(|_| Some(id))
+        match &self.enqueue_message {
+            Some(sender) => sender
+                .send(SamDenimMessage::Sam(envelope))
+                .await
+                .inspect_err(|e| debug!("{e}"))
+                .map_err(|_| DenimProtocolError::WebSocketError(WebSocketError::Disconnected))
+                .map(|_| Some(id)),
+            None => Err(DenimProtocolError::WebSocketError(
+                WebSocketError::Disconnected,
+            )),
+        }
     }
 
     async fn dispatch_server_status(
@@ -108,11 +115,11 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     }
 
     async fn handle_chunks(&mut self, chunks: Vec<DenimChunk>) {
-        if let Some(sender) = &self.enqueue_deniable_message {
+        if let Some(sender) = &self.enqueue_message {
             let results = self.receiving_buffer.process_chunks(chunks).await;
             for res in results {
                 let send_res = match res {
-                    Ok(msg) => sender.send(msg).await,
+                    Ok(msg) => sender.send(SamDenimMessage::Denim(msg)).await,
                     Err(e) => {
                         error!("Failed to handle deniable message: '{e}'");
                         continue;
@@ -139,15 +146,15 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
 }
 
 #[async_trait::async_trait]
-impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<DeniableMessage>
+impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<SamDenimMessage>
     for DenimReceiver<T, U>
 {
     async fn handler(
         &mut self,
         mut receiver: SplitStream<WebSocket>,
-        enqueue: Sender<DeniableMessage>,
+        enqueue: Sender<SamDenimMessage>,
     ) {
-        self.enqueue_deniable_message = Some(enqueue);
+        self.enqueue_message = Some(enqueue);
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
                 Message::Binary(b) => DenimMessage::decode(b),
@@ -194,7 +201,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<DeniableMessage>
             };
         }
 
-        self.enqueue_deniable_message = None;
+        self.enqueue_message = None;
     }
 }
 
@@ -232,6 +239,18 @@ mod test {
     use tokio_tungstenite::{accept_async, tungstenite::Message};
 
     use crate::receiver::DenimReceiver;
+
+    use super::SamDenimMessage;
+
+    impl SamDenimMessage {
+        fn some_sam(self) -> Option<ServerEnvelope> {
+            if let SamDenimMessage::Sam(envelope) = self {
+                Some(envelope)
+            } else {
+                None
+            }
+        }
+    }
 
     fn make_deniable_message(length: usize) -> DeniableMessage {
         let mut random_bytes = vec![0u8; length];
@@ -403,17 +422,12 @@ mod test {
                 .build()
                 .into(),
         ));
-        let (env_tx, mut env_rx) = mpsc::channel(10);
+
         let (status_tx, mut status_rx) = mpsc::channel(10);
         let send_buffer = InMemorySendingBuffer::new(q, len).expect("benis");
         let recv_buffer = InMemoryReceivingBuffer::default();
-        let receiver = DenimReceiver::new(
-            client.clone(),
-            env_tx,
-            status_tx,
-            send_buffer.clone(),
-            recv_buffer,
-        );
+        let receiver =
+            DenimReceiver::new(client.clone(), status_tx, send_buffer.clone(), recv_buffer);
         let mut chunk_rx = client
             .lock()
             .await
@@ -425,29 +439,34 @@ mod test {
         for action in actions {
             let (data, deniable_data) = match action {
                 ClientAction::Deniable => {
-                    let a_env = tokio::time::timeout(Duration::from_millis(300), env_rx.recv())
+                    let a_msg_1 = tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
                         .await
                         .expect("envelope does not timeout")
                         .expect("Can get envelope");
-                    let a_deniable =
-                        tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
-                            .await
-                            .expect("chunk does not timeout")
-                            .expect("Can get chunk");
+                    let a_msg_2 = tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
+                        .await
+                        .expect("chunk does not timeout")
+                        .expect("Can get chunk");
+
+                    let (env, den) = match (a_msg_1, a_msg_2) {
+                        (SamDenimMessage::Sam(env), SamDenimMessage::Denim(den)) => (env, den),
+                        (SamDenimMessage::Denim(den), SamDenimMessage::Sam(env)) => (env, den),
+                        _ => panic!("Did not expect two of the same type"),
+                    };
                     (
-                        Some(a_env.content),
+                        Some(env.content),
                         Some(matches!(
-                            a_deniable.message_kind,
+                            den.message_kind,
                             Some(MessageKind::DeniableMessage(_))
                         )),
                     )
                 }
                 ClientAction::Regular => {
-                    let a_env = tokio::time::timeout(Duration::from_millis(300), env_rx.recv())
+                    let a_env = tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
                         .await
                         .expect("envelope does not timeout")
                         .expect("Can get envelope");
-                    (Some(a_env.content), None)
+                    (Some(a_env.some_sam().expect("expects sam").content), None)
                 }
                 ClientAction::Status => {
                     tokio::time::timeout(Duration::from_millis(300), status_rx.recv())

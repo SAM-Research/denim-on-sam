@@ -6,6 +6,7 @@ pub enum DenimProtocolError {
     SamDecodeError(DecodeError),
     WebSocketError(WebSocketError),
     MessageError(MessageError),
+    ReceivedWrongResponseId,
 }
 
 #[derive(Debug, Error, Display, From)]
