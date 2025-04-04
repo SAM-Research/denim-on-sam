@@ -22,6 +22,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
 
+#[derive(Debug)]
 pub enum SamDenimMessage {
     Denim(DeniableMessage),
     Sam(ServerEnvelope),
@@ -206,7 +207,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<SamDenimMessage>
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::{sync::Arc, time::Duration};
 
     use denim_sam_common::{
@@ -243,29 +244,41 @@ mod test {
     use super::SamDenimMessage;
 
     impl SamDenimMessage {
-        fn some_sam(self) -> Option<ServerEnvelope> {
+        pub fn some_sam(self) -> Option<ServerEnvelope> {
             if let SamDenimMessage::Sam(envelope) = self {
                 Some(envelope)
             } else {
                 None
             }
         }
-    }
 
-    fn make_deniable_message(length: usize) -> DeniableMessage {
-        let mut random_bytes = vec![0u8; length];
-        rand::rng().fill_bytes(&mut random_bytes);
-        DeniableMessage {
-            message_id: 1u32,
-            message_kind: Some(MessageKind::DeniableMessage(UserMessage {
-                destination_account_id: vec![1_u8],
-                message_type: MessageType::SignalMessage.into(),
-                content: random_bytes,
-            })),
+        pub fn some_denim(self) -> Option<DeniableMessage> {
+            if let SamDenimMessage::Denim(message) = self {
+                Some(message)
+            } else {
+                None
+            }
         }
     }
 
-    async fn get_payload<T: SendingBuffer>(
+    pub fn make_user_message(length: usize) -> MessageKind {
+        let mut random_bytes = vec![0u8; length];
+        rand::rng().fill_bytes(&mut random_bytes);
+        MessageKind::DeniableMessage(UserMessage {
+            destination_account_id: vec![1_u8],
+            message_type: MessageType::SignalMessage.into(),
+            content: random_bytes,
+        })
+    }
+
+    fn make_deniable_message(length: usize) -> DeniableMessage {
+        DeniableMessage {
+            message_id: 1u32,
+            message_kind: Some(make_user_message(length)),
+        }
+    }
+
+    pub async fn get_payload<T: SendingBuffer>(
         buffer: &mut T,
         denim: bool,
         len: u32,
@@ -283,7 +296,7 @@ mod test {
             .map_err(|_| "Failed to convert to bytes")?)
     }
 
-    async fn test_server(
+    pub async fn test_server(
         addr: &str,
         actions: Vec<ClientAction>,
         envelope: ServerMessage,
@@ -361,7 +374,7 @@ mod test {
     }
 
     #[derive(Clone)]
-    enum ClientAction {
+    pub enum ClientAction {
         Deniable,
         Regular,
         Status,
@@ -399,7 +412,6 @@ mod test {
     #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], "9083")]
     #[tokio::test]
     async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: &str) {
-        let _ = env_logger::try_init();
         let (q, len) = (1.0, 10);
         let addr = format!("127.0.0.1:{port}");
 
@@ -424,7 +436,7 @@ mod test {
         ));
 
         let (status_tx, mut status_rx) = mpsc::channel(10);
-        let send_buffer = InMemorySendingBuffer::new(q, len).expect("benis");
+        let send_buffer = InMemorySendingBuffer::new(q, len).expect("can create sending buffer");
         let recv_buffer = InMemoryReceivingBuffer::default();
         let receiver =
             DenimReceiver::new(client.clone(), status_tx, send_buffer.clone(), recv_buffer);
@@ -445,8 +457,8 @@ mod test {
                         .expect("Can get envelope");
                     let a_msg_2 = tokio::time::timeout(Duration::from_millis(300), chunk_rx.recv())
                         .await
-                        .expect("chunk does not timeout")
-                        .expect("Can get chunk");
+                        .expect("msg does not timeout")
+                        .expect("Can get msg");
 
                     let (env, den) = match (a_msg_1, a_msg_2) {
                         (SamDenimMessage::Sam(env), SamDenimMessage::Denim(den)) => (env, den),

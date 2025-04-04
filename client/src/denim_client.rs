@@ -166,3 +166,384 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtcolClient
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::time::Duration;
+
+    use crate::{
+        denim_client::{DenimProtcolClient, DenimSamClient},
+        receiver::{
+            test::{get_payload, make_user_message},
+            SamDenimMessage,
+        },
+    };
+    use denim_sam_common::{
+        buffers::{
+            DeniablePayload, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
+        },
+        denim_message::{DeniableMessage, DenimMessage},
+    };
+    use futures_util::{SinkExt, StreamExt};
+    use prost::{bytes::Bytes, Message as PMessage};
+    use rstest::rstest;
+    use sam_client::net::protocol::{websocket::WebSocketClientConfig, MessageStatus};
+    use sam_common::{
+        address::MessageId,
+        sam_message::{
+            server_message::Content, ClientEnvelope, ClientMessage, SamMessage, SamMessageType,
+            ServerEnvelope, ServerMessage, ServerMessageType,
+        },
+        AccountId,
+    };
+    use tokio::{
+        net::{TcpListener, TcpStream},
+        sync::mpsc::Receiver as MpscReceiver,
+        sync::oneshot::{self, Receiver},
+    };
+    use tokio_tungstenite::{
+        accept_async,
+        tungstenite::{Error, Message},
+        WebSocketStream,
+    };
+
+    #[derive(Clone)]
+    enum ServerAction {
+        SendDenim,
+        SendRegular,
+        RecvDenim,
+        RecvRegular,
+    }
+    #[rstest]
+    #[case(vec![ServerAction::SendDenim], "3080")]
+    #[case(vec![ServerAction::SendRegular], "3081")]
+    #[case(vec![ServerAction::RecvDenim], "3082")]
+    #[case(vec![ServerAction::RecvRegular], "3083")]
+    #[case(vec![ServerAction::RecvRegular, ServerAction::RecvRegular], "3084")]
+    #[case(vec![ServerAction::SendRegular, ServerAction::SendRegular], "3085")]
+    #[case(vec![ServerAction::SendDenim, ServerAction::SendDenim], "3086")]
+    #[case(vec![ServerAction::RecvDenim, ServerAction::RecvDenim], "3087")]
+    #[case(vec![ServerAction::SendDenim, ServerAction::RecvDenim], "3088")]
+    #[case(vec![ServerAction::SendRegular, ServerAction::RecvRegular], "3089")]
+    #[case(vec![ServerAction::RecvRegular, ServerAction::SendRegular], "3090")]
+    #[tokio::test]
+    async fn deniable_communication(#[case] actions: Vec<ServerAction>, #[case] port: &str) {
+        let _ = env_logger::try_init();
+        let addr = format!("127.0.0.1:{port}");
+        let (stop_tx, stop_rx) = oneshot::channel();
+
+        let server_result = test_server(&addr, actions.clone(), stop_rx).await;
+
+        let mut client = DenimProtcolClient::new(
+            WebSocketClientConfig::builder()
+                .url(format!("ws://{}", addr))
+                .build()
+                .into(),
+            InMemorySendingBuffer::new(1.0, 10).expect("can create sending buffer"),
+            InMemoryReceivingBuffer::default(),
+        );
+
+        let mut receiver = client.connect().await.expect("can connect");
+        let actual = perform_client_actions(&mut client, &mut receiver, actions.clone()).await;
+
+        stop_tx.send(()).expect("Can stop server");
+        server_result
+            .await
+            .expect("Server stops")
+            .expect("Server works");
+
+        // allow client to update state
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        assert!(!client.is_connected().await);
+        for (action, env, den, status_ok) in actual {
+            match action {
+                ServerAction::SendDenim => {
+                    if let Some(vec) = env {
+                        assert_eq!(vec, vec![1, 3, 3, 7, 4, 20]);
+                    } else {
+                        panic!("Expected Some(vec![1, 3, 3, 7, 4, 20]), found {:?}", env);
+                    }
+                    assert!(den.is_some());
+                    assert!(status_ok == false);
+                }
+                ServerAction::SendRegular => {
+                    if let Some(vec) = env {
+                        assert_eq!(vec, vec![1, 3, 3, 7, 4, 20]);
+                    } else {
+                        panic!("Expected Some(vec![1, 3, 3, 7, 4, 20]), found {:?}", env);
+                    }
+                    assert!(den.is_none());
+                    assert!(status_ok == false);
+                }
+                ServerAction::RecvDenim => {
+                    assert!(env.is_none());
+                    assert!(den.is_none());
+                    assert!(status_ok == true)
+                }
+                ServerAction::RecvRegular => {
+                    assert!(env.is_none());
+                    assert!(den.is_none());
+                    assert!(status_ok == true)
+                }
+            }
+        }
+    }
+
+    async fn create_server_msg(
+        sending: &mut InMemorySendingBuffer,
+        denim: bool,
+        msg: Vec<u8>,
+    ) -> Result<DenimMessage, String> {
+        let payload = get_payload(
+            sending,
+            denim,
+            msg.len().try_into().map_err(|_| "Message fits")?,
+        )
+        .await?;
+        Ok(DenimMessage::builder()
+            .regular_payload(msg)
+            .deniable_payload(payload)
+            .build())
+    }
+
+    fn server_envelope(content: Vec<u8>) -> (MessageId, Vec<u8>) {
+        let id = MessageId::generate();
+        let aid = AccountId::generate();
+        let msg = ServerMessage::builder()
+            .id(id.into())
+            .r#type(ServerMessageType::ServerMessage.into())
+            .content(Content::ServerEnvelope(
+                ServerEnvelope::builder()
+                    .id(id.into())
+                    .content(content)
+                    .destination_device_id(1)
+                    .source_device_id(1)
+                    .source_account_id(aid.into())
+                    .destination_account_id(aid.into())
+                    .r#type(SamMessageType::PlaintextContent.into())
+                    .build(),
+            ))
+            .build()
+            .encode_to_vec();
+        (id, msg)
+    }
+
+    fn unpack_client_msg(
+        msg: Result<Option<Result<Message, Error>>, String>,
+    ) -> Result<DenimMessage, String> {
+        Ok(match msg? {
+            Some(Ok(Message::Binary(x))) => DenimMessage::decode(x),
+            _ => Err("Failed to receive message from client")?,
+        }
+        .map_err(|_| "Failed to decode client message")?)
+    }
+
+    async fn create_server_ack(
+        mut sending: &mut InMemorySendingBuffer,
+        receiving: &mut InMemoryReceivingBuffer,
+        denim: bool,
+        msg: Result<Option<Result<Message, Error>>, String>,
+    ) -> Result<DenimMessage, String> {
+        let msg = unpack_client_msg(msg)?;
+        let chunks = DeniablePayload::decode(msg.deniable_payload).map_err(|e| format!("{e}"))?;
+        let sam =
+            ClientMessage::decode(Bytes::from(msg.regular_payload)).map_err(|e| format!("{e}"))?;
+        let results = receiving.process_chunks(chunks).await;
+
+        if denim {
+            results
+                .first()
+                .ok_or("Expected denim message from client")?
+                .as_ref()
+                .map_err(|_| "Expected successful parse of deniable message")?;
+        }
+        create_server_msg(
+            &mut sending,
+            denim,
+            ServerMessage::builder()
+                .id(sam.id)
+                .r#type(ServerMessageType::ServerAck.into())
+                .build()
+                .encode_to_vec(),
+        )
+        .await
+    }
+
+    async fn prepare_server_message(
+        mut sending: &mut InMemorySendingBuffer,
+        action: ServerAction,
+    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+        let denim = matches!(action, ServerAction::SendDenim);
+        let (id, msg) = server_envelope(vec![1, 3, 3, 7, 4, 20]);
+        create_server_msg(&mut sending, denim, msg)
+            .await
+            .map(|msg| (msg, Some(id)))
+    }
+
+    async fn prepare_server_ack(
+        ws_stream: &mut WebSocketStream<TcpStream>,
+        mut sending: &mut InMemorySendingBuffer,
+        mut receiving: &mut InMemoryReceivingBuffer,
+        action: ServerAction,
+    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+        let denim = matches!(action, ServerAction::RecvDenim);
+        let res = tokio::time::timeout(Duration::from_secs(5), ws_stream.next())
+            .await
+            .map_err(|_| "Client failed to send in time".to_string());
+        create_server_ack(&mut sending, &mut receiving, denim, res)
+            .await
+            .map(|msg| (msg, None))
+    }
+
+    async fn wait_for_ack(ws_stream: &mut WebSocketStream<TcpStream>) -> Result<MessageId, String> {
+        let res = tokio::time::timeout(Duration::from_secs(5), ws_stream.next())
+            .await
+            .map_err(|_| "Client failed to send in time".to_string());
+        let msg = unpack_client_msg(res)?;
+        let msg =
+            ClientMessage::decode(Bytes::from(msg.regular_payload)).map_err(|e| format!("{e}"))?;
+        MessageId::try_from(msg.id).map_err(|_| "Failed to decode message id".to_string())
+    }
+
+    async fn test_server(
+        addr: &str,
+        actions: Vec<ServerAction>,
+        stop_signal: Receiver<()>,
+    ) -> Receiver<Result<(), String>> {
+        let listener = TcpListener::bind(addr).await.unwrap();
+        let (tx, rx) = oneshot::channel();
+
+        tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut ws_stream = accept_async(stream).await.unwrap();
+            let mut sending =
+                InMemorySendingBuffer::new(1.0, 10).expect("can create sending buffer");
+            let mut receiving = InMemoryReceivingBuffer::default();
+
+            let mut error = Ok(());
+            for action in actions {
+                let res = match action {
+                    ServerAction::SendDenim | ServerAction::SendRegular => {
+                        prepare_server_message(&mut sending, action).await
+                    }
+                    ServerAction::RecvDenim | ServerAction::RecvRegular => {
+                        prepare_server_ack(&mut ws_stream, &mut sending, &mut receiving, action)
+                            .await
+                    }
+                };
+
+                let (msg, id) = match res {
+                    Ok(x) => x,
+                    Err(e) => {
+                        error = Err(e);
+                        break;
+                    }
+                };
+
+                if ws_stream
+                    .send(Message::Binary(Bytes::from(msg.encode_to_vec())))
+                    .await
+                    .is_err()
+                {
+                    error = Err("Failed to send to client".to_string());
+                    break;
+                }
+
+                if let Some(id) = id {
+                    let is_match = wait_for_ack(&mut ws_stream)
+                        .await
+                        .map(|res_id| res_id == id);
+
+                    let res = match is_match {
+                        Ok(true) => Ok(()),
+                        Ok(false) => Err("Client ack did not match".to_string()),
+                        Err(e) => Err(e),
+                    };
+
+                    match res {
+                        Ok(_) => continue,
+                        Err(e) => {
+                            error = Err(e);
+                            break;
+                        }
+                    }
+                }
+            }
+            let _ = tokio::time::timeout(Duration::from_secs(5), stop_signal).await;
+            let _ = tx.send(error);
+        });
+        rx
+    }
+
+    fn get_actual(
+        msg_1: Option<SamDenimMessage>,
+        msg_2: Option<SamDenimMessage>,
+    ) -> (Vec<u8>, Option<DeniableMessage>) {
+        let (env, den) = match (&msg_1, &msg_2) {
+            (None, Some(SamDenimMessage::Sam(env))) => (env, None),
+            (Some(SamDenimMessage::Sam(env)), None) => (env, None),
+            (Some(SamDenimMessage::Sam(env)), Some(SamDenimMessage::Denim(den))) => {
+                (env, Some(den.clone()))
+            }
+            (Some(SamDenimMessage::Denim(den)), Some(SamDenimMessage::Sam(env))) => {
+                (env, Some(den.clone()))
+            }
+            _ => panic!(
+                "Unexpected Sam and denim message combination {:?}, {:?}",
+                msg_1, msg_2
+            ),
+        };
+        (env.content.clone(), den)
+    }
+
+    fn client_envelope() -> ClientEnvelope {
+        let aid = AccountId::generate();
+        let msg = SamMessage::builder()
+            .content(vec![69; 100])
+            .destination_account_id(aid.clone().into())
+            .destination_device_id(1)
+            .r#type(SamMessageType::PlaintextContent.into())
+            .build();
+        ClientEnvelope::builder().messages(vec![msg]).build()
+    }
+
+    async fn perform_client_actions(
+        client: &mut DenimProtcolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
+        receiver: &mut MpscReceiver<SamDenimMessage>,
+        actions: Vec<ServerAction>,
+    ) -> Vec<(ServerAction, Option<Vec<u8>>, Option<DeniableMessage>, bool)> {
+        let mut actual = Vec::new();
+        for action in actions {
+            match action {
+                ServerAction::SendDenim | ServerAction::SendRegular => {
+                    let denim = matches!(action, ServerAction::SendDenim);
+                    let msg_1 = tokio::time::timeout(Duration::from_millis(300), receiver.recv())
+                        .await
+                        .expect("msg 1 does not timeout");
+                    let msg_2 = if denim {
+                        tokio::time::timeout(Duration::from_millis(300), receiver.recv())
+                            .await
+                            .expect("msg 2 does not timeout")
+                    } else {
+                        None
+                    };
+
+                    let (msg, den) = get_actual(msg_1, msg_2);
+                    actual.push((action, Some(msg), den, false));
+                }
+                ServerAction::RecvDenim | ServerAction::RecvRegular => {
+                    client.enqueue_deniable(make_user_message(10)).await;
+                    let status = client
+                        .send_message(client_envelope())
+                        .await
+                        .expect("Can send message");
+                    let is_ok = matches!(status, MessageStatus::Ok);
+
+                    actual.push((action, None, None, is_ok));
+                }
+            }
+        }
+        actual
+    }
+}
