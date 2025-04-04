@@ -56,8 +56,8 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtcolClient<T, U> {
         Self {
             client: Arc::new(Mutex::new(client)),
             status_messages: None,
-            sending_buffer: sending_buffer,
-            receiving_buffer: receiving_buffer,
+            sending_buffer,
+            receiving_buffer,
             denim_id: AtomicU32::new(0),
         }
     }
@@ -266,7 +266,7 @@ mod test {
                         panic!("Expected Some(vec![1, 3, 3, 7, 4, 20]), found {:?}", env);
                     }
                     assert!(den.is_some());
-                    assert!(status_ok == false);
+                    assert!(!status_ok);
                 }
                 ServerAction::SendRegular => {
                     // client receives regular
@@ -276,19 +276,19 @@ mod test {
                         panic!("Expected Some(vec![1, 3, 3, 7, 4, 20]), found {:?}", env);
                     }
                     assert!(den.is_none());
-                    assert!(status_ok == false);
+                    assert!(!status_ok);
                 }
                 ServerAction::RecvDenim => {
                     // client sends denim
                     assert!(env.is_none());
                     assert!(den.is_none());
-                    assert!(status_ok == true)
+                    assert!(status_ok)
                 }
                 ServerAction::RecvRegular => {
                     // client sends regular
                     assert!(env.is_none());
                     assert!(den.is_none());
-                    assert!(status_ok == true)
+                    assert!(status_ok)
                 }
             }
         }
@@ -344,7 +344,7 @@ mod test {
     }
 
     async fn create_server_ack(
-        mut sending: &mut InMemorySendingBuffer,
+        sending: &mut InMemorySendingBuffer,
         receiving: &mut InMemoryReceivingBuffer,
         denim: bool,
         msg: Result<Option<Result<Message, Error>>, String>,
@@ -363,7 +363,7 @@ mod test {
                 .map_err(|_| "Expected successful parse of deniable message")?;
         }
         create_server_msg(
-            &mut sending,
+            sending,
             denim,
             ServerMessage::builder()
                 .id(sam.id)
@@ -375,27 +375,27 @@ mod test {
     }
 
     async fn prepare_server_message(
-        mut sending: &mut InMemorySendingBuffer,
+        sending: &mut InMemorySendingBuffer,
         action: ServerAction,
     ) -> Result<(DenimMessage, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::SendDenim);
         let (id, msg) = server_envelope(vec![1, 3, 3, 7, 4, 20]);
-        create_server_msg(&mut sending, denim, msg)
+        create_server_msg(sending, denim, msg)
             .await
             .map(|msg| (msg, Some(id)))
     }
 
     async fn prepare_server_ack(
         ws_stream: &mut WebSocketStream<TcpStream>,
-        mut sending: &mut InMemorySendingBuffer,
-        mut receiving: &mut InMemoryReceivingBuffer,
+        sending: &mut InMemorySendingBuffer,
+        receiving: &mut InMemoryReceivingBuffer,
         action: ServerAction,
     ) -> Result<(DenimMessage, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::RecvDenim);
         let res = tokio::time::timeout(Duration::from_secs(5), ws_stream.next())
             .await
             .map_err(|_| "Client failed to send in time".to_string());
-        create_server_ack(&mut sending, &mut receiving, denim, res)
+        create_server_ack(sending, receiving, denim, res)
             .await
             .map(|msg| (msg, None))
     }
@@ -505,7 +505,7 @@ mod test {
         let aid = AccountId::generate();
         let msg = SamMessage::builder()
             .content(vec![69; 100])
-            .destination_account_id(aid.clone().into())
+            .destination_account_id(aid.into())
             .destination_device_id(1)
             .r#type(SamMessageType::PlaintextContent.into())
             .build();
