@@ -1,12 +1,15 @@
 use clap::{Arg, Command};
-use denim_sam_proxy::managers::in_mem::{InMemoryBufferManager, InMemoryDenimKeyManager};
 use log::{debug, error, info};
-use sam_server::managers::in_memory::account::InMemoryAccountManager;
+use sam_server::managers::in_memory::{
+    account::InMemoryAccountManager,
+    keys::{InMemoryEcPreKeyManager, InMemoryPqPreKeyManager, InMemorySignedPreKeyManager},
+};
 use std::io::BufReader;
 
 use denim_sam_proxy::{
     config::TlsConfig,
     error::CliError,
+    managers::{in_mem::InMemoryBufferManager, DenimKeyManager},
     server::{start_proxy, DenimConfig},
     state::{DenimState, InMemory},
 };
@@ -84,7 +87,11 @@ async fn cli() -> Result<(), CliError> {
                 10,
                 Some(client),
                 InMemoryBufferManager::default(),
-                InMemoryDenimKeyManager::default(),
+                DenimKeyManager::new(
+                    InMemoryEcPreKeyManager::default(),
+                    InMemoryPqPreKeyManager::default(),
+                    InMemorySignedPreKeyManager::default(),
+                ),
                 InMemoryAccountManager::default(),
             ),
             addr,
@@ -97,7 +104,11 @@ async fn cli() -> Result<(), CliError> {
                 10,
                 None,
                 InMemoryBufferManager::default(),
-                InMemoryDenimKeyManager::default(),
+                DenimKeyManager::new(
+                    InMemoryEcPreKeyManager::default(),
+                    InMemoryPqPreKeyManager::default(),
+                    InMemorySignedPreKeyManager::default(),
+                ),
                 InMemoryAccountManager::default(),
             ),
             addr,

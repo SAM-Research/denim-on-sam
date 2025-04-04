@@ -1,4 +1,4 @@
-use crate::managers::{BufferManager, DenimKeyManager};
+use crate::managers::{BufferManager, DenimKeyManager, DenimKeyManagerType};
 use std::sync::Arc;
 mod in_mem;
 
@@ -7,14 +7,14 @@ use sam_server::managers::traits::account_manager::AccountManager;
 
 pub trait StateType: 'static + Clone {
     type BufferManager: BufferManager;
-    type KeyDistributionCenter: DenimKeyManager;
+    type DenimKeyManagerType: DenimKeyManagerType;
     type AccountManager: AccountManager;
 }
 
 #[derive(Clone)]
 pub struct DenimState<T: StateType> {
     _buffer_manager: T::BufferManager,
-    _kdc: T::KeyDistributionCenter,
+    _kdc: DenimKeyManager<T::DenimKeyManagerType>,
     _accounts: T::AccountManager,
     sam_addr: String,
     channel_buffer: usize,
@@ -27,7 +27,7 @@ impl<T: StateType> DenimState<T> {
         channel_buffer: usize,
         ws_proxy_tls_config: Option<rustls::ClientConfig>,
         buffer_manager: T::BufferManager,
-        kdc: T::KeyDistributionCenter,
+        kdc: DenimKeyManager<T::DenimKeyManagerType>,
         accounts: T::AccountManager,
     ) -> Self {
         Self {

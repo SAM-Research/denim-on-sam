@@ -1,13 +1,22 @@
 use denim_sam_proxy::{
     config::TlsConfig,
-    managers::in_mem::{InMemoryBufferManager, InMemoryDenimKeyManager},
+    managers::{in_mem::InMemoryBufferManager, DenimKeyManager},
     server::{start_proxy, DenimConfig},
     state::{DenimState, InMemory},
 };
 use sam_server::{
-    managers::in_memory::{
-        account::InMemoryAccountManager, device::InMemoryDeviceManager, keys::InMemoryKeyManager,
-        message::InMemoryMessageManager, InMemStateType,
+    managers::{
+        in_memory::{
+            account::InMemoryAccountManager,
+            device::InMemoryDeviceManager,
+            keys::{
+                InMemoryEcPreKeyManager, InMemoryLastResortPqPreKeyManager,
+                InMemoryPqPreKeyManager, InMemorySignedPreKeyManager,
+            },
+            message::InMemoryMessageManager,
+            InMemStateType,
+        },
+        KeyManager,
     },
     start_server, ServerConfig, ServerState,
 };
@@ -55,7 +64,12 @@ pub fn in_memory_server_state() -> ServerState<InMemStateType> {
         InMemoryAccountManager::default(),
         InMemoryDeviceManager::new("test".to_string(), 600),
         InMemoryMessageManager::default(),
-        InMemoryKeyManager::default(),
+        KeyManager::new(
+            InMemoryEcPreKeyManager::default(),
+            InMemoryPqPreKeyManager::default(),
+            InMemorySignedPreKeyManager::default(),
+            InMemoryLastResortPqPreKeyManager::default(),
+        ),
     )
 }
 
@@ -80,7 +94,11 @@ impl TestDenimProxy {
                     10,
                     Some(client),
                     InMemoryBufferManager::default(),
-                    InMemoryDenimKeyManager::default(),
+                    DenimKeyManager::new(
+                        InMemoryEcPreKeyManager::default(),
+                        InMemoryPqPreKeyManager::default(),
+                        InMemorySignedPreKeyManager::default(),
+                    ),
                     InMemoryAccountManager::default(),
                 ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
@@ -93,7 +111,11 @@ impl TestDenimProxy {
                     10,
                     None,
                     InMemoryBufferManager::default(),
-                    InMemoryDenimKeyManager::default(),
+                    DenimKeyManager::new(
+                        InMemoryEcPreKeyManager::default(),
+                        InMemoryPqPreKeyManager::default(),
+                        InMemorySignedPreKeyManager::default(),
+                    ),
                     InMemoryAccountManager::default(),
                 ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),

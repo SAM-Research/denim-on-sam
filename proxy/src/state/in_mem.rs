@@ -10,7 +10,7 @@ pub struct InMemory;
 impl StateType for InMemory {
     type BufferManager = InMemoryBufferManager;
 
-    type KeyDistributionCenter = InMemoryDenimKeyManager;
+    type DenimKeyManagerType = InMemoryDenimKeyManager;
 
     type AccountManager = InMemoryAccountManager;
 }
