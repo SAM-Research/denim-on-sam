@@ -13,4 +13,4 @@ libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 rand = { workspace = true }
 bon = { workspace = true }
-derive_more = { workspace = true, features = ["from"] }
+derive_more = { workspace = true, features = ["from", "debug"] }

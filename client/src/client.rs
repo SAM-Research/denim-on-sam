@@ -53,9 +53,9 @@ pub type InMemoryDenimClientType =
 pub type SqliteDenimClientType =
     DefaultDenimClientType<SqliteSamStoreType, SqliteSignalStoreType, HttpClient>;
 
-struct DenimClient<T: DenimClientType> {
+pub struct DenimClient<T: DenimClientType> {
     regular_store: SignalStore<T::RegularStore>,
-    _deniable_store: SignalStore<T::DenimStore>,
+    _denim_store: SignalStore<T::DenimStore>,
     sam_store: SamStore<T::SamStore>,
     api_client: T::ApiClient,
     rng: T::Rng,
@@ -63,12 +63,11 @@ struct DenimClient<T: DenimClientType> {
 
 #[bon]
 impl<T: DenimClientType> DenimClient<T> {
-    /// Creates a new client for the account described in the token, does not care about the deniable store as deniable messages can only be send to main device
     #[builder]
     pub async fn from_provisioning(
-        reg_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
-        den_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
         sam_store_config: impl SamStoreConfig<StoreType = T::SamStore>,
+        regular_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
+        denim_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         device_name: &str,
         id_key_pair: IdentityKeyPair,
@@ -82,17 +81,13 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let mut sam_store = sam_store_config.create_store().await?;
 
-        let mut reg_store = reg_store_config
-            .create_store(id_key_pair, registration_id)
-            .await?;
-
-        let den_store = den_store_config
+        let mut regular_store = regular_store_config
             .create_store(id_key_pair, registration_id)
             .await?;
 
         provision_device()
             .api_client(&api_client)
-            .signal_store(&mut reg_store)
+            .signal_store(&mut regular_store)
             .sam_store(&mut sam_store)
             .device_name(device_name)
             .token(token)
@@ -102,12 +97,16 @@ impl<T: DenimClientType> DenimClient<T> {
             .call()
             .await?;
 
+        let denim_store = denim_store_config
+            .create_store(id_key_pair, registration_id)
+            .await?;
+
         // TODO: DenimProtocolClient connect
 
         Ok(Self {
             sam_store,
-            regular_store: reg_store,
-            _deniable_store: den_store,
+            regular_store,
+            _denim_store: denim_store,
             api_client,
             rng,
         })
@@ -117,9 +116,8 @@ impl<T: DenimClientType> DenimClient<T> {
     #[builder]
     pub async fn from_registration(
         sam_store_config: impl SamStoreConfig<StoreType = T::SamStore>,
-        reg_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
-        den_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
-        //protocol_config: impl ProtocolConfig<ProtocolClient = T::ProtocolClient>,
+        regular_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
+        denim_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         username: &str,
         device_name: &str,
@@ -131,7 +129,7 @@ impl<T: DenimClientType> DenimClient<T> {
         let registration_id = RegistrationId::generate(&mut rng);
         let id_key_pair = IdentityKeyPair::generate(&mut rng);
         let mut sam_store = sam_store_config.create_store().await?;
-        let mut reg_store = reg_store_config
+        let mut regular_store = regular_store_config
             .create_store(id_key_pair, registration_id)
             .await?;
         let api_client = api_client_config.create().await?;
@@ -139,7 +137,7 @@ impl<T: DenimClientType> DenimClient<T> {
         register_account()
             .api_client(&api_client)
             .sam_store(&mut sam_store)
-            .signal_store(&mut reg_store)
+            .signal_store(&mut regular_store)
             .username(username)
             .device_name(device_name)
             .password_length(password_length)
@@ -148,15 +146,15 @@ impl<T: DenimClientType> DenimClient<T> {
             .call()
             .await?;
 
-        let den_store = den_store_config
+        let denim_store = denim_store_config
             .create_store(id_key_pair, registration_id)
             .await?;
 
-        // TODO: Send seed and deniable keys to the proxy
+        // TODO: DenimProtocolClient
 
         Ok(Self {
-            regular_store: reg_store,
-            _deniable_store: den_store,
+            regular_store,
+            _denim_store: denim_store,
             sam_store,
             api_client,
             rng,
@@ -167,16 +165,17 @@ impl<T: DenimClientType> DenimClient<T> {
     #[builder]
     pub async fn from_store(
         sam_store: SamStore<T::SamStore>,
-        reg_store: SignalStore<T::RegularStore>,
-        den_store: SignalStore<T::DenimStore>,
-        //protocol_config: impl ProtocolConfig<ProtocolClient = T::ProtocolClient>,
+        regular_store: SignalStore<T::RegularStore>,
+        denim_store: SignalStore<T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         #[builder(default = <T::Rng as Default>::default())] rng: T::Rng,
     ) -> Result<Self, ClientError> {
+        //TODO: Add DenimProtocolClient
+
         Ok(Self {
             sam_store,
-            regular_store: reg_store,
-            _deniable_store: den_store,
+            regular_store,
+            _denim_store: denim_store,
             api_client: api_client_config.create().await?,
             rng,
         })

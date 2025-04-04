@@ -6,6 +6,7 @@ use sam_client::{
     Client,
 };
 
+#[allow(unused)]
 fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     if let Some(tls) = https {
         HttpClientConfig::new_with_tls(addr.to_string(), tls)
@@ -14,6 +15,7 @@ fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     }
 }
 
+#[allow(unused)]
 fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
     if let Some(tls) = wss {
         WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls)
@@ -22,6 +24,7 @@ fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientCo
     }
 }
 
+#[allow(unused)]
 // TODO: when denim stuff is implemented we need to change this to denim client
 pub async fn client_with_proxy(
     proxy_addr: &str,
