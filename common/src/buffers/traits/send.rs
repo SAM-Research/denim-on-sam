@@ -5,7 +5,7 @@ use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 
 #[async_trait]
-pub trait SendingBuffer: Send + 'static {
+pub trait SendingBuffer: Clone + Send + Sync + 'static {
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
