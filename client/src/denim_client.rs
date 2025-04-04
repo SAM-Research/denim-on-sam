@@ -259,6 +259,7 @@ mod test {
         for (action, env, den, status_ok) in actual {
             match action {
                 ServerAction::SendDenim => {
+                    // client receives denim
                     if let Some(vec) = env {
                         assert_eq!(vec, vec![1, 3, 3, 7, 4, 20]);
                     } else {
@@ -268,6 +269,7 @@ mod test {
                     assert!(status_ok == false);
                 }
                 ServerAction::SendRegular => {
+                    // client receives regular
                     if let Some(vec) = env {
                         assert_eq!(vec, vec![1, 3, 3, 7, 4, 20]);
                     } else {
@@ -277,11 +279,13 @@ mod test {
                     assert!(status_ok == false);
                 }
                 ServerAction::RecvDenim => {
+                    // client sends denim
                     assert!(env.is_none());
                     assert!(den.is_none());
                     assert!(status_ok == true)
                 }
                 ServerAction::RecvRegular => {
+                    // client sends regular
                     assert!(env.is_none());
                     assert!(den.is_none());
                     assert!(status_ok == true)
