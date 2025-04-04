@@ -234,8 +234,9 @@ mod test {
     use crate::receiver::DenimReceiver;
 
     fn make_deniable_message(length: usize) -> DeniableMessage {
+        let mut rng = rand::thread_rng();
         let mut random_bytes = vec![0u8; length];
-        rand::rng().fill_bytes(&mut random_bytes);
+        rng.fill_bytes(&mut random_bytes);
         DeniableMessage {
             message_id: 1u32,
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {

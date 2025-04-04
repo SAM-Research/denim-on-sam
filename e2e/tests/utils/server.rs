@@ -69,6 +69,7 @@ impl Drop for TestDenimProxy {
     }
 }
 
+#[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
         let config = if let Some(tls) = config {

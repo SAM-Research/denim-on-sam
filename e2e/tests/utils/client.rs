@@ -2,11 +2,12 @@ use rustls::ClientConfig;
 use sam_client::client::InMemoryClientType;
 use sam_client::{
     net::{protocol::WebSocketProtocolClientConfig, HttpClientConfig},
-    storage::InMemoryStoreConfig,
+    storage::inmem::{InMemorySamStoreConfig, InMemorySignalStoreConfig},
     Client,
 };
 
-fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
+#[allow(unused)]
+pub fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     if let Some(tls) = https {
         HttpClientConfig::new_with_tls(addr.to_string(), tls)
     } else {
@@ -14,6 +15,7 @@ fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     }
 }
 
+#[allow(unused)]
 fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
     if let Some(tls) = wss {
         WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls)
@@ -22,6 +24,7 @@ fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientCo
     }
 }
 
+#[allow(unused)]
 // TODO: when denim stuff is implemented we need to change this to denim client
 pub async fn client_with_proxy(
     proxy_addr: &str,
@@ -34,7 +37,8 @@ pub async fn client_with_proxy(
     Client::from_registration()
         .username(username)
         .device_name(device_name)
-        .store_config(InMemoryStoreConfig::default())
+        .signal_store_config(InMemorySignalStoreConfig::default())
+        .sam_store_config(InMemorySamStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
         .protocol_config(ws_config(proxy_addr, wss))
         .upload_prekey_count(5)
