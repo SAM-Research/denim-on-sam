@@ -9,8 +9,18 @@ license.workspace = true
 [dependencies]
 sam-client = { workspace = true }
 sam-common = { workspace = true }
+denim-sam-common = { workspace = true }
 libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-rand = { workspace = true }
 bon = { workspace = true }
-derive_more = { workspace = true, features = ["from", "debug"] }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
+env_logger = { workspace = true }
+log = { workspace = true }
+derive_more = { workspace = true, features = ["display", "error", "from"] }
+prost = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }
+
+[dev-dependencies]
+rstest = { workspace = true }

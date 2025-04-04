@@ -7,7 +7,7 @@ use sam_client::{
 };
 
 #[allow(unused)]
-fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
+pub fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     if let Some(tls) = https {
         HttpClientConfig::new_with_tls(addr.to_string(), tls)
     } else {
