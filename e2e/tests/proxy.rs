@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-
 use rstest::rstest;
 use utils::tls::{client_config, proxy_config, sam_config};
-
 
 use tokio::time::{sleep, timeout};
 use utils::{

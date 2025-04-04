@@ -1,7 +1,7 @@
 use denim_sam_proxy::config::{ProxyMtlsConfig, TlsConfig};
+use rustls::ClientConfig;
 use sam_client::net::tls::{create_tls_config, MutualTlsConfig};
 use sam_server::config::TlsConfig as SamTlsConfig;
-use rustls::ClientConfig;
 
 #[allow(unused)]
 pub fn sam_config(mtls: bool) -> SamTlsConfig {
