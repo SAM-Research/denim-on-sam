@@ -1,6 +1,6 @@
 use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage, WebSocket};
 
-use tokio_tungstenite::tungstenite::{protocol::CloseFrame, Message};
+use tokio_tungstenite::tungstenite::Message;
 
 pub type AxumWebSocket = WebSocket;
 pub type AxumMessage = AMessage;
