@@ -4,6 +4,7 @@ use crate::error::LibError;
 use async_trait::async_trait;
 use log::debug;
 use prost::Message;
+use rand::rngs::OsRng;
 use rand::RngCore;
 use std::collections::VecDeque;
 use std::mem::take;
@@ -186,7 +187,7 @@ impl InMemorySendingBuffer {
 
     fn create_n_random_bytes(n: usize) -> Vec<u8> {
         let mut random_bytes = vec![0u8; n];
-        rand::rng().fill_bytes(&mut random_bytes);
+        OsRng.fill_bytes(&mut random_bytes);
         random_bytes
     }
 }
@@ -203,7 +204,7 @@ mod test {
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
         for (i, length) in lengths.into_iter().enumerate() {
             let mut random_bytes = vec![0u8; length];
-            rand::rng().fill_bytes(&mut random_bytes);
+            OsRng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {

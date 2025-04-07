@@ -1,36 +1,26 @@
 pub mod in_mem;
 mod traits;
 
-use sam_server::managers::traits::key_manager::{
-    EcPreKeyManager, PqPreKeyManager, SignedPreKeyManager,
-};
 pub use traits::BufferManager;
-pub use traits::{
-    DenimEcKeyManager, DenimKeyManagerError, DenimPostQuantumKeyManager, DenimSignedPreKeyManager,
-};
+pub use traits::{DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager};
+
+pub const DEFAULT_DEVICE: u32 = 0u32;
 
 pub trait DenimKeyManagerType: Clone + Send + Sync {
-    type EcPreKeyManager: EcPreKeyManager;
-    type PqPreKeyManager: PqPreKeyManager;
-    type SignedPreKeyManager: SignedPreKeyManager;
+    type EcPreKeyManager: DenimEcPreKeyManager;
+    type SignedPreKeyManager: DenimSignedPreKeyManager;
 }
 
 #[derive(Debug, Clone)]
 pub struct DenimKeyManager<T: DenimKeyManagerType> {
-    pre_keys: T::EcPreKeyManager,
-    pq_pre_keys: T::PqPreKeyManager,
-    signed_pre_keys: T::SignedPreKeyManager,
+    pub pre_keys: T::EcPreKeyManager,
+    pub signed_pre_keys: T::SignedPreKeyManager,
 }
 
 impl<T: DenimKeyManagerType> DenimKeyManager<T> {
-    pub fn new(
-        pre_keys: T::EcPreKeyManager,
-        pq_pre_keys: T::PqPreKeyManager,
-        signed_pre_keys: T::SignedPreKeyManager,
-    ) -> Self {
+    pub fn new(pre_keys: T::EcPreKeyManager, signed_pre_keys: T::SignedPreKeyManager) -> Self {
         Self {
             pre_keys,
-            pq_pre_keys,
             signed_pre_keys,
         }
     }

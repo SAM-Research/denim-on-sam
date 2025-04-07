@@ -1,7 +1,5 @@
 mod keys;
 mod message;
 
-pub use keys::{
-    DenimEcKeyManager, DenimKeyManagerError, DenimPostQuantumKeyManager, DenimSignedPreKeyManager,
-};
+pub use keys::{DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager};
 pub use message::BufferManager;

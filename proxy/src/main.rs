@@ -1,15 +1,19 @@
 use clap::{Arg, Command};
 use log::{debug, error, info};
 use sam_server::managers::in_memory::{
-    account::InMemoryAccountManager,
-    keys::{InMemoryEcPreKeyManager, InMemoryPqPreKeyManager, InMemorySignedPreKeyManager},
+    account::InMemoryAccountManager, device::InMemoryDeviceManager,
 };
 use std::io::BufReader;
 
 use denim_sam_proxy::{
     config::TlsConfig,
     error::CliError,
-    managers::{in_mem::InMemoryBufferManager, DenimKeyManager},
+    managers::{
+        in_mem::{
+            InMemoryBufferManager, InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager,
+        },
+        DenimKeyManager,
+    },
     server::{start_proxy, DenimConfig},
     state::{DenimState, InMemory},
 };
@@ -88,11 +92,11 @@ async fn cli() -> Result<(), CliError> {
                 Some(client),
                 InMemoryBufferManager::default(),
                 DenimKeyManager::new(
-                    InMemoryEcPreKeyManager::default(),
-                    InMemoryPqPreKeyManager::default(),
-                    InMemorySignedPreKeyManager::default(),
+                    InMemoryDenimEcPreKeyManager::default(),
+                    InMemoryDenimSignedPreKeyManager::default(),
                 ),
                 InMemoryAccountManager::default(),
+                InMemoryDeviceManager::new("Test".to_owned(), 120),
             ),
             addr,
             tls_config: Some(server),
@@ -105,11 +109,11 @@ async fn cli() -> Result<(), CliError> {
                 None,
                 InMemoryBufferManager::default(),
                 DenimKeyManager::new(
-                    InMemoryEcPreKeyManager::default(),
-                    InMemoryPqPreKeyManager::default(),
-                    InMemorySignedPreKeyManager::default(),
+                    InMemoryDenimEcPreKeyManager::default(),
+                    InMemoryDenimSignedPreKeyManager::default(),
                 ),
                 InMemoryAccountManager::default(),
+                InMemoryDeviceManager::new("Test".to_owned(), 120),
             ),
             addr,
             tls_config: None,

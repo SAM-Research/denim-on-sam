@@ -1,4 +1,6 @@
-use sam_server::managers::in_memory::account::InMemoryAccountManager;
+use sam_server::managers::in_memory::{
+    account::InMemoryAccountManager, device::InMemoryDeviceManager,
+};
 
 use crate::managers::in_mem::{InMemoryBufferManager, InMemoryDenimKeyManager};
 
@@ -13,4 +15,6 @@ impl StateType for InMemory {
     type DenimKeyManagerType = InMemoryDenimKeyManager;
 
     type AccountManager = InMemoryAccountManager;
+
+    type DeviceManger = InMemoryDeviceManager;
 }

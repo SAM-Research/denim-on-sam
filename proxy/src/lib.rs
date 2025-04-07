@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+pub mod logic;
 pub mod managers;
 mod proxy;
 mod routes;
