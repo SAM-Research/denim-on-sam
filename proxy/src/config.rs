@@ -68,7 +68,6 @@ pub fn websocket_config<T: ReceivingBufferConfig, U: SendingBufferConfig, V: Mes
         ),
     };
     Ok(WebSocketClientConfig::builder()
-        .buffer(state.channel_buffer())
         .maybe_tls(connector)
         .url(format!("{}/api/v1/websocket", url))
         .headers(vec![(

@@ -11,7 +11,7 @@ use log::{error, info};
 use prost::{bytes::Bytes, Message as PMessage};
 use sam_client::net::protocol::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
 use sam_common::{AccountId, DeviceId};
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::{
     config::websocket_config,
@@ -41,11 +41,13 @@ pub async fn connect_to_sam_server<
 
     let mut client: WebSocketClient = websocket_config(basic, state)?.into();
 
-    let queue = client
-        .connect(ProxyWebSocketReceiver {})
+    // TODO: USE SENDER!!
+    let (tx, rx) = channel(10);
+    client
+        .connect(ProxyWebSocketReceiver { enqueue: tx })
         .await
         .map_err(|_| ServerError::SAMUnAuth)?;
-    Ok((client, queue))
+    Ok((client, rx))
 }
 
 pub async fn init_proxy_service<
@@ -193,18 +195,16 @@ async fn denim_client_receiver<
     }
 }
 
-struct ProxyWebSocketReceiver {}
+struct ProxyWebSocketReceiver {
+    enqueue: Sender<ProxyMessage>,
+}
 
 #[async_trait::async_trait]
-impl WebSocketReceiver<ProxyMessage> for ProxyWebSocketReceiver {
-    async fn handler(
-        &mut self,
-        mut receiver: SplitStream<WebSocket>,
-        enqueue: Sender<ProxyMessage>,
-    ) {
+impl WebSocketReceiver for ProxyWebSocketReceiver {
+    async fn handler(&mut self, mut receiver: SplitStream<WebSocket>) {
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match into_axum_message(msg) {
-                Some(msg) => enqueue.send(msg).await,
+                Some(msg) => self.enqueue.send(msg).await,
                 None => {
                     error!("Failed to convert tungstenite message into axum message");
                     continue;

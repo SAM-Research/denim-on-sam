@@ -31,7 +31,7 @@ pub enum SamDenimMessage {
 pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     enqueue_sam_status: Sender<ServerStatus>,
-    enqueue_message: Option<Sender<SamDenimMessage>>,
+    enqueue_message: Sender<SamDenimMessage>,
     sending_buffer: T,
     receiving_buffer: U,
 }
@@ -40,13 +40,14 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     pub fn new(
         client: Arc<Mutex<WebSocketClient>>,
         enqueue_sam_status: Sender<ServerStatus>,
+        enqueue_message: Sender<SamDenimMessage>,
         sending_buffer: T,
         receiving_buffer: U,
     ) -> Self {
         Self {
             client,
             enqueue_sam_status,
-            enqueue_message: None,
+            enqueue_message,
             sending_buffer,
             receiving_buffer,
         }
@@ -90,17 +91,12 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         id: MessageId,
         envelope: ServerEnvelope,
     ) -> Result<Option<MessageId>, DenimProtocolError> {
-        match &self.enqueue_message {
-            Some(sender) => sender
-                .send(SamDenimMessage::Sam(envelope))
-                .await
-                .inspect_err(|e| debug!("{e}"))
-                .map_err(|_| DenimProtocolError::WebSocketError(WebSocketError::Disconnected))
-                .map(|_| Some(id)),
-            None => Err(DenimProtocolError::WebSocketError(
-                WebSocketError::Disconnected,
-            )),
-        }
+        self.enqueue_message
+            .send(SamDenimMessage::Sam(envelope))
+            .await
+            .inspect_err(|e| debug!("{e}"))
+            .map_err(|_| DenimProtocolError::WebSocketError(WebSocketError::Disconnected))
+            .map(|_| Some(id))
     }
 
     async fn dispatch_server_status(
@@ -116,20 +112,18 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     }
 
     async fn handle_chunks(&mut self, chunks: Vec<DenimChunk>) {
-        if let Some(sender) = &self.enqueue_message {
-            let results = self.receiving_buffer.process_chunks(chunks).await;
-            for res in results {
-                let send_res = match res {
-                    Ok(msg) => sender.send(SamDenimMessage::Denim(msg)).await,
-                    Err(e) => {
-                        error!("Failed to handle deniable message: '{e}'");
-                        continue;
-                    }
-                };
-                match send_res {
-                    Ok(_) => continue,
-                    Err(e) => error!("Failed to enqueue denim chunk: {e}"),
+        let results = self.receiving_buffer.process_chunks(chunks).await;
+        for res in results {
+            let send_res = match res {
+                Ok(msg) => self.enqueue_message.send(SamDenimMessage::Denim(msg)).await,
+                Err(e) => {
+                    error!("Failed to handle deniable message: '{e}'");
+                    continue;
                 }
+            };
+            match send_res {
+                Ok(_) => continue,
+                Err(e) => error!("Failed to enqueue denim chunk: {e}"),
             }
         }
     }
@@ -147,15 +141,8 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
 }
 
 #[async_trait::async_trait]
-impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<SamDenimMessage>
-    for DenimReceiver<T, U>
-{
-    async fn handler(
-        &mut self,
-        mut receiver: SplitStream<WebSocket>,
-        enqueue: Sender<SamDenimMessage>,
-    ) {
-        self.enqueue_message = Some(enqueue);
+impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T, U> {
+    async fn handler(&mut self, mut receiver: SplitStream<WebSocket>) {
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
                 Message::Binary(b) => DenimMessage::decode(b),
@@ -201,8 +188,6 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver<SamDenimMessage>
                 }
             };
         }
-
-        self.enqueue_message = None;
     }
 }
 
@@ -232,7 +217,7 @@ pub mod test {
     use tokio::{
         net::TcpListener,
         sync::{
-            mpsc,
+            mpsc::{self, channel},
             oneshot::{self, Receiver},
             Mutex,
         },
@@ -438,9 +423,15 @@ pub mod test {
         let (status_tx, mut status_rx) = mpsc::channel(10);
         let send_buffer = InMemorySendingBuffer::new(q, len).expect("can create sending buffer");
         let recv_buffer = InMemoryReceivingBuffer::default();
-        let receiver =
-            DenimReceiver::new(client.clone(), status_tx, send_buffer.clone(), recv_buffer);
-        let mut chunk_rx = client
+        let (tx, mut chunk_rx) = channel(10);
+        let receiver = DenimReceiver::new(
+            client.clone(),
+            status_tx,
+            tx,
+            send_buffer.clone(),
+            recv_buffer,
+        );
+        client
             .lock()
             .await
             .connect(receiver)
