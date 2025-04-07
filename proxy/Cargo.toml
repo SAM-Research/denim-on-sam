@@ -29,3 +29,6 @@ rustls = { workspace = true, features = ["ring"] }
 rustls-pemfile = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }

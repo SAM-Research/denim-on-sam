@@ -2,6 +2,7 @@ use denim_sam_common::{
     buffers::{ReceivingBufferConfig, SendingBufferConfig},
     denim_message::DeniableMessage,
 };
+use sam_common::AccountId;
 
 use crate::{
     error::DenimRouterError,
@@ -16,6 +17,7 @@ pub async fn denim_router<
 >(
     _state: DenimState<T, U, V>,
     _request: ClientRequest,
+    _account_id: AccountId,
 ) -> Result<DeniableMessage, DenimRouterError> {
     todo!("Denim Proxy does not yet support denim routing");
 }

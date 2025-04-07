@@ -178,7 +178,7 @@ async fn denim_client_receiver<
             Ok(results) => {
                 for res in results {
                     let response = match res {
-                        Ok(Some(request)) => denim_router(state.clone(), request).await,
+                        Ok(Some(request)) => denim_router(state.clone(), request, account_id).await,
                         Ok(None) => continue,
                         Err(e) => {
                             error!("failed to process deniable message: '{e}'");
