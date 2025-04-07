@@ -46,6 +46,22 @@ impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>
         }
     }
 
+    pub async fn enqueue_message(
+        &mut self,
+        account_id: AccountId,
+        deniable_message: DeniableMessage,
+    ) -> Result<(), BufferManagerError> {
+        let mut guard = self.sending_buffers.lock().await;
+        let buffer = guard.entry(account_id).or_insert(
+            self.sending_config
+                .create()
+                .await
+                .map_err(BufferManagerError::DenimBufferError)?,
+        );
+        buffer.enqueue_message(deniable_message).await;
+        Ok(())
+    }
+
     pub async fn get_deniable_payload(
         &mut self,
         account_id: AccountId,
@@ -140,21 +156,13 @@ impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>
         message: UserMessage,
     ) -> Result<(), BufferManagerError> {
         let id = self.id_provider.get_message_id(account_id).await;
-        let mut guard = self.sending_buffers.lock().await;
-        // or_insert_with would be better, but you know async closures
-        let buffer = guard.entry(account_id).or_insert(
-            self.sending_config
-                .create()
-                .await
-                .map_err(BufferManagerError::DenimBufferError)?,
-        );
-
-        buffer
-            .enqueue_message(DeniableMessage {
+        self.enqueue_message(
+            account_id,
+            DeniableMessage {
                 message_id: id,
                 message_kind: Some(MessageKind::DeniableMessage(message)),
-            })
-            .await;
-        Ok(())
+            },
+        )
+        .await
     }
 }

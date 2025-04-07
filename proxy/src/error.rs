@@ -35,3 +35,8 @@ pub enum TlsError {
     Client(ClientTlsError),
     Server(ServerTlsError),
 }
+
+#[derive(Debug, Display, Error, From)]
+pub enum DenimRouterError {
+    Error, // TODO: fill out this
+}

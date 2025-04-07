@@ -41,7 +41,6 @@ pub async fn connect_to_sam_server<
 
     let mut client: WebSocketClient = websocket_config(basic, state)?.into();
 
-    // TODO: USE SENDER!!
     let (tx, rx) = channel(10);
     client
         .connect(ProxyWebSocketReceiver { enqueue: tx })
@@ -58,6 +57,7 @@ pub async fn init_proxy_service<
     state: DenimState<T, U, V>,
     socket: AxumWebSocket,
     server_client: WebSocketClient,
+
     server_receiver: Receiver<ProxyMessage>,
     account_id: AccountId,
     _device_id: DeviceId,
@@ -177,12 +177,25 @@ async fn denim_client_receiver<
         match buffer_mgr.enqueue_chunks(account_id, chunks).await {
             Ok(results) => {
                 for res in results {
-                    match res {
+                    let response = match res {
                         Ok(Some(request)) => denim_router(state.clone(), request).await,
                         Ok(None) => continue,
                         Err(e) => {
-                            error!("failed to process deniable message: '{e}'")
+                            error!("failed to process deniable message: '{e}'");
+                            continue;
                         }
+                    };
+
+                    let enqueue_res = match response {
+                        Ok(msg) => buffer_mgr.enqueue_message(account_id, msg).await,
+                        Err(e) => {
+                            error!("Denim routing failed '{e}'");
+                            continue;
+                        }
+                    };
+                    if let Err(e) = enqueue_res {
+                        error!("enqueue_message failed '{e}'");
+                        continue;
                     }
                 }
                 continue;
