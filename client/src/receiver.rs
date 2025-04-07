@@ -218,7 +218,7 @@ pub mod test {
     };
     use futures_util::SinkExt;
     use prost::Message as PMessage;
-    use rand::RngCore;
+    use rand::{rngs::OsRng, RngCore};
     use rstest::rstest;
     use sam_client::net::protocol::websocket::{WebSocketClient, WebSocketClientConfig};
     use sam_common::{
@@ -263,7 +263,7 @@ pub mod test {
 
     pub fn make_user_message(length: usize) -> MessageKind {
         let mut random_bytes = vec![0u8; length];
-        rand::rng().fill_bytes(&mut random_bytes);
+        OsRng.fill_bytes(&mut random_bytes);
         MessageKind::DeniableMessage(UserMessage {
             destination_account_id: vec![1_u8],
             message_type: MessageType::SignalMessage.into(),

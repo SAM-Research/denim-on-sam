@@ -1,12 +1,27 @@
 use denim_sam_proxy::{
     config::TlsConfig,
+    managers::{
+        in_mem::{
+            InMemoryBufferManager, InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager,
+        },
+        DenimKeyManager,
+    },
     server::{start_proxy, DenimConfig},
-    state::DenimState,
+    state::{DenimState, InMemory},
 };
 use sam_server::{
-    managers::in_memory::{
-        account::InMemoryAccountManager, device::InMemoryDeviceManager, keys::InMemoryKeyManager,
-        message::InMemoryMessageManager, InMemStateType,
+    managers::{
+        in_memory::{
+            account::InMemoryAccountManager,
+            device::InMemoryDeviceManager,
+            keys::{
+                InMemoryEcPreKeyManager, InMemoryLastResortPqPreKeyManager,
+                InMemoryPqPreKeyManager, InMemorySignedPreKeyManager,
+            },
+            message::InMemoryMessageManager,
+            InMemStateType,
+        },
+        KeyManager,
     },
     start_server, ServerConfig, ServerState,
 };
@@ -54,7 +69,12 @@ pub fn in_memory_server_state() -> ServerState<InMemStateType> {
         InMemoryAccountManager::default(),
         InMemoryDeviceManager::new("test".to_string(), 600),
         InMemoryMessageManager::default(),
-        InMemoryKeyManager::default(),
+        KeyManager::new(
+            InMemoryEcPreKeyManager::default(),
+            InMemoryPqPreKeyManager::default(),
+            InMemorySignedPreKeyManager::default(),
+            InMemoryLastResortPqPreKeyManager::default(),
+        ),
     )
 }
 
@@ -71,16 +91,38 @@ impl Drop for TestDenimProxy {
 
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
-        let config = if let Some(tls) = config {
+        let config: DenimConfig<InMemory> = if let Some(tls) = config {
             let (server, client) = tls.create().expect("Can create tls config");
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, Some(client)),
+                state: DenimState::new(
+                    sam_addr.to_string(),
+                    10,
+                    Some(client),
+                    InMemoryBufferManager::default(),
+                    DenimKeyManager::new(
+                        InMemoryDenimEcPreKeyManager::default(),
+                        InMemoryDenimSignedPreKeyManager::default(),
+                    ),
+                    InMemoryAccountManager::default(),
+                    InMemoryDeviceManager::new("Test".to_owned(), 120),
+                ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: Some(server),
             }
         } else {
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, None),
+                state: DenimState::new(
+                    sam_addr.to_string(),
+                    10,
+                    None,
+                    InMemoryBufferManager::default(),
+                    DenimKeyManager::new(
+                        InMemoryDenimEcPreKeyManager::default(),
+                        InMemoryDenimSignedPreKeyManager::default(),
+                    ),
+                    InMemoryAccountManager::default(),
+                    InMemoryDeviceManager::new("Test".to_owned(), 120),
+                ),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: None,
             }
