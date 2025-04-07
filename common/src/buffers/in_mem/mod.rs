@@ -1,4 +1,4 @@
 mod recv;
 mod send;
-pub use recv::InMemoryReceivingBuffer;
-pub use send::InMemorySendingBuffer;
+pub use recv::{InMemoryReceivingBuffer, InMemoryReceivingBufferConfig};
+pub use send::{InMemorySendingBuffer, InMemorySendingBufferConfig};
