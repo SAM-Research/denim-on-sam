@@ -32,7 +32,7 @@ impl Default for ChunkBuffer {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct InMemoryReceivingBuffer {
     buffers: Arc<Mutex<HashMap<MessageId, ChunkBuffer>>>,
 }
