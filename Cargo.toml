@@ -14,9 +14,9 @@ denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 e2e = { path = "e2e" }
 
-sam-server = { path = "../sam-instant-messenger/server/" }
-sam-common = { path = "../sam-instant-messenger/common/" }
-sam-client = { path = "../sam-instant-messenger/client/" }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "key-manager" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "key-manager" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "key-manager" }
 rustls = "0.23.15"
 rustls-pemfile = "2.2.0"
 tokio = "1.40.0"
