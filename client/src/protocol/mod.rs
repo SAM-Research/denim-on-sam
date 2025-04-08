@@ -1,25 +1,31 @@
+use crate::error::DenimProtocolError;
 use denim_client::{DenimProtocolClient, DenimSamClient};
 use denim_sam_common::buffers::{ReceivingBuffer, SendingBuffer};
-use sam_client::net::protocol::WebSocketProtocolClientConfig;
+use log::debug;
+use rustls::ClientConfig;
+use sam_client::net::protocol::websocket::WebSocketClientConfig;
+use sam_client::net::protocol::{get_ws_auth, get_ws_url};
 use sam_common::{AccountId, DeviceId};
-
-use crate::error::DenimProtocolError;
+use tokio_tungstenite::tungstenite::http;
 
 pub mod denim_client;
 
 pub struct DenimProtocolClientConfig<T, U> {
-    config: WebSocketProtocolClientConfig,
+    base_url: String,
+    config: Option<ClientConfig>,
     sending_buffer: T,
     receiving_buffer: U,
 }
 
 impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClientConfig<T, U> {
     pub fn new(
-        config: WebSocketProtocolClientConfig,
+        base_url: String,
+        config: Option<ClientConfig>,
         sending_buffer: T,
         receiving_buffer: U,
-    ) -> Self {
+    ) -> DenimProtocolClientConfig<T, U> {
         DenimProtocolClientConfig {
+            base_url,
             config,
             sending_buffer,
             receiving_buffer,
@@ -47,9 +53,22 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolConfig for DenimProtocol
         device_id: DeviceId,
         password: String,
     ) -> Result<Self::ProtocolClient, DenimProtocolError> {
+        let (url, connector) = get_ws_url(self.config, self.base_url);
+        let basic = get_ws_auth(account_id, device_id, password);
+        let ws_client = WebSocketClientConfig::builder()
+            .maybe_tls(connector)
+            .url(format!("{}/api/v1/websocket", url))
+            .headers(vec![(
+                http::header::AUTHORIZATION,
+                http::HeaderValue::from_str(&basic)
+                    .inspect_err(|e| debug!("{e}"))
+                    .map_err(|_| DenimProtocolError::InvalidCredentials)?,
+            )])
+            .build()
+            .into();
+
         Ok(DenimProtocolClient::new(
-            self.config
-                .to_websocket_client(account_id, device_id, password)?,
+            ws_client,
             self.sending_buffer,
             self.receiving_buffer,
         ))

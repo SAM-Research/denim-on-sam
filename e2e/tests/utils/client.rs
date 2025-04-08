@@ -1,11 +1,13 @@
-use denim_sam_client::client::InMemoryDenimClientType;
 use denim_sam_client::protocol::DenimProtocolClientConfig;
 use denim_sam_client::DenimClient;
+use denim_sam_client::{
+    client::InMemoryDenimClientType, deniable_store::inmem::InMemoryDeniableStoreConfig,
+};
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use rustls::ClientConfig;
 use sam_client::{
     net::{protocol::WebSocketProtocolClientConfig, HttpClientConfig},
-    storage::inmem::{InMemorySamStoreConfig, InMemorySignalStoreConfig},
+    storage::InMemoryStoreConfig,
 };
 
 #[allow(unused)]
@@ -40,12 +42,12 @@ pub async fn client_with_proxy(
     DenimClient::from_registration()
         .username(username)
         .device_name(device_name)
-        .regular_store_config(InMemorySignalStoreConfig::default())
-        .denim_store_config(InMemorySignalStoreConfig::default())
-        .sam_store_config(InMemorySamStoreConfig::default())
+        .store_config(InMemoryStoreConfig::default())
+        .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
         .protocol_config(DenimProtocolClientConfig::new(
-            ws_config(proxy_addr, wss),
+            proxy_addr.to_owned(),
+            wss,
             sending_buffer,
             receiving_buffer,
         ))

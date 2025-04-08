@@ -1,16 +1,14 @@
 use std::time::Duration;
 
 use denim_sam_client::{
-    client::SqliteDenimClientType, protocol::DenimProtocolClientConfig, DenimClient,
+    client::SqliteDenimClientType, deniable_store::sqlite::SqliteDeniableStoreConfig,
+    protocol::DenimProtocolClientConfig, DenimClient,
 };
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
-use sam_client::{
-    net::HttpClientConfig,
-    storage::{sqlite::SqliteSamStoreConfig, SqliteSignalStoreConfig},
-};
+use sam_client::{net::HttpClientConfig, storage::SqliteStoreConfig};
 use tokio::time::timeout;
 use utils::{
-    client::{client_with_proxy, ws_config},
+    client::{client_with_proxy},
     server::{TestDenimProxy, TestSamServer},
 };
 
@@ -58,12 +56,12 @@ async fn can_link_device() {
             .expect("Can get id key pair");
 
         assert!(DenimClient::<SqliteDenimClientType>::from_provisioning()
-            .regular_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .denim_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .sam_store_config(SqliteSamStoreConfig::in_memory().await)
+            .store_config(SqliteStoreConfig::in_memory().await)
+            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .protocol_config(DenimProtocolClientConfig::new(
-                ws_config(&proxy_addr, None),
+                proxy_addr,
+                None,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
@@ -119,11 +117,11 @@ async fn can_unlink_device() {
 
         let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
-            .regular_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .denim_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .sam_store_config(SqliteSamStoreConfig::in_memory().await)
+            .store_config(SqliteStoreConfig::in_memory().await)
+            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
             .protocol_config(DenimProtocolClientConfig::new(
-                ws_config(&proxy_addr, None),
+                proxy_addr,
+                None,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
@@ -184,11 +182,11 @@ async fn can_delete_device() {
 
         let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
-            .regular_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .denim_store_config(SqliteSignalStoreConfig::in_memory().await)
-            .sam_store_config(SqliteSamStoreConfig::in_memory().await)
+            .store_config(SqliteStoreConfig::in_memory().await)
+            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
             .protocol_config(DenimProtocolClientConfig::new(
-                ws_config(&proxy_addr, None),
+                proxy_addr,
+                None,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))

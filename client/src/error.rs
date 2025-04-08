@@ -12,6 +12,7 @@ pub enum DenimProtocolError {
     MessageError(MessageError),
     Protocol(ProtocolError),
     ReceivedWrongResponseId,
+    InvalidCredentials,
 }
 
 #[derive(Debug, Error, Display, From)]
