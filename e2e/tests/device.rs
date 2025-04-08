@@ -8,7 +8,7 @@ use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use sam_client::{net::HttpClientConfig, storage::SqliteStoreConfig};
 use tokio::time::timeout;
 use utils::{
-    client::{client_with_proxy},
+    client::client_with_proxy,
     server::{TestDenimProxy, TestSamServer},
 };
 
