@@ -1,41 +1,61 @@
 use bon::bon;
+use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_common::denim_message::deniable_message::MessageKind;
+use denim_sam_common::denim_message::{BlockRequest, KeyRequest};
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
+use sam_client::encryption::DecryptedEnvelope;
+
 use sam_common::{address::AccountId, address::RegistrationId, api::LinkDeviceToken, DeviceId};
 
-use sam_client::logic::provision_device;
+use sam_client::logic::{handle_message_response, prepare_message, provision_device};
 
 use sam_client::net::HttpClient;
 use sam_client::storage::inmem::InMemorySignalStoreType;
 use sam_client::storage::sqlite::{SqliteSamStoreType, SqliteSignalStoreType};
-use sam_client::storage::{InMemorySamStoreType, SamStoreConfig, SignalStore, SignalStoreType};
+use sam_client::storage::{
+    InMemorySamStoreType, MessageStore, SamStoreConfig, SignalStore, SignalStoreType,
+};
 use sam_client::{
     logic::{publish_prekeys, register_account},
     net::{api_trait::ApiClientConfig, ApiClient},
     storage::{AccountStore, SamStore, SamStoreType, SignalStoreConfig},
-    ClientError,
 };
+use tokio::sync::broadcast::Receiver;
 
 use crate::error::DenimClientError;
+use crate::protocol::{
+    denim_client::{DenimProtocolClient, DenimSamClient},
+    DenimProtocolConfig,
+};
+use crate::receiver::SamDenimMessage;
+use tokio::sync::mpsc::Receiver as MpscReceiver;
 
 pub trait DenimClientType {
     type RegularStore: SignalStoreType;
     type DenimStore: SignalStoreType;
     type SamStore: SamStoreType;
     type ApiClient: ApiClient;
+    type ProtocolClient: DenimSamClient;
     type Rng: Rng + CryptoRng + Default;
 }
 
-pub struct DefaultDenimClientType<T: SamStoreType, V: SignalStoreType, U: ApiClient> {
-    _reg_store: std::marker::PhantomData<T>,
+pub struct DefaultDenimClientType<
+    T: SamStoreType,
+    V: SignalStoreType,
+    U: ApiClient,
+    P: DenimSamClient,
+> {
+    _reg_store: std::marker::PhantomData<V>,
     _den_store: std::marker::PhantomData<V>,
+    _sam_store: std::marker::PhantomData<T>,
     _api: std::marker::PhantomData<U>,
-    //_protocol: std::marker::PhantomData<V>,
+    _protocol: std::marker::PhantomData<P>,
 }
 
-impl<T: SamStoreType, V: SignalStoreType, U: ApiClient> DenimClientType
-    for DefaultDenimClientType<T, V, U>
+impl<T: SamStoreType, V: SignalStoreType, U: ApiClient, P: DenimSamClient> DenimClientType
+    for DefaultDenimClientType<T, V, U, P>
 {
     type RegularStore = V;
 
@@ -45,19 +65,31 @@ impl<T: SamStoreType, V: SignalStoreType, U: ApiClient> DenimClientType
 
     type ApiClient = U;
 
+    type ProtocolClient = P;
+
     type Rng = OsRng;
 }
 
-pub type InMemoryDenimClientType =
-    DefaultDenimClientType<InMemorySamStoreType, InMemorySignalStoreType, HttpClient>;
-pub type SqliteDenimClientType =
-    DefaultDenimClientType<SqliteSamStoreType, SqliteSignalStoreType, HttpClient>;
+pub type InMemoryDenimClientType = DefaultDenimClientType<
+    InMemorySamStoreType,
+    InMemorySignalStoreType,
+    HttpClient,
+    DenimProtocolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
+>;
+pub type SqliteDenimClientType = DefaultDenimClientType<
+    SqliteSamStoreType,
+    SqliteSignalStoreType,
+    HttpClient,
+    DenimProtocolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
+>;
 
 pub struct DenimClient<T: DenimClientType> {
     regular_store: SignalStore<T::RegularStore>,
     _denim_store: SignalStore<T::DenimStore>,
     sam_store: SamStore<T::SamStore>,
     api_client: T::ApiClient,
+    protocol_client: T::ProtocolClient,
+    envelope_queue: MpscReceiver<SamDenimMessage>,
     rng: T::Rng,
 }
 
@@ -69,6 +101,7 @@ impl<T: DenimClientType> DenimClient<T> {
         regular_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
         denim_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
+        protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
         device_name: &str,
         id_key_pair: IdentityKeyPair,
         token: LinkDeviceToken,
@@ -101,13 +134,21 @@ impl<T: DenimClientType> DenimClient<T> {
             .create_store(id_key_pair, registration_id)
             .await?;
 
-        // TODO: DenimProtocolClient connect
+        let mut protocol_client = protocol_config.create(
+            sam_store.account_store.get_account_id().await?,
+            sam_store.account_store.get_device_id().await?,
+            sam_store.account_store.get_password().await?,
+        )?;
+
+        let queue = protocol_client.connect().await?;
 
         Ok(Self {
             sam_store,
             regular_store,
             _denim_store: denim_store,
             api_client,
+            protocol_client,
+            envelope_queue: queue,
             rng,
         })
     }
@@ -119,9 +160,9 @@ impl<T: DenimClientType> DenimClient<T> {
         regular_store_config: impl SignalStoreConfig<StoreType = T::RegularStore>,
         denim_store_config: impl SignalStoreConfig<StoreType = T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
+        protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
         username: &str,
         device_name: &str,
-
         #[builder(default = 100)] upload_prekey_count: usize,
         #[builder(default = 16)] password_length: usize,
         #[builder(default = <T::Rng as Default>::default())] mut rng: T::Rng,
@@ -150,7 +191,13 @@ impl<T: DenimClientType> DenimClient<T> {
             .create_store(id_key_pair, registration_id)
             .await?;
 
-        // TODO: DenimProtocolClient
+        let mut protocol_client = protocol_config.create(
+            sam_store.account_store.get_account_id().await?,
+            sam_store.account_store.get_device_id().await?,
+            sam_store.account_store.get_password().await?,
+        )?;
+
+        let queue = protocol_client.connect().await?;
 
         Ok(Self {
             regular_store,
@@ -158,6 +205,8 @@ impl<T: DenimClientType> DenimClient<T> {
             sam_store,
             api_client,
             rng,
+            protocol_client,
+            envelope_queue: queue,
         })
     }
 
@@ -168,15 +217,24 @@ impl<T: DenimClientType> DenimClient<T> {
         regular_store: SignalStore<T::RegularStore>,
         denim_store: SignalStore<T::DenimStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
+        protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
         #[builder(default = <T::Rng as Default>::default())] rng: T::Rng,
-    ) -> Result<Self, ClientError> {
-        //TODO: Add DenimProtocolClient
+    ) -> Result<Self, DenimClientError> {
+        let mut protocol_client = protocol_config.create(
+            sam_store.account_store.get_account_id().await?,
+            sam_store.account_store.get_device_id().await?,
+            sam_store.account_store.get_password().await?,
+        )?;
+
+        let queue = protocol_client.connect().await?;
 
         Ok(Self {
             sam_store,
             regular_store,
             _denim_store: denim_store,
             api_client: api_client_config.create().await?,
+            protocol_client,
+            envelope_queue: queue,
             rng,
         })
     }
@@ -300,6 +358,66 @@ impl<T: DenimClientType> DenimClient<T> {
         Ok(account_id)
     }
 
+    /// Disconnect from the server.
+    pub async fn disconnect(&mut self) -> Result<(), DenimClientError> {
+        Ok(self.protocol_client.disconnect().await?)
+    }
+
+    /// Connect to the server to recieve messages.
+    pub async fn connect(&mut self) -> Result<(), DenimClientError> {
+        self.envelope_queue = self.protocol_client.connect().await?;
+        Ok(())
+    }
+
+    /// Returns whether or not the client is connected to the server.
+    pub async fn is_connected(&self) -> bool {
+        self.protocol_client.is_connected().await
+    }
+
+    /// Send any message to recipient. Also sends syncs the message with your other devices.
+    pub async fn send_message(
+        &mut self,
+        recipient: AccountId,
+        msg: impl Into<Vec<u8>>,
+    ) -> Result<(), DenimClientError> {
+        let client_envelope = prepare_message(
+            &mut self.regular_store,
+            &mut self.sam_store,
+            &self.api_client,
+            recipient,
+            msg,
+            &mut self.rng,
+        )
+        .await?;
+        let status = self.protocol_client.send_message(client_envelope).await?;
+        handle_message_response(
+            &mut self.regular_store,
+            &mut self.sam_store,
+            &self.api_client,
+            &mut self.rng,
+            status,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Returns a broadcast receiver for incoming messages that have been decrypted.
+    pub fn subscribe(&self) -> Receiver<DecryptedEnvelope> {
+        self.sam_store.message_store.subscribe()
+    }
+
+    /// Recieve and decrypt messages. Block until at least one message is received.
+    pub async fn process_messages_blocking(&mut self) -> Result<(), DenimClientError> {
+        // TODO: implement
+        Ok(())
+    }
+
+    /// Recieve and decrypt messages.
+    pub async fn process_messages(&mut self) -> Result<(), DenimClientError> {
+        // TODO: implement
+        Ok(())
+    }
+
     /// Publish new prekeys.
     #[builder]
     pub async fn publish_prekeys(
@@ -331,5 +449,23 @@ impl<T: DenimClientType> DenimClient<T> {
                 &self.sam_store.account_store.get_password().await?,
             )
             .await?)
+    }
+
+    pub async fn block_user(&mut self, user: AccountId) {
+        let block_user_message = BlockRequest::builder().account_id(user.to_string()).build();
+
+        self.protocol_client
+            .enqueue_deniable(MessageKind::BlockRequest(block_user_message))
+            .await;
+    }
+
+    pub async fn fetch_keys(&mut self, user: AccountId) {
+        let key_request = KeyRequest::builder()
+            .account_id(Vec::from(user.as_bytes()))
+            .build();
+
+        self.protocol_client
+            .enqueue_deniable(MessageKind::KeyRequest(key_request))
+            .await;
     }
 }

@@ -1,5 +1,5 @@
 pub mod client;
-pub mod denim_client;
+pub mod protocol;
 pub mod error;
 pub mod message;
 pub mod receiver;

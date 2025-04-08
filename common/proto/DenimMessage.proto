@@ -19,12 +19,13 @@ message BlockRequest {
 
 message KeyRequest {
   required bytes account_id = 1;
-  repeated uint32 specific_device_ids = 2;
 }
 
 message KeyResponse {
   required bytes identity_key = 1;
-  repeated KeyBundle key_bundle = 2;
+  required uint32 registration_id = 2;
+  required KeyStruct pre_key = 3;
+  required SignedKeyStruct signed_pre_key = 4;
 }
 
 message KeyUpdate {
@@ -33,7 +34,6 @@ message KeyUpdate {
 
 message SeedUpdate {
   required bytes pre_key_seed = 1;
-  required bytes pq_pre_key_seed = 2;
 }
 
 message Error {
@@ -65,11 +65,7 @@ message SignedKeyStruct {
 }
 
 message KeyBundle {
-  required uint32 device_id = 1;
-  required uint32 registration_id = 2;
-  required KeyStruct pre_key = 3;
-  required SignedKeyStruct pq_pre_key = 4;
-  required SignedKeyStruct signed_pre_key = 5;
+  
 }
 
 message DenimMessage {

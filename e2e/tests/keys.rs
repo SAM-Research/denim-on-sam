@@ -1,40 +1,46 @@
-use denim_sam_client::{client::SqliteDenimClientType, DenimClient};
-use sam_client::{
-    net::HttpClientConfig,
-    storage::{sqlite::SqliteSamStoreConfig, SqliteSignalStoreConfig},
+use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use std::time::Duration;
+use tokio::time::timeout;
+use utils::{
+    client::client_with_proxy,
+    server::{TestDenimProxy, TestSamServer},
 };
-use utils::server::TestSamServer;
 
 mod utils;
 
+const TIMEOUT_SECS: u64 = 120;
+
 #[tokio::test]
 pub async fn alice_can_upload_keys() {
-    let address = "127.0.0.1:9390".to_owned();
-    let mut server = TestSamServer::start(&address, None).await;
+    timeout(Duration::from_secs(TIMEOUT_SECS), async {
+        let sam_addr = "127.0.0.1:8060".to_owned();
+        let proxy_addr = "127.0.0.1:8061".to_owned();
+        let mut server = TestSamServer::start(&sam_addr, None).await;
+        let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 
-    server
-        .started_rx()
-        .await
-        .expect("Should be able to start server");
+        server
+            .started_rx()
+            .await
+            .expect("Should be able to start server");
+        proxy
+            .started_rx()
+            .await
+            .expect("Should be able to start server");
 
-    let mut alice: DenimClient<SqliteDenimClientType> = DenimClient::from_registration()
-        .username("Alice")
-        .device_name("Alice's Device")
-        .regular_store_config(SqliteSignalStoreConfig::in_memory().await)
-        .denim_store_config(SqliteSignalStoreConfig::in_memory().await)
-        .sam_store_config(SqliteSamStoreConfig::in_memory().await)
-        .api_client_config(HttpClientConfig::new(address.clone()))
-        .call()
-        .await
-        .unwrap();
-
-    let publish_keys = alice
-        .publish_prekeys()
-        .onetime_prekeys(10)
-        .new_signed_prekey(true)
-        .new_last_resort(true)
-        .call()
+        let alice = client_with_proxy(
+            &proxy_addr,
+            &sam_addr,
+            "Alice",
+            "Alice's device",
+            None,
+            None,
+            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemoryReceivingBuffer::default(),
+        )
         .await;
 
-    assert!(publish_keys.is_ok())
+        assert!(alice.delete_account().await.is_ok())
+    })
+    .await
+    .expect("Test took to long to complete");
 }

@@ -1,9 +1,11 @@
+use denim_sam_client::client::InMemoryDenimClientType;
+use denim_sam_client::protocol::DenimProtocolClientConfig;
+use denim_sam_client::DenimClient;
+use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use rustls::ClientConfig;
-use sam_client::client::InMemoryClientType;
 use sam_client::{
     net::{protocol::WebSocketProtocolClientConfig, HttpClientConfig},
     storage::inmem::{InMemorySamStoreConfig, InMemorySignalStoreConfig},
-    Client,
 };
 
 #[allow(unused)]
@@ -16,7 +18,7 @@ pub fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig 
 }
 
 #[allow(unused)]
-fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
+pub fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
     if let Some(tls) = wss {
         WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls)
     } else {
@@ -24,8 +26,8 @@ fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientCo
     }
 }
 
-#[allow(unused)]
-// TODO: when denim stuff is implemented we need to change this to denim client
+
+#[allow(unused, clippy::too_many_arguments)]
 pub async fn client_with_proxy(
     proxy_addr: &str,
     sam_addr: &str,
@@ -33,14 +35,21 @@ pub async fn client_with_proxy(
     device_name: &str,
     https: Option<ClientConfig>,
     wss: Option<ClientConfig>,
-) -> Client<InMemoryClientType> {
-    Client::from_registration()
+    sending_buffer: InMemorySendingBuffer,
+    receiving_buffer: InMemoryReceivingBuffer,
+) -> DenimClient<InMemoryDenimClientType> {
+    DenimClient::from_registration()
         .username(username)
         .device_name(device_name)
-        .signal_store_config(InMemorySignalStoreConfig::default())
+        .regular_store_config(InMemorySignalStoreConfig::default())
+        .denim_store_config(InMemorySignalStoreConfig::default())
         .sam_store_config(InMemorySamStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
-        .protocol_config(ws_config(proxy_addr, wss))
+        .protocol_config(DenimProtocolClientConfig::new(
+            ws_config(proxy_addr, wss),
+            sending_buffer,
+            receiving_buffer,
+        ))
         .upload_prekey_count(5)
         .call()
         .await

@@ -11,6 +11,7 @@ sam-server = { workspace = true }
 sam-common = { workspace = true }
 sam-client = { workspace = true }
 denim-sam-client = { workspace = true }
+denim-sam-common = { workspace = true }
 denim-sam-proxy = { workspace = true }
 libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
