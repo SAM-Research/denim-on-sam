@@ -26,7 +26,6 @@ pub fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClie
     }
 }
 
-
 #[allow(unused, clippy::too_many_arguments)]
 pub async fn client_with_proxy(
     proxy_addr: &str,

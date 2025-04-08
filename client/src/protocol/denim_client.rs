@@ -12,12 +12,11 @@ use prost::Message as PMessage;
 use sam_client::net::protocol::{
     decode::ServerStatus,
     websocket::{WebSocketClient, WebSocketError},
-    MessageStatus, WebSocketProtocolClientConfig,
+    MessageStatus,
 };
 use sam_common::{
     address::MessageId,
     sam_message::{ClientEnvelope, ClientMessage, ClientMessageType},
-    AccountId, DeviceId,
 };
 use tokio::sync::mpsc::channel;
 use tokio::sync::{mpsc::Receiver, Mutex};

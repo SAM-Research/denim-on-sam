@@ -55,5 +55,3 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolConfig for DenimProtocol
         ))
     }
 }
-
-
