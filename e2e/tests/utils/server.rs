@@ -90,7 +90,7 @@ impl Drop for TestDenimProxy {
 #[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
-        let rcfg = InMemoryReceivingBufferConfig::default();
+        let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::builder()
             .min_payload_length(10)
             .q(1.0)

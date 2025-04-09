@@ -83,7 +83,7 @@ async fn cli() -> Result<(), CliError> {
         None
     };
 
-    let rcfg = InMemoryReceivingBufferConfig::default();
+    let rcfg = InMemoryReceivingBufferConfig;
     // TODO: this should be configurable
     let scfg = InMemorySendingBufferConfig::builder()
         .min_payload_length(10)
