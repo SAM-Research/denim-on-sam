@@ -23,8 +23,8 @@ impl IntoResponse for ServerError {
 pub enum CliError {
     AddressParseError,
     FailedToStartProxy,
-    #[error(ignore)]
-    ArgumentError(String),
+
+    ArgumentError(#[error(not(source))] String),
     TLSError(TlsError),
     SerdeError(serde_json::Error),
     IoError(std::io::Error),

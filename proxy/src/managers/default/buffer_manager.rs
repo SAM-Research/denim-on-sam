@@ -15,7 +15,7 @@ use log::debug;
 use sam_common::AccountId;
 use tokio::sync::Mutex;
 
-use crate::managers::{error::BufferManagerError, traits::message_id_provider::MessageIdProvider};
+use crate::managers::{error::BufferManagerError, traits::MessageIdProvider};
 
 pub enum ClientRequest {
     BlockRequest(MessageId, BlockRequest),
