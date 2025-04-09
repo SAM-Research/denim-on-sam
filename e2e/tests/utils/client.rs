@@ -1,8 +1,7 @@
+use denim_sam_client::message::queue::InMemoryMessageQueueConfig;
 use denim_sam_client::protocol::DenimProtocolClientConfig;
 use denim_sam_client::DenimClient;
-use denim_sam_client::{
-    client::InMemoryDenimClientType, deniable_store::inmem::InMemoryDeniableStoreConfig,
-};
+use denim_sam_client::{client::InMemoryDenimClientType, store::InMemoryDeniableStoreConfig};
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use rustls::ClientConfig;
 use sam_client::{
@@ -45,6 +44,7 @@ pub async fn client_with_proxy(
         .store_config(InMemoryStoreConfig::default())
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
+        .message_queue_config(InMemoryMessageQueueConfig::default())
         .protocol_config(DenimProtocolClientConfig::new(
             proxy_addr.to_owned(),
             wss,

@@ -1,9 +1,10 @@
-use denim_sam_common::DenimBufferError;
 use derive_more::{Display, Error, From};
 use libsignal_protocol::SignalProtocolError;
 use sam_client::net::protocol::error::ProtocolError;
 use sam_client::net::protocol::{error::DecodeError, websocket::WebSocketError};
 use sam_client::{net::ApiClientError, ClientError};
+
+use crate::message::error::MessageError;
 
 #[derive(Debug, Error, Display, From)]
 pub enum DenimProtocolError {
@@ -13,12 +14,6 @@ pub enum DenimProtocolError {
     Protocol(ProtocolError),
     ReceivedWrongResponseId,
     InvalidCredentials,
-}
-
-#[derive(Debug, Error, Display, From)]
-pub enum MessageError {
-    MessageTooBig,
-    DenimBufferError(DenimBufferError),
 }
 
 #[derive(From, Debug)]

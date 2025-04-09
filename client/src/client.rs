@@ -1,7 +1,6 @@
 use bon::bon;
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
-use denim_sam_common::denim_message::deniable_message::MessageKind;
-use denim_sam_common::denim_message::{BlockRequest, KeyRequest};
+
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
@@ -22,14 +21,16 @@ use sam_client::{
 };
 use tokio::sync::broadcast::Receiver;
 
-use crate::deniable_store::inmem::InMemoryDeniableStoreType;
-use crate::deniable_store::{DeniableStore, DeniableStoreConfig, DeniableStoreType};
 use crate::error::DenimClientError;
+use crate::message::queue::InMemoryMessageQueue;
+use crate::message::traits::{MessageQueue, MessageQueueConfig};
 use crate::protocol::{
     denim_client::{DenimProtocolClient, DenimSamClient},
     DenimProtocolConfig,
 };
 use crate::receiver::SamDenimMessage;
+use crate::store::inmem::InMemoryDeniableStoreType;
+use crate::store::{DeniableStore, DeniableStoreConfig, DeniableStoreType};
 use tokio::sync::mpsc::Receiver as MpscReceiver;
 
 pub trait DenimClientType {
@@ -37,6 +38,7 @@ pub trait DenimClientType {
     type DeniableStore: DeniableStoreType;
     type ApiClient: ApiClient;
     type ProtocolClient: DenimSamClient;
+    type MessageQueue: MessageQueue;
     type Rng: Rng + CryptoRng + Default;
 }
 
@@ -63,6 +65,8 @@ impl<T: StoreType, U: ApiClient, V: DenimSamClient, D: DeniableStoreType> DenimC
 
     type ProtocolClient = V;
 
+    type MessageQueue = InMemoryMessageQueue;
+
     type Rng = OsRng;
 }
 
@@ -85,6 +89,7 @@ pub struct DenimClient<T: DenimClientType> {
     api_client: T::ApiClient,
     protocol_client: T::ProtocolClient,
     envelope_queue: MpscReceiver<SamDenimMessage>,
+    waiting_messages: T::MessageQueue,
     rng: T::Rng,
 }
 
@@ -96,6 +101,7 @@ impl<T: DenimClientType> DenimClient<T> {
         deniable_store_config: impl DeniableStoreConfig<DeniableStoreType = T::DeniableStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
+        message_queue_config: impl MessageQueueConfig<MessageQueue = T::MessageQueue>,
         device_name: &str,
         id_key_pair: IdentityKeyPair,
         token: LinkDeviceToken,
@@ -137,6 +143,7 @@ impl<T: DenimClientType> DenimClient<T> {
             api_client,
             protocol_client,
             envelope_queue: queue,
+            waiting_messages: message_queue_config.create().await,
             rng,
         })
     }
@@ -148,6 +155,7 @@ impl<T: DenimClientType> DenimClient<T> {
         deniable_store_config: impl DeniableStoreConfig<DeniableStoreType = T::DeniableStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
+        message_queue_config: impl MessageQueueConfig<MessageQueue = T::MessageQueue>,
         username: &str,
         device_name: &str,
         #[builder(default = 100)] upload_prekey_count: usize,
@@ -188,6 +196,7 @@ impl<T: DenimClientType> DenimClient<T> {
             api_client,
             rng,
             protocol_client,
+            waiting_messages: message_queue_config.create().await,
             envelope_queue: queue,
         })
     }
@@ -199,6 +208,7 @@ impl<T: DenimClientType> DenimClient<T> {
         deniable_store: DeniableStore<T::DeniableStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,
         protocol_config: impl DenimProtocolConfig<ProtocolClient = T::ProtocolClient>,
+        message_queue_config: impl MessageQueueConfig<MessageQueue = T::MessageQueue>,
         #[builder(default = <T::Rng as Default>::default())] rng: T::Rng,
     ) -> Result<Self, DenimClientError> {
         let mut protocol_client = protocol_config.create(
@@ -215,6 +225,7 @@ impl<T: DenimClientType> DenimClient<T> {
             api_client: api_client_config.create().await?,
             protocol_client,
             envelope_queue: queue,
+            waiting_messages: message_queue_config.create().await,
             rng,
         })
     }
@@ -420,24 +431,5 @@ impl<T: DenimClientType> DenimClient<T> {
                 &self.store.account_store.get_password().await?,
             )
             .await?)
-    }
-
-    pub async fn block_user(&mut self, user: AccountId) {
-        let block_user_message = BlockRequest::builder().account_id(user.to_string()).build();
-
-        self.protocol_client
-            .enqueue_deniable(MessageKind::BlockRequest(block_user_message))
-            .await;
-    }
-
-    pub async fn fetch_keys(&mut self, user: AccountId) {
-        let key_request = KeyRequest::builder()
-            .account_id(Vec::from(user.as_bytes()))
-            .specific_device_ids(vec![1])
-            .build();
-
-        self.protocol_client
-            .enqueue_deniable(MessageKind::KeyRequest(key_request))
-            .await;
     }
 }
