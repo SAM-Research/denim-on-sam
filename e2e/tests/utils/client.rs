@@ -1,12 +1,17 @@
+use denim_sam_client::protocol::DenimProtocolClientConfig;
+use denim_sam_client::DenimClient;
+use denim_sam_client::{
+    client::InMemoryDenimClientType, deniable_store::inmem::InMemoryDeniableStoreConfig,
+};
+use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use rustls::ClientConfig;
-use sam_client::client::InMemoryClientType;
 use sam_client::{
     net::{protocol::WebSocketProtocolClientConfig, HttpClientConfig},
     storage::InMemoryStoreConfig,
-    Client,
 };
 
-fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
+#[allow(unused)]
+pub fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     if let Some(tls) = https {
         HttpClientConfig::new_with_tls(addr.to_string(), tls)
     } else {
@@ -14,7 +19,8 @@ fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig {
     }
 }
 
-fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
+#[allow(unused)]
+pub fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
     if let Some(tls) = wss {
         WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls)
     } else {
@@ -22,7 +28,7 @@ fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientCo
     }
 }
 
-// TODO: when denim stuff is implemented we need to change this to denim client
+#[allow(unused, clippy::too_many_arguments)]
 pub async fn client_with_proxy(
     proxy_addr: &str,
     sam_addr: &str,
@@ -30,13 +36,21 @@ pub async fn client_with_proxy(
     device_name: &str,
     https: Option<ClientConfig>,
     wss: Option<ClientConfig>,
-) -> Client<InMemoryClientType> {
-    Client::from_registration()
+    sending_buffer: InMemorySendingBuffer,
+    receiving_buffer: InMemoryReceivingBuffer,
+) -> DenimClient<InMemoryDenimClientType> {
+    DenimClient::from_registration()
         .username(username)
         .device_name(device_name)
         .store_config(InMemoryStoreConfig::default())
+        .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
-        .protocol_config(ws_config(proxy_addr, wss))
+        .protocol_config(DenimProtocolClientConfig::new(
+            proxy_addr.to_owned(),
+            wss,
+            sending_buffer,
+            receiving_buffer,
+        ))
         .upload_prekey_count(5)
         .call()
         .await

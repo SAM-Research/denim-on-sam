@@ -8,10 +8,15 @@ license.workspace = true
 
 [dependencies]
 sam-server = { workspace = true }
+sam-common = { workspace = true }
 sam-client = { workspace = true }
+denim-sam-client = { workspace = true }
+denim-sam-common = { workspace = true }
 denim-sam-proxy = { workspace = true }
+libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 env_logger = { workspace = true }
 rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
 rstest = { workspace = true }
+rand = { workspace = true }

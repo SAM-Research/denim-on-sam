@@ -4,9 +4,18 @@ use denim_sam_proxy::{
     state::DenimState,
 };
 use sam_server::{
-    managers::in_memory::{
-        account::InMemoryAccountManager, device::InMemoryDeviceManager, keys::InMemoryKeyManager,
-        message::InMemoryMessageManager, InMemStateType,
+    managers::{
+        in_memory::{
+            account::InMemoryAccountManager,
+            device::InMemoryDeviceManager,
+            keys::{
+                InMemoryEcPreKeyManager, InMemoryLastResortPqPreKeyManager,
+                InMemoryPqPreKeyManager, InMemorySignedPreKeyManager,
+            },
+            message::InMemoryMessageManager,
+            InMemStateType,
+        },
+        KeyManager,
     },
     start_server, ServerConfig, ServerState,
 };
@@ -54,7 +63,12 @@ pub fn in_memory_server_state() -> ServerState<InMemStateType> {
         InMemoryAccountManager::default(),
         InMemoryDeviceManager::new("test".to_string(), 600),
         InMemoryMessageManager::default(),
-        InMemoryKeyManager::default(),
+        KeyManager::new(
+            InMemoryEcPreKeyManager::default(),
+            InMemoryPqPreKeyManager::default(),
+            InMemorySignedPreKeyManager::default(),
+            InMemoryLastResortPqPreKeyManager::default(),
+        ),
     )
 }
 
@@ -69,6 +83,7 @@ impl Drop for TestDenimProxy {
     }
 }
 
+#[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
         let config = if let Some(tls) = config {

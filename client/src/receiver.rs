@@ -262,8 +262,9 @@ pub mod test {
     }
 
     pub fn make_user_message(length: usize) -> MessageKind {
+        let mut rng = rand::thread_rng();
         let mut random_bytes = vec![0u8; length];
-        rand::rng().fill_bytes(&mut random_bytes);
+        rng.fill_bytes(&mut random_bytes);
         MessageKind::DeniableMessage(UserMessage {
             destination_account_id: vec![1_u8],
             message_type: MessageType::SignalMessage.into(),
