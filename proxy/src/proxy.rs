@@ -174,6 +174,7 @@ async fn denim_client_receiver<
                 continue;
             }
         };
+        // this should not happen if a user is blocked.
         match buffer_mgr.enqueue_chunks(account_id, chunks).await {
             Ok(results) => {
                 for res in results {
