@@ -70,9 +70,11 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
 
         let (status_tx, status_rx) = channel(10);
         self.status_messages = Some(status_rx);
+        let (tx, rx) = channel(10);
         let handler = DenimReceiver::new(
             self.client.clone(),
             status_tx,
+            tx,
             self.sending_buffer.clone(),
             self.receiving_buffer.clone(),
         );
@@ -82,7 +84,8 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
             .connect(handler)
             .await
             .inspect_err(|e| error!("DenimProtocolClient Error: {e}"))
-            .map_err(DenimProtocolError::WebSocketError)
+            .map_err(DenimProtocolError::WebSocketError)?;
+        Ok(rx)
     }
 
     async fn disconnect(&mut self) -> Result<(), DenimProtocolError> {

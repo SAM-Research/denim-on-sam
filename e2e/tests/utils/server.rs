@@ -1,5 +1,9 @@
+use denim_sam_common::buffers::in_mem::{
+    InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
+};
 use denim_sam_proxy::{
     config::TlsConfig,
+    managers::{BufferManager, InMemoryMessageIdProvider},
     server::{start_proxy, DenimConfig},
     state::DenimState,
 };
@@ -86,16 +90,25 @@ impl Drop for TestDenimProxy {
 #[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
+        let rcfg = InMemoryReceivingBufferConfig;
+        let scfg = InMemorySendingBufferConfig::builder()
+            .min_payload_length(10)
+            .q(1.0)
+            .build();
+        let id_provider = InMemoryMessageIdProvider::default();
+        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
+
         let config = if let Some(tls) = config {
             let (server, client) = tls.create().expect("Can create tls config");
+
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, Some(client)),
+                state: DenimState::new(buffer_mgr, sam_addr.to_string(), 10, Some(client)),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: Some(server),
             }
         } else {
             DenimConfig {
-                state: DenimState::new(sam_addr.to_string(), 10, None),
+                state: DenimState::new(buffer_mgr, sam_addr.to_string(), 10, None),
                 addr: proxy_addr.parse().expect("Unable to parse socket address"),
                 tls_config: None,
             }

@@ -1,4 +1,7 @@
-use crate::buffers::{DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SequenceNumber};
+use crate::buffers::{
+    DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SendingBufferConfig,
+    SequenceNumber,
+};
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use async_trait::async_trait;
@@ -23,6 +26,20 @@ pub struct InMemorySendingBuffer {
     chunk_size_without_payload: usize,
     outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
     buffer: Arc<Mutex<Buffer>>,
+}
+
+#[derive(Clone, bon::Builder)]
+pub struct InMemorySendingBufferConfig {
+    min_payload_length: u8,
+    q: f32,
+}
+
+#[async_trait]
+impl SendingBufferConfig for InMemorySendingBufferConfig {
+    type Buffer = InMemorySendingBuffer;
+    async fn create(&self) -> Result<InMemorySendingBuffer, DenimBufferError> {
+        InMemorySendingBuffer::new(self.q, self.min_payload_length)
+    }
 }
 
 #[async_trait]

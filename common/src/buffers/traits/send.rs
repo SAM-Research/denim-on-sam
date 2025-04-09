@@ -13,3 +13,9 @@ pub trait SendingBuffer: Clone + Send + Sync + 'static {
 
     async fn enqueue_message(&mut self, deniable_message: DeniableMessage);
 }
+
+#[async_trait]
+pub trait SendingBufferConfig: Send + Sync + Clone + 'static {
+    type Buffer: SendingBuffer;
+    async fn create(&self) -> Result<Self::Buffer, DenimBufferError>;
+}

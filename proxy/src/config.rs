@@ -1,8 +1,19 @@
-use sam_client::net::tls::{create_tls_config, MutualTlsConfig};
+use axum::http;
+use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
+use log::debug;
+use sam_client::net::{
+    protocol::websocket::WebSocketClientConfig,
+    tls::{create_tls_config, MutualTlsConfig},
+};
 use sam_server::create_tls_config as create_server_tls_config;
 use serde::{Deserialize, Serialize};
+use tokio_tungstenite::Connector;
 
-use crate::error::TlsError;
+use crate::{
+    error::{ServerError, TlsError},
+    managers::traits::MessageIdProvider,
+    state::DenimState,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,4 +54,27 @@ impl TlsConfig {
         let client = create_tls_config(&self.ca_cert_path, mutual)?;
         Ok((server, client))
     }
+}
+
+pub fn websocket_config<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>(
+    basic: String,
+    state: &DenimState<T, U, V>,
+) -> Result<WebSocketClientConfig, ServerError> {
+    let (url, connector) = match state.ws_proxy_tls_config() {
+        None => (format!("ws://{}", state.sam_url()), None),
+        Some(config) => (
+            format!("wss://{}", state.sam_url()),
+            Some(Connector::Rustls(config)),
+        ),
+    };
+    Ok(WebSocketClientConfig::builder()
+        .maybe_tls(connector)
+        .url(format!("{}/api/v1/websocket", url))
+        .headers(vec![(
+            http::header::AUTHORIZATION,
+            http::HeaderValue::from_str(&basic)
+                .inspect_err(|e| debug!("{e}"))
+                .map_err(|_| ServerError::SAMUnAuth)?,
+        )])
+        .build())
 }
