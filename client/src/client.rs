@@ -192,7 +192,7 @@ impl<T: DenimClientType> DenimClient<T> {
         })
     }
 
-    /// Instantiate a client from a valid store.
+    /// Instantiate a client from valid stores.
     #[builder]
     pub async fn from_stores(
         store: Store<T::Store>,
