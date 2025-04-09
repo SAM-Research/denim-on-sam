@@ -154,11 +154,15 @@ impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>
     async fn handle_user_message(
         &mut self,
         account_id: AccountId,
-        message: UserMessage,
+        mut message: UserMessage,
     ) -> Result<(), BufferManagerError> {
         let id = self.id_provider.get_message_id(account_id).await;
+        let receiver_id = AccountId::try_from(message.account_id)
+            .map_err(|_| BufferManagerError::InvalidAccountId)?;
+        let sender_id = account_id;
+        message.account_id = sender_id.into();
         self.enqueue_message(
-            account_id,
+            receiver_id,
             DeniableMessage {
                 message_id: id,
                 message_kind: Some(MessageKind::DeniableMessage(message)),
@@ -197,7 +201,7 @@ mod test {
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
-            .destination_account_id(account_id.into())
+            .account_id(account_id.into())
             .message_type(MessageType::PlaintextContent.into())
             .build();
         mgr.enqueue_message(
@@ -247,7 +251,7 @@ mod test {
             MessageKind::DeniableMessage(
                 UserMessage::builder()
                     .content(vec![1, 3, 3, 7])
-                    .destination_account_id(account_id.into())
+                    .account_id(account_id.into())
                     .message_type(MessageType::PlaintextContent.into())
                     .build(),
             )

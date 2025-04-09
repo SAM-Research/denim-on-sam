@@ -8,4 +8,5 @@ pub enum BufferManagerError {
     ClientSendError(#[error(not(source))] MessageId),
     ClientSendServerResponse(#[error(not(source))] MessageId),
     FailedToEnqueueRequest,
+    InvalidAccountId,
 }

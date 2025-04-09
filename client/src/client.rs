@@ -1,6 +1,8 @@
 use bon::bon;
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 
+use denim_sam_common::denim_message::deniable_message::MessageKind;
+use denim_sam_common::denim_message::KeyRequest;
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
@@ -12,7 +14,7 @@ use sam_client::logic::{handle_message_response, prepare_message, provision_devi
 
 use sam_client::net::HttpClient;
 use sam_client::storage::{
-    InMemoryStoreType, MessageStore, SqliteStoreType, Store, StoreConfig, StoreType,
+    ContactStore, InMemoryStoreType, MessageStore, SqliteStoreType, Store, StoreConfig, StoreType,
 };
 use sam_client::{
     logic::{publish_prekeys, register_account},
@@ -21,6 +23,7 @@ use sam_client::{
 };
 use tokio::sync::broadcast::Receiver;
 
+use crate::encryption::encrypt::encrypt;
 use crate::error::DenimClientError;
 use crate::message::queue::InMemoryMessageQueue;
 use crate::message::traits::{MessageQueue, MessageQueueConfig};
@@ -85,7 +88,7 @@ pub type SqliteDenimClientType = DefaultDenimClientType<
 
 pub struct DenimClient<T: DenimClientType> {
     store: Store<T::Store>,
-    _deniable_store: DeniableStore<T::DeniableStore>,
+    deniable_store: DeniableStore<T::DeniableStore>,
     api_client: T::ApiClient,
     protocol_client: T::ProtocolClient,
     envelope_queue: MpscReceiver<SamDenimMessage>,
@@ -139,7 +142,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            _deniable_store: deniable_store,
+            deniable_store: deniable_store,
             api_client,
             protocol_client,
             envelope_queue: queue,
@@ -192,7 +195,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            _deniable_store: deniable_store,
+            deniable_store: deniable_store,
             api_client,
             rng,
             protocol_client,
@@ -221,7 +224,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            _deniable_store: deniable_store,
+            deniable_store: deniable_store,
             api_client: api_client_config.create().await?,
             protocol_client,
             envelope_queue: queue,
@@ -365,6 +368,44 @@ impl<T: DenimClientType> DenimClient<T> {
         self.protocol_client.is_connected().await
     }
 
+    pub async fn enqueue_message(
+        &mut self,
+        recipient: AccountId,
+        msg: impl Into<Vec<u8>>,
+    ) -> Result<(), DenimClientError> {
+        if !self
+            .deniable_store
+            .contact_store
+            .contains_contact(recipient)
+            .await?
+        {
+            self.fetch_denim_prekeys(recipient).await;
+        }
+
+        if !self
+            .deniable_store
+            .contact_store
+            .contains_contact(recipient)
+            .await?
+        {
+            self.waiting_messages.enqueue(recipient, msg.into()).await;
+            return Ok(());
+        }
+
+        self.protocol_client
+            .enqueue_deniable(MessageKind::DeniableMessage(
+                encrypt(
+                    msg.into(),
+                    recipient,
+                    &mut self.store,
+                    &mut self.deniable_store,
+                )
+                .await?,
+            ))
+            .await;
+        Ok(())
+    }
+
     /// Send any message to recipient. Also sends syncs the message with your other devices.
     pub async fn send_message(
         &mut self,
@@ -431,5 +472,16 @@ impl<T: DenimClientType> DenimClient<T> {
                 &self.store.account_store.get_password().await?,
             )
             .await?)
+    }
+
+    async fn fetch_denim_prekeys(&mut self, account_id: AccountId) {
+        self.protocol_client
+            .enqueue_deniable(MessageKind::KeyRequest(
+                KeyRequest::builder()
+                    .account_id(account_id.into())
+                    .specific_device_ids(vec![1])
+                    .build(),
+            ))
+            .await
     }
 }

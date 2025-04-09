@@ -8,7 +8,7 @@ enum MessageType {
 }
 
 message UserMessage {
-  required bytes destination_account_id = 1;
+  required bytes account_id = 1; // sender or receiver
   required MessageType message_type = 3;
   required bytes content = 4;
 }

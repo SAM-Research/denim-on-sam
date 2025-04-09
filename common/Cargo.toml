@@ -18,7 +18,7 @@ derive_more = { workspace = true, features = ["display", "error", "from"] }
 async-trait = { workspace = true }
 rand = { workspace = true, features = ["std_rng"] }
 bincode = { workspace = true }
-
+libsignal-protocol = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true }
