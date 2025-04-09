@@ -433,6 +433,7 @@ impl<T: DenimClientType> DenimClient<T> {
     pub async fn fetch_keys(&mut self, user: AccountId) {
         let key_request = KeyRequest::builder()
             .account_id(Vec::from(user.as_bytes()))
+            .specific_device_ids(vec![1])
             .build();
 
         self.protocol_client
