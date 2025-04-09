@@ -13,9 +13,7 @@ message UserMessage {
   required bytes content = 4;
 }
 
-message BlockRequest {
-  required string account_id = 1;
-}
+message BlockRequest { required string account_id = 1; }
 
 message KeyRequest {
   required bytes account_id = 1;
@@ -27,14 +25,9 @@ message KeyResponse {
   repeated KeyBundle key_bundle = 2;
 }
 
-message KeyUpdate {
-  required SignedKeyStruct signed_pre_key = 1;
-}
+message KeyUpdate { required SignedKeyStruct signed_pre_key = 1; }
 
-message SeedUpdate {
-  required bytes pre_key_seed = 1;
-  required bytes pq_pre_key_seed = 2;
-}
+message SeedUpdate { required bytes pre_key_seed = 1; }
 
 message Error {
   required string error = 1;
@@ -68,7 +61,6 @@ message KeyBundle {
   required uint32 device_id = 1;
   required uint32 registration_id = 2;
   required KeyStruct pre_key = 3;
-  required SignedKeyStruct pq_pre_key = 4;
   required SignedKeyStruct signed_pre_key = 5;
 }
 

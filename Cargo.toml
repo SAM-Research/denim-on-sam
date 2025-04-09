@@ -17,6 +17,7 @@ e2e = { path = "e2e" }
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "ws-update" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "ws-update" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "ws-update" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal.git", version = "0.1.0" }
 rustls = "0.23.15"
 rustls-pemfile = "2.2.0"
 tokio = "1.40.0"
@@ -36,7 +37,7 @@ serde_json = "1.0.139"
 serde = "1.0.210"
 prost-build = "0.13.5"
 prost = "0.13.5"
-rand = "0.9.0"
+rand = "0.8.5"
 bincode = "2.0.1"
 
 
