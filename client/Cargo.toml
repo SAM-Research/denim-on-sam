@@ -21,7 +21,6 @@ log = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
 prost = { workspace = true }
 rand = { workspace = true, features = ["std_rng"] }
-sqlx = { workspace = true }
 rustls = { workspace = true }
 
 [dev-dependencies]

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use denim_sam_client::{
-    client::SqliteDenimClientType, deniable_store::sqlite::SqliteDeniableStoreConfig,
+    client::SqliteDenimClientType, deniable_store::inmem::InMemoryDeniableStoreConfig,
     protocol::DenimProtocolClientConfig, DenimClient,
 };
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
@@ -55,9 +55,9 @@ async fn can_link_device() {
             .await
             .expect("Can get id key pair");
 
-        assert!(DenimClient::<SqliteDenimClientType>::from_provisioning()
+        let new_device = DenimClient::<SqliteDenimClientType>::from_provisioning()
             .store_config(SqliteStoreConfig::in_memory().await)
-            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
+            .deniable_store_config(InMemoryDeniableStoreConfig::default())
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
@@ -69,8 +69,9 @@ async fn can_link_device() {
             .id_key_pair(id_key_pair)
             .token(token)
             .call()
-            .await
-            .is_ok());
+            .await;
+
+        assert!(new_device.is_ok());
     })
     .await
     .expect("Test took to long to complete")
@@ -118,7 +119,7 @@ async fn can_unlink_device() {
         let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .store_config(SqliteStoreConfig::in_memory().await)
-            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
+            .deniable_store_config(InMemoryDeniableStoreConfig::default())
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
@@ -183,7 +184,7 @@ async fn can_delete_device() {
         let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .store_config(SqliteStoreConfig::in_memory().await)
-            .deniable_store_config(SqliteDeniableStoreConfig::in_memory().await)
+            .deniable_store_config(InMemoryDeniableStoreConfig::default())
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,

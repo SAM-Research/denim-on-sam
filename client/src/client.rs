@@ -23,7 +23,6 @@ use sam_client::{
 use tokio::sync::broadcast::Receiver;
 
 use crate::deniable_store::inmem::InMemoryDeniableStoreType;
-use crate::deniable_store::sqlite::SqliteDeniableStoreType;
 use crate::deniable_store::{DeniableStore, DeniableStoreConfig, DeniableStoreType};
 use crate::error::DenimClientError;
 use crate::protocol::{
@@ -77,7 +76,7 @@ pub type SqliteDenimClientType = DefaultDenimClientType<
     SqliteStoreType,
     HttpClient,
     DenimProtocolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
-    SqliteDeniableStoreType,
+    InMemoryDeniableStoreType,
 >;
 
 pub struct DenimClient<T: DenimClientType> {
@@ -195,7 +194,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
     /// Instantiate a client from a valid store.
     #[builder]
-    pub async fn from_store(
+    pub async fn from_stores(
         store: Store<T::Store>,
         deniable_store: DeniableStore<T::DeniableStore>,
         api_client_config: impl ApiClientConfig<ApiClient = T::ApiClient>,

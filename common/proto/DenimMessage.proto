@@ -64,10 +64,6 @@ message SignedKeyStruct {
   required bytes signature = 2;
 }
 
-message KeyBundle {
-  
-}
-
 message DenimMessage {
   required bytes regular_payload = 1;
   repeated bytes deniable_payload = 2;

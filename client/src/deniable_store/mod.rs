@@ -6,7 +6,6 @@ use sam_client::storage::{key_generation::PreKeyGenerator, ProvidesKeyId};
 use crate::DenimClientError;
 
 pub mod inmem;
-pub mod sqlite;
 
 #[async_trait]
 pub trait DeniableStoreConfig {

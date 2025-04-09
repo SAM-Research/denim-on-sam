@@ -4,7 +4,7 @@ use denim_sam_common::buffers::{ReceivingBuffer, SendingBuffer};
 use log::debug;
 use rustls::ClientConfig;
 use sam_client::net::protocol::websocket::WebSocketClientConfig;
-use sam_client::net::protocol::{get_ws_auth, get_ws_url};
+use sam_client::net::protocol::{get_ws_auth, get_ws_url_and_connector};
 use sam_common::{AccountId, DeviceId};
 use tokio_tungstenite::tungstenite::http;
 
@@ -53,7 +53,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolConfig for DenimProtocol
         device_id: DeviceId,
         password: String,
     ) -> Result<Self::ProtocolClient, DenimProtocolError> {
-        let (url, connector) = get_ws_url(self.config, self.base_url);
+        let (url, connector) = get_ws_url_and_connector(self.config, self.base_url);
         let basic = get_ws_auth(account_id, device_id, password);
         let ws_client = WebSocketClientConfig::builder()
             .maybe_tls(connector)
