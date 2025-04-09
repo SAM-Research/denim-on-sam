@@ -10,7 +10,9 @@ use sam_client::encryption::DecryptedEnvelope;
 
 use sam_common::{address::AccountId, address::RegistrationId, api::LinkDeviceToken, DeviceId};
 
-use sam_client::logic::{handle_message_response, prepare_message, provision_device};
+use sam_client::logic::{
+    handle_message_response, prepare_message, process_message, provision_device,
+};
 
 use sam_client::net::HttpClient;
 use sam_client::storage::{
@@ -25,6 +27,7 @@ use tokio::sync::broadcast::Receiver;
 
 use crate::encryption::encrypt::encrypt;
 use crate::error::DenimClientError;
+use crate::message::process::process_deniable_message;
 use crate::message::queue::InMemoryMessageQueue;
 use crate::message::traits::{MessageQueue, MessageQueueConfig};
 use crate::protocol::{
@@ -426,20 +429,44 @@ impl<T: DenimClientType> DenimClient<T> {
     }
 
     /// Returns a broadcast receiver for incoming messages that have been decrypted.
-    pub fn subscribe(&self) -> Receiver<DecryptedEnvelope> {
+    pub fn regular_subscribe(&self) -> Receiver<DecryptedEnvelope> {
         self.store.message_store.subscribe()
+    }
+
+    async fn _process_messages(&mut self, block: bool) -> Result<(), DenimClientError> {
+        if !block && self.envelope_queue.is_empty() {
+            return Ok(());
+        }
+        while let Some(envelope) = self.envelope_queue.recv().await {
+            match envelope {
+                SamDenimMessage::Denim(den) => {
+                    process_deniable_message(
+                        den,
+                        &mut self.store,
+                        &mut self.deniable_store,
+                        &mut self.rng,
+                    )
+                    .await?;
+                }
+                SamDenimMessage::Sam(env) => {
+                    process_message(env, &mut self.store).await?;
+                }
+            }
+            if self.envelope_queue.is_empty() {
+                break;
+            }
+        }
+        Ok(())
     }
 
     /// Recieve and decrypt messages. Block until at least one message is received.
     pub async fn process_messages_blocking(&mut self) -> Result<(), DenimClientError> {
-        // TODO: implement
-        Ok(())
+        self._process_messages(true).await
     }
 
     /// Recieve and decrypt messages.
     pub async fn process_messages(&mut self) -> Result<(), DenimClientError> {
-        // TODO: implement
-        Ok(())
+        self._process_messages(false).await
     }
 
     /// Publish new prekeys.

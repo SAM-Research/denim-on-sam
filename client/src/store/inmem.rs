@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use libsignal_protocol::{InMemPreKeyStore, InMemSessionStore};
-use sam_client::storage::InMemoryContactStore;
+use sam_client::storage::{InMemoryContactStore, InMemoryMessageStore};
 
 use crate::DenimClientError;
 
@@ -10,6 +10,7 @@ pub struct InMemoryDeniableStoreType;
 
 impl DeniableStoreType for InMemoryDeniableStoreType {
     type ContactStore = InMemoryContactStore;
+    type MessageStore = InMemoryMessageStore;
     type SessionStore = InMemSessionStore;
 
     type PreKeyStore = InMemPreKeyStore;
@@ -31,6 +32,7 @@ impl DeniableStoreConfig for InMemoryDeniableStoreConfig {
             .session_store(InMemSessionStore::default())
             .pre_key_store(InMemPreKeyStore::default())
             .contact_store(InMemoryContactStore::default())
+            .message_store(InMemoryMessageStore::new(10))
             .build())
     }
 }

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use bon::Builder;
 use libsignal_protocol::{PreKeyStore, SessionStore};
-use sam_client::storage::ContactStore;
+use sam_client::storage::{ContactStore, MessageStore};
 
 use crate::DenimClientError;
 
@@ -18,6 +18,7 @@ pub trait DeniableStoreConfig {
 
 pub trait DeniableStoreType {
     type ContactStore: ContactStore;
+    type MessageStore: MessageStore;
     type SessionStore: SessionStore;
     type PreKeyStore: PreKeyStore;
 }
@@ -25,6 +26,7 @@ pub trait DeniableStoreType {
 #[derive(Builder)]
 pub struct DeniableStore<T: DeniableStoreType> {
     pub contact_store: T::ContactStore,
+    pub message_store: T::MessageStore,
     pub session_store: T::SessionStore,
     pub pre_key_store: T::PreKeyStore,
 }

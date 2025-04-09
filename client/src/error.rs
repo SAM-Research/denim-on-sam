@@ -5,7 +5,7 @@ use sam_client::net::protocol::{error::DecodeError, websocket::WebSocketError};
 use sam_client::{net::ApiClientError, ClientError};
 
 use crate::encryption::error::EncryptionError;
-use crate::message::error::MessageError;
+use crate::message::error::{MessageError, MessageProcessingError};
 
 #[derive(Debug, Error, Display, From)]
 pub enum DenimProtocolError {
@@ -21,6 +21,7 @@ pub enum DenimProtocolError {
 pub enum DenimClientError {
     Client(ClientError),
     Api(ApiClientError),
+    MessageProcessingError(MessageProcessingError),
     EncryptionError(EncryptionError),
     SignalProtocol(SignalProtocolError),
     Protocol(DenimProtocolError),

@@ -4,6 +4,7 @@ use prost::Message;
 use sam_common::sam_message::ClientMessage;
 
 pub mod error;
+pub mod process;
 pub mod queue;
 pub mod traits;
 

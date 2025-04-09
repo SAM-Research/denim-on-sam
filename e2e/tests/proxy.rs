@@ -135,7 +135,7 @@ async fn can_send_message(
             .await
             .expect("Can send message");
 
-        let mut bob_recv = bob.subscribe();
+        let mut bob_recv = bob.regular_subscribe();
         bob.process_messages_blocking()
             .await
             .expect("Can process messages");
