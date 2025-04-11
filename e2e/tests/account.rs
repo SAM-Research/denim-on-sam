@@ -1,10 +1,11 @@
+use denim_sam_client::message::queue::InMemoryMessageQueueConfig;
 use denim_sam_client::DenimClient;
 use denim_sam_client::{client::InMemoryDenimClientType, protocol::DenimProtocolClientConfig};
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use rstest::rstest;
 use sam_client::storage::InMemoryStoreConfig;
 
-use denim_sam_client::deniable_store::inmem::InMemoryDeniableStoreConfig;
+use denim_sam_client::store::inmem::InMemoryDeniableStoreConfig;
 use std::time::Duration;
 use tokio::time::timeout;
 use utils::server::TestDenimProxy;
@@ -64,6 +65,7 @@ pub async fn one_client_can_register(
                 .store_config(InMemoryStoreConfig::default())
                 .deniable_store_config(InMemoryDeniableStoreConfig::default())
                 .api_client_config(http_config(&sam_addr, client_https.map(client_config)))
+                .message_queue_config(InMemoryMessageQueueConfig)
                 .protocol_config(DenimProtocolClientConfig::new(
                     proxy_addr,
                     None,
@@ -240,6 +242,7 @@ pub async fn two_clients_cannot_have_the_same_username() {
                 .store_config(InMemoryStoreConfig::default())
                 .deniable_store_config(InMemoryDeniableStoreConfig::default())
                 .api_client_config(http_config(&sam_addr, None))
+                .message_queue_config(InMemoryMessageQueueConfig)
                 .protocol_config(DenimProtocolClientConfig::new(
                     proxy_addr,
                     None,

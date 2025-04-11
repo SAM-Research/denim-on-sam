@@ -20,3 +20,5 @@ rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
 rstest = { workspace = true }
 rand = { workspace = true }
+bon = { workspace = true }
+async-trait = { workspace = true }

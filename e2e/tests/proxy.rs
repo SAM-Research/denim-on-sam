@@ -71,7 +71,6 @@ async fn can_connect(
 #[case(false, None, None, None, None, "8084", "8085")]
 #[case(true, Some(true), Some(true), Some(true), Some(false), "8086", "8087")]
 #[tokio::test]
-#[ignore = "DenimClient needs implementation of process_messages"]
 async fn can_send_message(
     #[case] install_tls: bool,
     #[case] sam_tls: Option<bool>,
@@ -135,7 +134,7 @@ async fn can_send_message(
             .await
             .expect("Can send message");
 
-        let mut bob_recv = bob.subscribe();
+        let mut bob_recv = bob.regular_subscribe();
         bob.process_messages_blocking()
             .await
             .expect("Can process messages");

@@ -251,7 +251,7 @@ pub mod test {
         let mut random_bytes = vec![0u8; length];
         rng.fill_bytes(&mut random_bytes);
         MessageKind::DeniableMessage(UserMessage {
-            destination_account_id: vec![1_u8],
+            account_id: vec![1_u8],
             message_type: MessageType::SignalMessage.into(),
             content: random_bytes,
         })

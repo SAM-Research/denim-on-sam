@@ -11,6 +11,7 @@ sam-client = { workspace = true }
 sam-common = { workspace = true }
 denim-sam-common = { workspace = true }
 libsignal-protocol = { workspace = true }
+libsignal-core = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 bon = { workspace = true }
 async-trait = { workspace = true }
