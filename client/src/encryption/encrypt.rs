@@ -73,7 +73,7 @@ pub async fn decrypt<R: Rng + CryptoRng>(
         &mut deniable_store.session_store,
         &mut store.identity_key_store,
         &mut deniable_store.pre_key_store,
-        &mut store.signed_pre_key_store,
+        &store.signed_pre_key_store,
         &mut store.kyber_pre_key_store,
         rng,
     )
