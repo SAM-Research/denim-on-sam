@@ -36,7 +36,7 @@ pub async fn encrypt(
     .await?;
     Ok(UserMessage::builder()
         .account_id(recipient.into())
-        .message_type(MessageType::from(cipher.message_type().into()).into())
+        .message_type(MessageType::from(cipher.message_type()).into())
         .content(cipher.serialize().into())
         .build())
 }

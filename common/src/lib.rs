@@ -7,9 +7,9 @@ use denim_message::MessageType;
 pub use error::DenimBufferError;
 use libsignal_protocol::CiphertextMessageType;
 
-impl Into<MessageType> for CiphertextMessageType {
-    fn into(self) -> MessageType {
-        match self {
+impl From<CiphertextMessageType> for MessageType {
+    fn from(val: CiphertextMessageType) -> Self {
+        match val {
             CiphertextMessageType::Whisper => MessageType::SignalMessage,
             CiphertextMessageType::PreKey => MessageType::PreKeySignalMessage,
             CiphertextMessageType::SenderKey => MessageType::SenderKeyMessage,
@@ -18,9 +18,9 @@ impl Into<MessageType> for CiphertextMessageType {
     }
 }
 
-impl Into<CiphertextMessageType> for MessageType {
-    fn into(self) -> CiphertextMessageType {
-        match self {
+impl From<MessageType> for CiphertextMessageType {
+    fn from(val: MessageType) -> Self {
+        match val {
             MessageType::SignalMessage => CiphertextMessageType::Whisper,
             MessageType::PreKeySignalMessage => CiphertextMessageType::PreKey,
             MessageType::SenderKeyMessage => CiphertextMessageType::SenderKey,
