@@ -85,3 +85,226 @@ pub async fn decrypt<R: Rng + CryptoRng>(
         .content(bytes)
         .build())
 }
+
+#[cfg(test)]
+mod test {
+    use std::time::SystemTime;
+
+    use denim_sam_common::denim_message::{KeyBundle, UserMessage};
+    use libsignal_core::ProtocolAddress;
+    use libsignal_protocol::{
+        process_prekey_bundle, IdentityKeyPair, IdentityKeyStore, PreKeyBundle, PreKeyId,
+        PreKeyStore,
+    };
+    use rand::{rngs::OsRng, CryptoRng, Rng};
+    use rstest::rstest;
+    use sam_client::storage::{
+        key_generation::{generate_ec_pre_key, KyberKeyGenerator, SignedPreKeyGenerator},
+        AccountStore, InMemoryStoreConfig, InMemoryStoreType, Store, StoreConfig, StoreType,
+    };
+    use sam_common::{
+        address::RegistrationId,
+        api::{EcPreKey, Encode, SignedEcPreKey},
+        AccountId,
+    };
+
+    use crate::{
+        encryption::{decrypt, encrypt, key::into_libsignal_bundle},
+        store::{
+            inmem::InMemoryDeniableStoreType, DeniableStore, DeniableStoreConfig,
+            DeniableStoreType, InMemoryDeniableStoreConfig,
+        },
+    };
+
+    async fn stores<R: Rng + CryptoRng>(
+        csprng: &mut R,
+    ) -> (
+        Store<InMemoryStoreType>,
+        DeniableStore<InMemoryDeniableStoreType>,
+    ) {
+        let key_pair = IdentityKeyPair::generate(csprng);
+        let account_id = AccountId::generate();
+        let mut sam = InMemoryStoreConfig::default()
+            .create_store(key_pair, RegistrationId::generate(csprng))
+            .await
+            .expect("can create sam store");
+        sam.account_store
+            .set_account_id(account_id)
+            .await
+            .expect("can set account id");
+        sam.account_store
+            .set_device_id(1.into())
+            .await
+            .expect("can set device id");
+        let denim = InMemoryDeniableStoreConfig::default()
+            .create_store()
+            .await
+            .expect("can create denim store");
+
+        (sam, denim)
+    }
+
+    async fn pre_key_bundle<R: Rng + CryptoRng>(
+        sam_store: &mut Store<impl StoreType>,
+        denim_store: &mut DeniableStore<impl DeniableStoreType>,
+        pre_key_id: PreKeyId,
+        quantum: bool,
+        csprng: &mut R,
+    ) -> PreKeyBundle {
+        let pair = sam_store
+            .identity_key_store
+            .get_identity_key_pair()
+            .await
+            .expect("Can get identity");
+        let registration_id = sam_store
+            .identity_key_store
+            .get_local_registration_id()
+            .await
+            .expect("Can get reg id");
+
+        // proxy generates this
+        let ec_rec = generate_ec_pre_key(pre_key_id, csprng).await;
+        denim_store
+            .pre_key_store
+            .save_pre_key(pre_key_id, &ec_rec)
+            .await
+            .expect("Can save ec pre key from KDC");
+
+        let signed_ec_rec = sam_store
+            .signed_pre_key_store
+            .generate_key(csprng, pair.private_key())
+            .await
+            .expect("Can generate signed");
+        if quantum {
+            sam_store
+                .kyber_pre_key_store
+                .generate_key(pair.private_key())
+                .await
+                .expect("can generate kyber");
+        }
+
+        let ec_key = EcPreKey::from(ec_rec);
+        let signed_ec_key = SignedEcPreKey::from(signed_ec_rec);
+
+        let bundle = KeyBundle {
+            device_id: 1u32.into(),
+            registration_id,
+            pre_key: ec_key.encode().expect("Can encode ec"),
+            signed_pre_key: signed_ec_key.encode().expect("Can encode signed ec"),
+        };
+        into_libsignal_bundle(pair.identity_key(), bundle).expect("Can create bundle")
+    }
+
+    fn rand_string(y: usize) -> String {
+        let mut rng = rand::thread_rng();
+        (0..y).map(|_| rng.gen::<char>()).collect()
+    }
+
+    async fn encrypt_message(
+        sam_store: &mut Store<impl StoreType>,
+        denim_store: &mut DeniableStore<impl DeniableStoreType>,
+        sender: AccountId,
+        receiver: AccountId,
+    ) -> (String, UserMessage) {
+        let expected = rand_string(12);
+        let mut cipher = encrypt(
+            expected.clone().into_bytes(),
+            receiver,
+            sam_store,
+            denim_store,
+        )
+        .await
+        .expect("can encrypt");
+        // proxy changes account id to sender
+        cipher.account_id = sender.into();
+
+        (expected, cipher)
+    }
+
+    async fn decrypt_message<R: CryptoRng + Rng>(
+        sam_store: &mut Store<impl StoreType>,
+        denim_store: &mut DeniableStore<impl DeniableStoreType>,
+        cipher: UserMessage,
+        csprng: &mut R,
+    ) -> String {
+        let env = decrypt(cipher, sam_store, denim_store, csprng)
+            .await
+            .expect("can decrypt message from alice");
+        String::from_utf8(env.content_bytes().to_vec()).expect("Can decode")
+    }
+
+    #[rstest]
+    #[case(false, 1)]
+    #[case(false, 10)]
+    #[case(true, 1)]
+    #[case(true, 10)]
+    #[tokio::test]
+    async fn can_encrypt_denim(#[case] quantum: bool, #[case] message_count: usize) {
+        let mut csprng = OsRng;
+        let (mut a_sam, mut a_denim) = stores(&mut csprng).await;
+        let (mut b_sam, mut b_denim) = stores(&mut csprng).await;
+
+        let a_acid = a_sam
+            .account_store
+            .get_account_id()
+            .await
+            .expect("can get acid");
+        let b_acid = b_sam
+            .account_store
+            .get_account_id()
+            .await
+            .expect("can get acid");
+        let b_addr = ProtocolAddress::new(b_acid.to_string(), 1.into());
+        let b_bundle =
+            pre_key_bundle(&mut b_sam, &mut b_denim, 1.into(), quantum, &mut csprng).await;
+
+        process_prekey_bundle(
+            &b_addr,
+            &mut a_denim.session_store,
+            &mut a_sam.identity_key_store,
+            &b_bundle,
+            SystemTime::now(),
+            &mut csprng,
+        )
+        .await
+        .expect("Alice can process bob bundle");
+
+        for i in 0..message_count {
+            let (sender, ids, receiver) = if i & 1 == 0 {
+                (
+                    (&mut a_sam, &mut a_denim),
+                    (a_acid, b_acid),
+                    (&mut b_sam, &mut b_denim),
+                )
+            } else {
+                (
+                    (&mut b_sam, &mut b_denim),
+                    (b_acid, a_acid),
+                    (&mut a_sam, &mut a_denim),
+                )
+            };
+
+            let (s_sam, s_denim) = sender;
+            let (s_acid, r_acid) = ids;
+            let (r_sam, r_denim) = receiver;
+
+            let (expected_message, cipher) = encrypt_message(s_sam, s_denim, s_acid, r_acid).await;
+            let actual_message = decrypt_message(r_sam, r_denim, cipher, &mut csprng).await;
+            assert_eq!(
+                actual_message, expected_message,
+                "Expected '{}' got '{}",
+                expected_message, actual_message
+            );
+        }
+        /*let (expected_message, cipher) =
+            encrypt_message(&mut a_sam, &mut a_denim, a_acid, b_acid).await;
+
+        let actual_message = decrypt_message(&mut b_sam, &mut b_denim, cipher, &mut csprng).await;
+
+        assert_eq!(
+            actual_message, expected_message,
+            "Expected '{}' got '{}",
+            expected_message, actual_message
+        );*/
+    }
+}

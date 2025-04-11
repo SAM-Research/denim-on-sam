@@ -25,7 +25,7 @@ message KeyResponse {
   repeated KeyBundle key_bundle = 2;
 }
 
-message KeyUpdate { required SignedKeyStruct signed_pre_key = 1; }
+message KeyUpdate { required bytes signed_pre_key = 1; }
 
 message SeedUpdate { required bytes pre_key_seed = 1; }
 
@@ -47,21 +47,13 @@ message DeniableMessage {
   }
 }
 
-message KeyStruct {
-  required int32 id = 1;
-  required bytes key = 2;
-}
 
-message SignedKeyStruct {
-  required KeyStruct tuple = 1;
-  required bytes signature = 2;
-}
 
 message KeyBundle {
   required uint32 device_id = 1;
   required uint32 registration_id = 2;
-  required KeyStruct pre_key = 3;
-  required SignedKeyStruct signed_pre_key = 5;
+  required bytes pre_key = 3; // SAM EcPreKey
+  required bytes signed_pre_key = 5; // SAM SignedEcPreKey
 }
 
 message DenimMessage {
