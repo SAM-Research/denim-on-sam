@@ -433,6 +433,10 @@ impl<T: DenimClientType> DenimClient<T> {
         self.store.message_store.subscribe()
     }
 
+    pub fn deniable_subscribe(&self) -> Receiver<DecryptedEnvelope> {
+        self.deniable_store.message_store.subscribe()
+    }
+
     async fn _process_messages(&mut self, block: bool) -> Result<(), DenimClientError> {
         if !block && self.envelope_queue.is_empty() {
             return Ok(());
