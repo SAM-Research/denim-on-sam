@@ -50,3 +50,19 @@ impl MessageQueue for InMemoryMessageQueue {
         create_bucket(&mut messages, account_id).len()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use sam_common::AccountId;
+
+    use crate::message::{queue::InMemoryMessageQueue, traits::MessageQueue};
+
+    #[tokio::test]
+    async fn inmem_msg_queue_enqueue_dequeue() {
+        let mut msg_q = InMemoryMessageQueue::default();
+        let account_id = AccountId::generate();
+        msg_q.enqueue(account_id, vec![1, 3, 3, 7]).await;
+        let msg = msg_q.dequeue(account_id).await.expect("is some");
+        assert!(msg == vec![1, 3, 3, 7])
+    }
+}
