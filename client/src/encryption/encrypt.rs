@@ -187,7 +187,7 @@ mod test {
         let signed_ec_key = SignedEcPreKey::from(signed_ec_rec);
 
         let bundle = KeyBundle {
-            device_id: 1u32.into(),
+            device_id: 1u32,
             registration_id,
             pre_key: ec_key.encode().expect("Can encode ec"),
             signed_pre_key: signed_ec_key.encode().expect("Can encode signed ec"),

@@ -65,7 +65,7 @@ pub async fn one_client_can_register(
                 .store_config(InMemoryStoreConfig::default())
                 .deniable_store_config(InMemoryDeniableStoreConfig::default())
                 .api_client_config(http_config(&sam_addr, client_https.map(client_config)))
-                .message_queue_config(InMemoryMessageQueueConfig::default())
+                .message_queue_config(InMemoryMessageQueueConfig)
                 .protocol_config(DenimProtocolClientConfig::new(
                     proxy_addr,
                     None,
@@ -242,7 +242,7 @@ pub async fn two_clients_cannot_have_the_same_username() {
                 .store_config(InMemoryStoreConfig::default())
                 .deniable_store_config(InMemoryDeniableStoreConfig::default())
                 .api_client_config(http_config(&sam_addr, None))
-                .message_queue_config(InMemoryMessageQueueConfig::default())
+                .message_queue_config(InMemoryMessageQueueConfig)
                 .protocol_config(DenimProtocolClientConfig::new(
                     proxy_addr,
                     None,

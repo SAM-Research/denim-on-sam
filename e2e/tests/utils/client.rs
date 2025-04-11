@@ -44,7 +44,7 @@ pub async fn client_with_proxy(
         .store_config(InMemoryStoreConfig::default())
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .api_client_config(http_config(sam_addr, https))
-        .message_queue_config(InMemoryMessageQueueConfig::default())
+        .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
             proxy_addr.to_owned(),
             wss,

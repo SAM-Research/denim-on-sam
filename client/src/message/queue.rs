@@ -26,11 +26,8 @@ impl MessageQueueConfig for InMemoryMessageQueueConfig {
     }
 }
 
-fn create_bucket<'a>(
-    messages: &'a mut Messages,
-    account_id: AccountId,
-) -> &'a mut VecDeque<Vec<u8>> {
-    messages.entry(account_id).or_insert(VecDeque::default())
+fn create_bucket(messages: &mut Messages, account_id: AccountId) -> &mut VecDeque<Vec<u8>> {
+    messages.entry(account_id).or_default()
 }
 
 #[async_trait]

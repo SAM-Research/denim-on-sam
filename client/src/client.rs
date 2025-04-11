@@ -145,7 +145,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            deniable_store: deniable_store,
+            deniable_store,
             api_client,
             protocol_client,
             envelope_queue: queue,
@@ -198,7 +198,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            deniable_store: deniable_store,
+            deniable_store,
             api_client,
             rng,
             protocol_client,
@@ -227,7 +227,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         Ok(Self {
             store,
-            deniable_store: deniable_store,
+            deniable_store,
             api_client: api_client_config.create().await?,
             protocol_client,
             envelope_queue: queue,

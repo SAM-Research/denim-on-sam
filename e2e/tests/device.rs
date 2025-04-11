@@ -59,7 +59,7 @@ async fn can_link_device() {
             .store_config(SqliteStoreConfig::in_memory().await)
             .deniable_store_config(InMemoryDeniableStoreConfig::default())
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
-            .message_queue_config(InMemoryMessageQueueConfig::default())
+            .message_queue_config(InMemoryMessageQueueConfig)
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
@@ -121,7 +121,7 @@ async fn can_unlink_device() {
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .store_config(SqliteStoreConfig::in_memory().await)
             .deniable_store_config(InMemoryDeniableStoreConfig::default())
-            .message_queue_config(InMemoryMessageQueueConfig::default())
+            .message_queue_config(InMemoryMessageQueueConfig)
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
@@ -187,7 +187,7 @@ async fn can_delete_device() {
             .api_client_config(HttpClientConfig::new(sam_addr.to_owned()))
             .store_config(SqliteStoreConfig::in_memory().await)
             .deniable_store_config(InMemoryDeniableStoreConfig::default())
-            .message_queue_config(InMemoryMessageQueueConfig::default())
+            .message_queue_config(InMemoryMessageQueueConfig)
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,

@@ -19,8 +19,8 @@ pub fn into_libsignal_bundle(
             PublicKey::deserialize(pre_key.public_key())?,
         )),
         (signed_pre_key.id()).into(),
-        PublicKey::deserialize(&signed_pre_key.public_key())?,
+        PublicKey::deserialize(signed_pre_key.public_key())?,
         signed_pre_key.signature().to_vec(),
-        identity_key.clone(),
+        *identity_key,
     )?)
 }
