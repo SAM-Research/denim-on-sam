@@ -22,11 +22,6 @@ pub async fn process_deniable_message<R: Rng + CryptoRng>(
         .message_kind
         .ok_or(MessageProcessingError::MessageKindWasNone)?;
     let envelope = match kind {
-        MessageKind::KeyRequest(_)
-        | MessageKind::BlockRequest(_)
-        | MessageKind::KeyRefill(_)
-        | MessageKind::SeedUpdate(_) => Err(MessageProcessingError::MalformedMessage)?,
-
         MessageKind::DeniableMessage(message) => {
             decrypt(message, store, deniable_store, rng).await?
         }
@@ -42,6 +37,7 @@ pub async fn process_deniable_message<R: Rng + CryptoRng>(
                 account_id, error.error
             )));
         }
+        _ => Err(MessageProcessingError::MalformedMessage)?,
     };
 
     deniable_store.message_store.store_message(envelope).await?;

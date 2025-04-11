@@ -296,15 +296,5 @@ mod test {
                 expected_message, actual_message
             );
         }
-        /*let (expected_message, cipher) =
-            encrypt_message(&mut a_sam, &mut a_denim, a_acid, b_acid).await;
-
-        let actual_message = decrypt_message(&mut b_sam, &mut b_denim, cipher, &mut csprng).await;
-
-        assert_eq!(
-            actual_message, expected_message,
-            "Expected '{}' got '{}",
-            expected_message, actual_message
-        );*/
     }
 }
