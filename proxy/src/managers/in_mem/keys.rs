@@ -1,23 +1,17 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
-use libsignal_protocol::IdentityKey;
+use futures_util::TryFutureExt;
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
-use sam_common::{
-    api::{EcPreKey, SignedEcPreKey},
-    AccountId,
-};
+use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
-    traits::key_manager::{EcPreKeyManager as _, SignedPreKeyManager},
+    traits::key_manager::EcPreKeyManager,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-use crate::managers::{
-    DenimEcPreKeyManager, DenimKeyManagerError, DenimKeyManagerType, DenimSignedPreKeyManager,
-    DEFAULT_DEVICE,
-};
+use crate::managers::{DenimEcPreKeyManager, DenimKeyManagerError, DenimKeyManagerType};
 
 #[derive(Default, Clone)]
 pub struct InMemoryDenimEcPreKeyManager {
@@ -30,27 +24,48 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
     async fn get_ec_pre_key(
         &self,
         account_id: AccountId,
+        device_id: DeviceId,
     ) -> Result<EcPreKey, DenimKeyManagerError> {
-        let pk = self
-            .manager
-            .get_pre_key(account_id, DEFAULT_DEVICE.into())
+        self.manager
+            .get_pre_key(account_id, device_id)
             .await?
-            .ok_or(DenimKeyManagerError::NoKeyInStore)?;
+            .ok_or(DenimKeyManagerError::NoKeyInStore)
+    }
 
-        Ok(pk)
+    async fn get_ec_pre_key_ids(
+        &self,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<Vec<u32>, DenimKeyManagerError> {
+        Ok(self
+            .manager
+            .get_pre_key_ids(account_id, device_id)
+            .map_err(DenimKeyManagerError::from)
+            .await?
+            .unwrap_or_default())
     }
 
     async fn add_ec_pre_key(
         &mut self,
         account_id: AccountId,
-        pre_key: EcPreKey,
+        device_id: DeviceId,
+        key: EcPreKey,
     ) -> Result<(), DenimKeyManagerError> {
-        Ok(self
-            .manager
-            .add_pre_key(account_id, DEFAULT_DEVICE.into(), pre_key)
-            .await?)
+        self.manager.add_pre_key(account_id, device_id, key).await?;
+        Ok(())
     }
 
+    async fn remove_ec_pre_key(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        id: u32,
+    ) -> Result<(), DenimKeyManagerError> {
+        self.manager
+            .remove_pre_key(account_id, device_id, id)
+            .await?;
+        Ok(())
+    }
     async fn get_csprng_for(
         &self,
         account_id: AccountId,
@@ -83,55 +98,6 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
 
         Ok(())
     }
-
-    async fn remove_ec_pre_key(
-        &mut self,
-        account_id: AccountId,
-        id: u32,
-    ) -> Result<(), DenimKeyManagerError> {
-        Ok(self
-            .manager
-            .remove_pre_key(account_id, DEFAULT_DEVICE.into(), id)
-            .await?)
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct InMemoryDenimSignedPreKeyManager {
-    manager: InMemorySignedPreKeyManager,
-}
-
-#[async_trait]
-impl DenimSignedPreKeyManager for InMemoryDenimSignedPreKeyManager {
-    async fn get_signed_pre_key(
-        &self,
-        account_id: AccountId,
-    ) -> Result<SignedEcPreKey, DenimKeyManagerError> {
-        Ok(self
-            .manager
-            .get_signed_pre_key(account_id, DEFAULT_DEVICE.into())
-            .await?)
-    }
-    async fn set_signed_pre_key(
-        &mut self,
-        account_id: AccountId,
-        identity: &IdentityKey,
-        key: SignedEcPreKey,
-    ) -> Result<(), DenimKeyManagerError> {
-        Ok(self
-            .manager
-            .set_signed_pre_key(account_id, DEFAULT_DEVICE.into(), identity, key)
-            .await?)
-    }
-    async fn remove_signed_pre_key(
-        &mut self,
-        account_id: AccountId,
-    ) -> Result<(), DenimKeyManagerError> {
-        self.manager
-            .remove_signed_pre_key(account_id, DEFAULT_DEVICE.into())
-            .await?;
-        Ok(())
-    }
 }
 
 #[derive(Clone)]
@@ -140,5 +106,5 @@ pub struct InMemoryDenimKeyManager;
 impl DenimKeyManagerType for InMemoryDenimKeyManager {
     type EcPreKeyManager = InMemoryDenimEcPreKeyManager;
 
-    type SignedPreKeyManager = InMemoryDenimSignedPreKeyManager;
+    type SignedPreKeyManager = InMemorySignedPreKeyManager;
 }

@@ -76,12 +76,10 @@ impl<T: StateType> DenimState<T> {
         };
         use sam_server::managers::in_memory::{
             account::InMemoryAccountManager, device::InMemoryDeviceManager,
+            keys::InMemorySignedPreKeyManager,
         };
 
-        use crate::managers::{
-            in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
-            InMemoryMessageIdProvider,
-        };
+        use crate::managers::{in_mem::InMemoryDenimEcPreKeyManager, InMemoryMessageIdProvider};
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
@@ -94,7 +92,7 @@ impl<T: StateType> DenimState<T> {
             buffer_mgr,
             DenimKeyManager::new(
                 InMemoryDenimEcPreKeyManager::default(),
-                InMemoryDenimSignedPreKeyManager::default(),
+                InMemorySignedPreKeyManager::default(),
             ),
             InMemoryAccountManager::default(),
             InMemoryDeviceManager::new("Test".to_owned(), 120),

@@ -4,8 +4,8 @@ use denim_sam_common::buffers::in_mem::{
 use denim_sam_proxy::{
     config::TlsConfig,
     managers::{
-        in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
-        BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
+        in_mem::InMemoryDenimEcPreKeyManager, BufferManager, DenimKeyManager,
+        InMemoryMessageIdProvider,
     },
     server::{start_proxy, DenimConfig},
     state::{DenimState, InMemoryStateType},
@@ -109,7 +109,7 @@ impl TestDenimProxy {
                     buffer_mgr,
                     DenimKeyManager::new(
                         InMemoryDenimEcPreKeyManager::default(),
-                        InMemoryDenimSignedPreKeyManager::default(),
+                        InMemorySignedPreKeyManager::default(),
                     ),
                     InMemoryAccountManager::default(),
                     InMemoryDeviceManager::new("Test".to_owned(), 120),
@@ -126,7 +126,7 @@ impl TestDenimProxy {
                     buffer_mgr,
                     DenimKeyManager::new(
                         InMemoryDenimEcPreKeyManager::default(),
-                        InMemoryDenimSignedPreKeyManager::default(),
+                        InMemorySignedPreKeyManager::default(),
                     ),
                     InMemoryAccountManager::default(),
                     InMemoryDeviceManager::new("Test".to_owned(), 120),

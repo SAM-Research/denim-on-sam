@@ -4,23 +4,29 @@ use rand_chacha::ChaCha20Rng;
 use sam_client::storage::key_generation::generate_ec_pre_key;
 use sam_common::{
     api::{EcPreKey, SignedEcPreKey},
-    AccountId,
+    AccountId, DeviceId,
 };
 use sam_server::managers::traits::{
     account_manager::AccountManager, device_manager::DeviceManager,
+    key_manager::SignedPreKeyManager as _,
 };
 
 use crate::{
     error::ServerError,
-    managers::{DenimEcPreKeyManager, DenimSignedPreKeyManager, DEFAULT_DEVICE},
+    managers::{DenimEcPreKeyManager, DenimKeyManagerError, DEFAULT_DEVICE},
     state::{DenimState, StateType},
 };
 
 pub async fn get_keys_for<T: StateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
+    device_id: DeviceId,
 ) -> Result<PreKeyBundle, ServerError> {
-    let pk_res = state.keys.pre_keys.get_ec_pre_key(account_id).await;
+    let pk_res = state
+        .keys
+        .pre_keys
+        .get_ec_pre_key(account_id, device_id)
+        .await;
 
     let pre_key = if let Ok(pk) = pk_res {
         pk
@@ -31,7 +37,7 @@ pub async fn get_keys_for<T: StateType>(
             state
                 .keys
                 .pre_keys
-                .add_ec_pre_key(account_id, pk.clone())
+                .add_ec_pre_key(account_id, device_id, pk.clone())
                 .await?;
             state
                 .keys
@@ -40,14 +46,19 @@ pub async fn get_keys_for<T: StateType>(
                 .await?;
         }
 
-        state.keys.pre_keys.get_ec_pre_key(account_id).await?
+        state
+            .keys
+            .pre_keys
+            .get_ec_pre_key(account_id, device_id)
+            .await?
     };
 
     let signed_pre_key = state
         .keys
         .signed_pre_keys
-        .get_signed_pre_key(account_id)
-        .await?;
+        .get_signed_pre_key(account_id, device_id)
+        .await
+        .map_err(DenimKeyManagerError::from)?;
 
     let device = state
         .devices
@@ -65,6 +76,7 @@ pub async fn get_keys_for<T: StateType>(
 pub async fn update_signed_pre_key<T: StateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
+    device_id: DeviceId,
     signed_pre_key: SignedEcPreKey,
 ) -> Result<(), ServerError> {
     state
@@ -72,10 +84,12 @@ pub async fn update_signed_pre_key<T: StateType>(
         .signed_pre_keys
         .set_signed_pre_key(
             account_id,
+            device_id,
             state.accounts.get_account(account_id).await?.identity(),
             signed_pre_key,
         )
-        .await?;
+        .await
+        .map_err(DenimKeyManagerError::from)?;
     Ok(())
 }
 
@@ -104,17 +118,17 @@ mod test {
         auth::password::Password,
         managers::{
             entities::{Account, Device},
-            error::KeyManagerError,
-            traits::{account_manager::AccountManager as _, device_manager::DeviceManager as _},
+            traits::{
+                account_manager::AccountManager as _, device_manager::DeviceManager as _,
+                key_manager::SignedPreKeyManager as _,
+            },
         },
     };
 
     use crate::{
         error::ServerError,
         logic::keys::get_keys_for,
-        managers::{
-            DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager, DEFAULT_DEVICE,
-        },
+        managers::{DenimEcPreKeyManager, DenimKeyManagerError, DEFAULT_DEVICE},
         state::{DenimState, InMemoryStateType},
     };
 
@@ -146,6 +160,7 @@ mod test {
             .build();
 
         let account_id = account.id();
+        let device_id = DEFAULT_DEVICE.into();
         state
             .devices
             .add_device(account_id, &device)
@@ -159,7 +174,12 @@ mod test {
         state
             .keys
             .signed_pre_keys
-            .set_signed_pre_key(account_id, pair.identity_key(), signed_pre_key.into())
+            .set_signed_pre_key(
+                account_id,
+                device_id,
+                pair.identity_key(),
+                signed_pre_key.into(),
+            )
             .await
             .expect("Can set signed pre key");
 
@@ -175,17 +195,22 @@ mod test {
         assert!(state
             .keys
             .pre_keys
-            .get_ec_pre_key(account_id)
+            .get_ec_pre_key(account_id, device_id)
             .await
             .is_err());
 
         // testing if we get keys
-        let bundle = get_keys_for(&mut state, account_id)
+        let bundle = get_keys_for(&mut state, account_id, device_id)
             .await
             .expect("User have uploaded bundles");
 
         // Now, pre keys should have been generated.
-        assert!(state.keys.pre_keys.get_ec_pre_key(account_id).await.is_ok());
+        assert!(state
+            .keys
+            .pre_keys
+            .get_ec_pre_key(account_id, device_id)
+            .await
+            .is_ok());
 
         assert!(bundle.device_id == DEFAULT_DEVICE);
         assert!(bundle.registration_id == 1);
@@ -221,6 +246,7 @@ mod test {
             .build();
 
         let account_id = account.id();
+        let device_id = DEFAULT_DEVICE.into();
         state
             .devices
             .add_device(account_id, &device)
@@ -234,12 +260,17 @@ mod test {
         state
             .keys
             .signed_pre_keys
-            .set_signed_pre_key(account_id, pair.identity_key(), signed_pre_key.into())
+            .set_signed_pre_key(
+                account_id,
+                device_id,
+                pair.identity_key(),
+                signed_pre_key.into(),
+            )
             .await
             .expect("Can set signed pre key");
 
         // Can't build a bundle without a seed
-        assert!(get_keys_for(&mut state, account_id)
+        assert!(get_keys_for(&mut state, account_id, device_id)
             .await
             .inspect_err(|err| println!("{err}"))
             .is_err_and(|err| matches!(
@@ -256,12 +287,17 @@ mod test {
             .expect("Can store csprng");
 
         // testing if we get keys
-        let bundle = get_keys_for(&mut state, account_id)
+        let bundle = get_keys_for(&mut state, account_id, device_id)
             .await
             .expect("User have uploaded bundles");
 
         // Now, pre keys should have been generated.
-        assert!(state.keys.pre_keys.get_ec_pre_key(account_id).await.is_ok());
+        assert!(state
+            .keys
+            .pre_keys
+            .get_ec_pre_key(account_id, device_id)
+            .await
+            .is_ok());
 
         assert!(bundle.device_id == DEFAULT_DEVICE);
         assert!(bundle.registration_id == 1);

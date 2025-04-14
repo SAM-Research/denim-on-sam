@@ -6,8 +6,8 @@ use denim_sam_proxy::{
     config::DenimCliConfig,
     error::CliError,
     managers::{
-        in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
-        BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
+        in_mem::InMemoryDenimEcPreKeyManager, BufferManager, DenimKeyManager,
+        InMemoryMessageIdProvider,
     },
     server::{start_proxy, DenimConfig},
     state::{self, InMemoryBufferManagerType, InMemoryStateType},
@@ -15,6 +15,7 @@ use denim_sam_proxy::{
 use log::{debug, error, info};
 use sam_server::managers::in_memory::{
     account::InMemoryAccountManager, device::InMemoryDeviceManager,
+    keys::InMemorySignedPreKeyManager,
 };
 use std::io::BufReader;
 
@@ -184,7 +185,7 @@ async fn cli() -> Result<(), CliError> {
                 buffer_mgr,
                 DenimKeyManager::new(
                     InMemoryDenimEcPreKeyManager::default(),
-                    InMemoryDenimSignedPreKeyManager::default(),
+                    InMemorySignedPreKeyManager::default(),
                 ),
                 InMemoryAccountManager::default(),
                 InMemoryDeviceManager::new("Test".to_owned(), 120),
@@ -201,7 +202,7 @@ async fn cli() -> Result<(), CliError> {
                 buffer_mgr,
                 DenimKeyManager::new(
                     InMemoryDenimEcPreKeyManager::default(),
-                    InMemoryDenimSignedPreKeyManager::default(),
+                    InMemorySignedPreKeyManager::default(),
                 ),
                 InMemoryAccountManager::default(),
                 InMemoryDeviceManager::new("Test".to_owned(), 120),
