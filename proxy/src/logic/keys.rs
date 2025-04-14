@@ -104,18 +104,22 @@ mod test {
         auth::password::Password,
         managers::{
             entities::{Account, Device},
+            error::KeyManagerError,
             traits::{account_manager::AccountManager as _, device_manager::DeviceManager as _},
         },
     };
 
     use crate::{
+        error::ServerError,
         logic::keys::get_keys_for,
-        managers::{DenimEcPreKeyManager, DenimSignedPreKeyManager, DEFAULT_DEVICE},
+        managers::{
+            DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager, DEFAULT_DEVICE,
+        },
         state::{DenimState, InMemoryStateType},
     };
 
     #[tokio::test]
-    async fn test_get_keybundle() {
+    async fn get_keybundle() {
         let mut state =
             DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
@@ -174,6 +178,82 @@ mod test {
             .get_ec_pre_key(account_id)
             .await
             .is_err());
+
+        // testing if we get keys
+        let bundle = get_keys_for(&mut state, account_id)
+            .await
+            .expect("User have uploaded bundles");
+
+        // Now, pre keys should have been generated.
+        assert!(state.keys.pre_keys.get_ec_pre_key(account_id).await.is_ok());
+
+        assert!(bundle.device_id == DEFAULT_DEVICE);
+        assert!(bundle.registration_id == 1);
+        assert!(bundle.signed_pre_key.id() == 22);
+    }
+
+    /// Tests that a NoSeed error is returned if you have not updated your seed.
+    #[tokio::test]
+    async fn update_seed() {
+        let mut state =
+            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+        let mut rng = OsRng;
+        let pair = IdentityKeyPair::generate(&mut rng);
+
+        let account = Account::builder()
+            .id(AccountId::generate())
+            .identity(*pair.identity_key())
+            .username("Alice".to_string())
+            .build();
+
+        state
+            .accounts
+            .add_account(&account)
+            .await
+            .expect("Can add account");
+
+        let device = Device::builder()
+            .id(DEFAULT_DEVICE.into())
+            .name("Alice Secret Phone".to_string())
+            .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
+            .creation(0)
+            .registration_id(1.into())
+            .build();
+
+        let account_id = account.id();
+        state
+            .devices
+            .add_device(account_id, &device)
+            .await
+            .expect("Alice can add device");
+
+        let signed_pre_key = generate_signed_pre_key(22.into(), pair.private_key(), &mut rng)
+            .await
+            .expect("Can generate Signed Pre Key");
+
+        state
+            .keys
+            .signed_pre_keys
+            .set_signed_pre_key(account_id, pair.identity_key(), signed_pre_key.into())
+            .await
+            .expect("Can set signed pre key");
+
+        // Can't build a bundle without a seed
+        assert!(get_keys_for(&mut state, account_id)
+            .await
+            .inspect_err(|err| println!("{err}"))
+            .is_err_and(|err| matches!(
+                err,
+                ServerError::KeyManager(DenimKeyManagerError::NoSeed)
+            )));
+
+        let alice_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
+        state
+            .keys
+            .pre_keys
+            .store_csprng_for(account_id, &alice_rng)
+            .await
+            .expect("Can store csprng");
 
         // testing if we get keys
         let bundle = get_keys_for(&mut state, account_id)
