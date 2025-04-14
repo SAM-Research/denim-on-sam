@@ -205,6 +205,8 @@ async fn cli() -> Result<(), CliError> {
                     InMemorySignedPreKeyManager::default(),
                 ),
                 InMemoryAccountManager::default(),
+                // TODO: When adding postgres manager, connect for device manager should not take these
+                // params as they are already set by SAM.
                 InMemoryDeviceManager::new("Test".to_owned(), 120),
             ),
             addr,

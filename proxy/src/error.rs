@@ -23,9 +23,7 @@ impl IntoResponse for ServerError {
         error!("ServerError occured: {}", self);
         match self {
             ServerError::SAMUnAuth => StatusCode::UNAUTHORIZED.into_response(),
-            ServerError::KeyManager(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            ServerError::DeviceManager(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            ServerError::AccountManager(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            err => panic!("Unexpected server error: {err}"),
         }
     }
 }

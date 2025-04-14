@@ -47,8 +47,6 @@ message DeniableMessage {
   }
 }
 
-
-
 message KeyBundle {
   required uint32 device_id = 1;
   required uint32 registration_id = 2;

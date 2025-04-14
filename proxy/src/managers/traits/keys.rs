@@ -14,7 +14,7 @@ pub enum DenimKeyManagerError {
 #[async_trait]
 pub trait DenimEcPreKeyManager: Clone + Send + Sync {
     async fn get_ec_pre_key(
-        &self,
+        &mut self,
         account_id: AccountId,
         device_id: DeviceId,
     ) -> Result<EcPreKey, DenimKeyManagerError>;
@@ -42,10 +42,12 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
     async fn get_csprng_for(
         &self,
         account_id: AccountId,
+        device_id: DeviceId,
     ) -> Result<ChaCha20Rng, DenimKeyManagerError>;
     async fn store_csprng_for(
         &mut self,
         account_id: AccountId,
+        device_id: DeviceId,
         csprng: &ChaCha20Rng,
     ) -> Result<(), DenimKeyManagerError>;
 }

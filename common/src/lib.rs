@@ -1,11 +1,9 @@
 pub mod buffers;
 mod error;
-mod keys;
 mod seed;
 
 pub use error::DenimBufferError;
-pub use keys::PreKeyBundle;
-pub use seed::Seed;
+pub use seed::{Seed, RNG_SEED_SIZE};
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 

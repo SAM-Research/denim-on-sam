@@ -2,11 +2,18 @@ use std::ops::Deref;
 
 use derive_more::From;
 
-const RNG_SEED_SIZE: usize = 32;
+pub const RNG_SEED_SIZE: usize = 32;
 
 #[derive(Debug, Clone, From)]
 pub struct Seed([u8; RNG_SEED_SIZE]);
 
+impl Seed {
+    pub fn new(seed: [u8; RNG_SEED_SIZE]) -> Self {
+        Self(seed)
+    }
+}
+
+#[cfg(test)]
 impl Default for Seed {
     fn default() -> Seed {
         Seed([0; RNG_SEED_SIZE])

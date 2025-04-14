@@ -1,9 +1,8 @@
-use denim_sam_common::{PreKeyBundle, Seed};
+use denim_sam_common::{denim_message::KeyBundle, Seed};
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
-use sam_client::storage::key_generation::generate_ec_pre_key;
 use sam_common::{
-    api::{EcPreKey, SignedEcPreKey},
+    api::{Encode, SignedEcPreKey},
     AccountId, DeviceId,
 };
 use sam_server::managers::traits::{
@@ -13,7 +12,7 @@ use sam_server::managers::traits::{
 
 use crate::{
     error::ServerError,
-    managers::{DenimEcPreKeyManager, DenimKeyManagerError, DEFAULT_DEVICE},
+    managers::{DenimEcPreKeyManager, DenimKeyManagerError},
     state::{DenimState, StateType},
 };
 
@@ -21,56 +20,32 @@ pub async fn get_keys_for<T: StateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
-) -> Result<PreKeyBundle, ServerError> {
-    let pk_res = state
+) -> Result<KeyBundle, ServerError> {
+    let pre_key = state
         .keys
         .pre_keys
         .get_ec_pre_key(account_id, device_id)
-        .await;
-
-    let pre_key = if let Ok(pk) = pk_res {
-        pk
-    } else {
-        let mut csprng = state.keys.pre_keys.get_csprng_for(account_id).await?;
-        for _ in 0..=100 {
-            let pk: EcPreKey = generate_ec_pre_key(44.into(), &mut csprng).await.into();
-            state
-                .keys
-                .pre_keys
-                .add_ec_pre_key(account_id, device_id, pk.clone())
-                .await?;
-            state
-                .keys
-                .pre_keys
-                .store_csprng_for(account_id, &csprng)
-                .await?;
-        }
-
-        state
-            .keys
-            .pre_keys
-            .get_ec_pre_key(account_id, device_id)
-            .await?
-    };
+        .await?
+        .encode()
+        .unwrap();
 
     let signed_pre_key = state
         .keys
         .signed_pre_keys
         .get_signed_pre_key(account_id, device_id)
         .await
-        .map_err(DenimKeyManagerError::from)?;
+        .map_err(DenimKeyManagerError::from)?
+        .encode()
+        .unwrap();
 
-    let device = state
-        .devices
-        .get_device(account_id, DEFAULT_DEVICE.into())
-        .await?;
+    let device = state.devices.get_device(account_id, device_id).await?;
 
-    Ok(PreKeyBundle::new(
-        device.id(),
-        device.registration_id(),
-        pre_key,
-        signed_pre_key,
-    ))
+    Ok(KeyBundle::builder()
+        .device_id(*device_id)
+        .registration_id(*device.registration_id())
+        .pre_key(pre_key)
+        .signed_pre_key(signed_pre_key)
+        .build())
 }
 
 pub async fn update_signed_pre_key<T: StateType>(
@@ -96,24 +71,29 @@ pub async fn update_signed_pre_key<T: StateType>(
 pub async fn update_seed<T: StateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
+    device_id: DeviceId,
     seed: Seed,
 ) -> Result<(), ServerError> {
     let csprng = ChaCha20Rng::from_seed(*seed);
     state
         .keys
         .pre_keys
-        .store_csprng_for(account_id, &csprng)
+        .store_csprng_for(account_id, device_id, &csprng)
         .await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
+    use denim_sam_common::{Seed, RNG_SEED_SIZE};
     use libsignal_protocol::IdentityKeyPair;
-    use rand::{rngs::OsRng, SeedableRng};
+    use rand::{rngs::OsRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use sam_client::storage::key_generation::generate_signed_pre_key;
-    use sam_common::{api::Key as _, AccountId};
+    use sam_common::{
+        api::{Decode as _, EcPreKey, Key},
+        AccountId,
+    };
     use sam_server::{
         auth::password::Password,
         managers::{
@@ -187,34 +167,17 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_csprng_for(account_id, &alice_rng)
+            .store_csprng_for(account_id, device_id, &alice_rng)
             .await
             .expect("Can store csprng");
-
-        // Error if no pre_key
-        assert!(state
-            .keys
-            .pre_keys
-            .get_ec_pre_key(account_id, device_id)
-            .await
-            .is_err());
 
         // testing if we get keys
         let bundle = get_keys_for(&mut state, account_id, device_id)
             .await
             .expect("User have uploaded bundles");
 
-        // Now, pre keys should have been generated.
-        assert!(state
-            .keys
-            .pre_keys
-            .get_ec_pre_key(account_id, device_id)
-            .await
-            .is_ok());
-
         assert!(bundle.device_id == DEFAULT_DEVICE);
         assert!(bundle.registration_id == 1);
-        assert!(bundle.signed_pre_key.id() == 22);
     }
 
     /// Tests that a NoSeed error is returned if you have not updated your seed.
@@ -282,7 +245,7 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_csprng_for(account_id, &alice_rng)
+            .store_csprng_for(account_id, device_id, &alice_rng)
             .await
             .expect("Can store csprng");
 
@@ -301,6 +264,155 @@ mod test {
 
         assert!(bundle.device_id == DEFAULT_DEVICE);
         assert!(bundle.registration_id == 1);
-        assert!(bundle.signed_pre_key.id() == 22);
+    }
+
+    #[tokio::test]
+    async fn key_generation_is_reproducible() {
+        let mut state =
+            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+        let mut rng = OsRng;
+        let alice_pair = IdentityKeyPair::generate(&mut rng);
+        let bob_pair = IdentityKeyPair::generate(&mut rng);
+
+        let alice = Account::builder()
+            .id(AccountId::generate())
+            .identity(*alice_pair.identity_key())
+            .username("Alice".to_string())
+            .build();
+
+        let bob = Account::builder()
+            .id(AccountId::generate())
+            .identity(*bob_pair.identity_key())
+            .username("Bob".to_string())
+            .build();
+
+        state
+            .accounts
+            .add_account(&alice)
+            .await
+            .expect("Can add alice");
+
+        state.accounts.add_account(&bob).await.expect("Can add bob");
+
+        let alice_device = Device::builder()
+            .id(DEFAULT_DEVICE.into())
+            .name("Alice Secret Phone".to_string())
+            .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
+            .creation(0)
+            .registration_id(1.into())
+            .build();
+
+        let bob_device = Device::builder()
+            .id(DEFAULT_DEVICE.into())
+            .name("Bob Secret Phone".to_string())
+            .password(Password::generate("dave<3".to_string()).expect("Bob can create password"))
+            .creation(0)
+            .registration_id(1.into())
+            .build();
+
+        let device_id = DEFAULT_DEVICE.into();
+
+        state
+            .devices
+            .add_device(alice.id(), &alice_device)
+            .await
+            .expect("Alice can add device");
+
+        state
+            .devices
+            .add_device(bob.id(), &bob_device)
+            .await
+            .expect("Bob can add device");
+
+        let alice_signed_pre_key =
+            generate_signed_pre_key(22.into(), alice_pair.private_key(), &mut rng)
+                .await
+                .expect("Can generate Alice's Signed Pre Key");
+
+        let bob_signed_pre_key =
+            generate_signed_pre_key(22.into(), bob_pair.private_key(), &mut rng)
+                .await
+                .expect("Can generate Bob's Signed Pre Key");
+
+        state
+            .keys
+            .signed_pre_keys
+            .set_signed_pre_key(
+                alice.id(),
+                device_id,
+                alice_pair.identity_key(),
+                alice_signed_pre_key.into(),
+            )
+            .await
+            .expect("Can set signed pre key");
+
+        state
+            .keys
+            .signed_pre_keys
+            .set_signed_pre_key(
+                bob.id(),
+                device_id,
+                bob_pair.identity_key(),
+                bob_signed_pre_key.into(),
+            )
+            .await
+            .expect("Can set signed pre key");
+
+        let mut bytes = [0u8; RNG_SEED_SIZE];
+        OsRng.fill_bytes(&mut bytes);
+        let seed = Seed::new(bytes);
+
+        let alice_rng = ChaCha20Rng::from_seed(*seed);
+        let bob_rng = ChaCha20Rng::from_seed(*seed);
+
+        state
+            .keys
+            .pre_keys
+            .store_csprng_for(alice.id(), device_id, &alice_rng)
+            .await
+            .expect("Can store csprng");
+
+        state
+            .keys
+            .pre_keys
+            .store_csprng_for(bob.id(), device_id, &bob_rng)
+            .await
+            .expect("Can store csprng");
+
+        for _ in 0..=20 {
+            let alice_key = EcPreKey::decode(
+                get_keys_for(&mut state, alice.id(), device_id)
+                    .await
+                    .expect("Can get Alice's keys")
+                    .pre_key
+                    .as_slice(),
+            )
+            .expect("Can decode Alice's pre key");
+
+            let bob_key = EcPreKey::decode(
+                get_keys_for(&mut state, alice.id(), device_id)
+                    .await
+                    .expect("Can get Bob's keys")
+                    .pre_key
+                    .as_slice(),
+            )
+            .expect("Can decode Bob's pre key");
+
+            assert!(alice_key.public_key == bob_key.public_key);
+
+            state
+                .keys
+                .pre_keys
+                .remove_ec_pre_key(alice.id(), device_id, alice_key.id())
+                .await
+                .expect("Can remove Alice's ec pre key");
+
+            state
+                .keys
+                .pre_keys
+                .remove_ec_pre_key(bob.id(), device_id, bob_key.id())
+                .await
+                .expect("Can remove Bob's ec pre key");
+        }
     }
 }
