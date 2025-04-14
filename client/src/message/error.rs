@@ -1,6 +1,6 @@
 use denim_sam_common::DenimBufferError;
 use derive_more::{Display, Error, From};
-use sam_client::ClientError;
+use sam_client::storage::error::MessageStoreError;
 
 use crate::encryption::error::EncryptionError;
 
@@ -14,7 +14,7 @@ pub enum MessageError {
 pub enum MessageProcessingError {
     MessageKindWasNone,
     MalformedMessage,
-    ClientError(ClientError),
+    MessageStore(MessageStoreError),
     EncryptionError(EncryptionError),
     ServerError(#[error(not(source))] String),
 }
