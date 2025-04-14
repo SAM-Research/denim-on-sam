@@ -22,15 +22,24 @@ mod utils;
 
 const TIMEOUT_SECS: u64 = 120;
 
-// TODO: Test with tls once fully integrated.
 #[rstest]
-#[case(false, None, None, None, get_next_port(), get_next_port())]
+#[case(false, None, None, None, None, get_next_port(), get_next_port())]
+#[case(
+    true,
+    Some(true),
+    Some(true),
+    Some(true),
+    Some(false),
+    get_next_port(),
+    get_next_port()
+)]
 #[tokio::test]
 pub async fn one_client_can_register(
     #[case] install_tls: bool,
     #[case] sam_tls: Option<bool>,
     #[case] proxy_tls: Option<bool>,
     #[case] client_https: Option<bool>,
+    #[case] client_wss: Option<bool>,
     #[case] port: u16,
     #[case] proxy_port: u16,
 ) {
@@ -56,28 +65,17 @@ pub async fn one_client_can_register(
             .await
             .expect("Should be able to start server");
 
-        let sending_buffer = InMemorySendingBuffer::new(0.5).expect("Can make sending buffer");
-        let receiving_buffer = InMemoryReceivingBuffer::default();
-
-        let alice: Result<DenimClient<InMemoryDenimClientType>, _> =
-            DenimClient::from_registration()
-                .username("Alice")
-                .device_name("Alice's device")
-                .store_config(InMemoryStoreConfig::default())
-                .deniable_store_config(InMemoryDeniableStoreConfig::default())
-                .api_client_config(http_config(&sam_addr, client_https.map(client_config)))
-                .message_queue_config(InMemoryMessageQueueConfig)
-                .protocol_config(DenimProtocolClientConfig::new(
-                    proxy_addr,
-                    None,
-                    10,
-                    sending_buffer,
-                    receiving_buffer,
-                ))
-                .call()
-                .await;
-
-        assert!(alice.is_ok())
+        let _ = client_with_proxy(
+            &proxy_addr,
+            &sam_addr,
+            "alice",
+            "alice device",
+            client_https.map(client_config),
+            client_wss.map(client_config),
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemoryReceivingBuffer::default(),
+        )
+        .await;
     })
     .await
     .expect("Test took to long to complete")
