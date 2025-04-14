@@ -7,6 +7,7 @@ use sam_client::storage::InMemoryStoreConfig;
 
 use denim_sam_client::store::inmem::InMemoryDeniableStoreConfig;
 use std::time::Duration;
+use test_utils::get_next_port;
 use tokio::time::timeout;
 use utils::server::TestDenimProxy;
 use utils::{
@@ -21,17 +22,26 @@ mod utils;
 
 const TIMEOUT_SECS: u64 = 120;
 
-// TODO: Test with tls once fully integrated.
 #[rstest]
-#[case(false, None, None, None, "8090", "8091")]
+#[case(false, None, None, None, None, get_next_port(), get_next_port())]
+#[case(
+    true,
+    Some(true),
+    Some(true),
+    Some(true),
+    Some(false),
+    get_next_port(),
+    get_next_port()
+)]
 #[tokio::test]
 pub async fn one_client_can_register(
     #[case] install_tls: bool,
     #[case] sam_tls: Option<bool>,
     #[case] proxy_tls: Option<bool>,
     #[case] client_https: Option<bool>,
-    #[case] port: &str,
-    #[case] proxy_port: &str,
+    #[case] client_wss: Option<bool>,
+    #[case] port: u16,
+    #[case] proxy_port: u16,
 ) {
     if install_tls {
         let _ = rustls::crypto::ring::default_provider().install_default();
@@ -55,27 +65,17 @@ pub async fn one_client_can_register(
             .await
             .expect("Should be able to start server");
 
-        let sending_buffer = InMemorySendingBuffer::new(0.5, 10).expect("Can make sending buffer");
-        let receiving_buffer = InMemoryReceivingBuffer::default();
-
-        let alice: Result<DenimClient<InMemoryDenimClientType>, _> =
-            DenimClient::from_registration()
-                .username("Alice")
-                .device_name("Alice's device")
-                .store_config(InMemoryStoreConfig::default())
-                .deniable_store_config(InMemoryDeniableStoreConfig::default())
-                .api_client_config(http_config(&sam_addr, client_https.map(client_config)))
-                .message_queue_config(InMemoryMessageQueueConfig)
-                .protocol_config(DenimProtocolClientConfig::new(
-                    proxy_addr,
-                    None,
-                    sending_buffer,
-                    receiving_buffer,
-                ))
-                .call()
-                .await;
-
-        assert!(alice.is_ok())
+        let _ = client_with_proxy(
+            &proxy_addr,
+            &sam_addr,
+            "alice",
+            "alice device",
+            client_https.map(client_config),
+            client_wss.map(client_config),
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemoryReceivingBuffer::default(),
+        )
+        .await;
     })
     .await
     .expect("Test took to long to complete")
@@ -83,9 +83,10 @@ pub async fn one_client_can_register(
 
 #[tokio::test]
 pub async fn can_delete_account() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8094".to_owned();
-        let proxy_addr = "127.0.0.1:8095".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
         server
@@ -104,7 +105,7 @@ pub async fn can_delete_account() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -117,9 +118,10 @@ pub async fn can_delete_account() {
 
 #[tokio::test]
 pub async fn can_delete_a_device() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8096".to_owned();
-        let proxy_addr = "127.0.0.1:8097".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
 
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
@@ -139,7 +141,7 @@ pub async fn can_delete_a_device() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -157,9 +159,10 @@ pub async fn can_delete_a_device() {
 
 #[tokio::test]
 pub async fn alice_can_find_bobs_account_id() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8098".to_owned();
-        let proxy_addr = "127.0.0.1:8099".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
 
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
@@ -179,7 +182,7 @@ pub async fn alice_can_find_bobs_account_id() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -191,7 +194,7 @@ pub async fn alice_can_find_bobs_account_id() {
             "Bob's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -207,9 +210,10 @@ pub async fn alice_can_find_bobs_account_id() {
 
 #[tokio::test]
 pub async fn two_clients_cannot_have_the_same_username() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8100".to_owned();
-        let proxy_addr = "127.0.0.1:8101".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}").to_owned();
+        let proxy_addr = format!("127.0.0.1:{denim_port}").to_owned();
         let mut server = TestSamServer::start(&sam_addr, None).await;
 
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
@@ -230,7 +234,7 @@ pub async fn two_clients_cannot_have_the_same_username() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -246,7 +250,8 @@ pub async fn two_clients_cannot_have_the_same_username() {
                 .protocol_config(DenimProtocolClientConfig::new(
                     proxy_addr,
                     None,
-                    InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+                    10,
+                    InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
                     InMemoryReceivingBuffer::default(),
                 ))
                 .call()

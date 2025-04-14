@@ -41,7 +41,7 @@ pub async fn connect_to_sam_server<
 
     let mut client: WebSocketClient = websocket_config(basic, state)?.into();
 
-    let (tx, rx) = channel(10);
+    let (tx, rx) = channel(state.channel_buffer_size());
     client
         .connect(ProxyWebSocketReceiver { enqueue: tx })
         .await

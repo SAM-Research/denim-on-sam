@@ -214,6 +214,7 @@ pub mod test {
         },
         AccountId,
     };
+    use test_utils::get_next_port;
     use tokio::{
         net::TcpListener,
         sync::{
@@ -288,14 +289,12 @@ pub mod test {
         envelope: ServerMessage,
         status: ServerMessage,
         q: f32,
-        min_payload_len: u8,
         stop_signal: Receiver<()>,
     ) -> Receiver<Option<String>> {
         let actions = actions.clone();
         let listener = TcpListener::bind(addr).await.expect("can bind tcp");
 
-        let mut sending_buffer =
-            InMemorySendingBuffer::new(q, min_payload_len).expect("can create sending buffer");
+        let mut sending_buffer = InMemorySendingBuffer::new(q).expect("can create sending buffer");
         let (tx, rx) = oneshot::channel();
         let env_msg = envelope.encode_to_vec();
         let env_len: u32 = env_msg.len().try_into().expect("envelope fits");
@@ -392,13 +391,13 @@ pub mod test {
     }
 
     #[rstest]
-    #[case(vec![ClientAction::Deniable, ClientAction::Regular, ClientAction::Status], "9080")]
-    #[case(vec![ClientAction::Deniable, ClientAction::Deniable, ClientAction::Deniable], "9081")]
-    #[case(vec![ClientAction::Regular, ClientAction::Regular, ClientAction::Regular], "9082")]
-    #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], "9083")]
+    #[case(vec![ClientAction::Deniable, ClientAction::Regular, ClientAction::Status], get_next_port())]
+    #[case(vec![ClientAction::Deniable, ClientAction::Deniable, ClientAction::Deniable], get_next_port())]
+    #[case(vec![ClientAction::Regular, ClientAction::Regular, ClientAction::Regular], get_next_port())]
+    #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], get_next_port())]
     #[tokio::test]
-    async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: &str) {
-        let (q, len) = (1.0, 10);
+    async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: u16) {
+        let q = 1.0;
         let addr = format!("127.0.0.1:{port}");
 
         let envelope = create_envelope();
@@ -410,7 +409,6 @@ pub mod test {
             envelope.clone(),
             status.clone(),
             1.0,
-            10,
             stop_rx,
         )
         .await;
@@ -422,7 +420,7 @@ pub mod test {
         ));
 
         let (status_tx, mut status_rx) = mpsc::channel(10);
-        let send_buffer = InMemorySendingBuffer::new(q, len).expect("can create sending buffer");
+        let send_buffer = InMemorySendingBuffer::new(q).expect("can create sending buffer");
         let recv_buffer = InMemoryReceivingBuffer::default();
         let (tx, mut chunk_rx) = channel(10);
         let receiver = DenimReceiver::new(

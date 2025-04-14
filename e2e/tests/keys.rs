@@ -1,5 +1,6 @@
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use std::time::Duration;
+use test_utils::get_next_port;
 use tokio::time::timeout;
 use utils::{
     client::client_with_proxy,
@@ -12,9 +13,10 @@ const TIMEOUT_SECS: u64 = 120;
 
 #[tokio::test]
 pub async fn alice_can_upload_keys() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8060".to_owned();
-        let proxy_addr = "127.0.0.1:8061".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 
@@ -34,7 +36,7 @@ pub async fn alice_can_upload_keys() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

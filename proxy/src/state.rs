@@ -8,7 +8,7 @@ use crate::managers::{default::BufferManager, traits::MessageIdProvider};
 pub struct DenimState<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider> {
     buffer_manager: BufferManager<T, U, V>,
     sam_url: String,
-    channel_buffer: usize,
+    channel_buffer_size: usize,
     ws_proxy_tls_config: Option<Arc<rustls::ClientConfig>>,
 }
 
@@ -16,13 +16,13 @@ impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider> Den
     pub fn new(
         buffer_manager: BufferManager<T, U, V>,
         sam_addr: String,
-        channel_buffer: usize,
+        channel_buffer_size: usize,
         ws_proxy_tls_config: Option<rustls::ClientConfig>,
     ) -> Self {
         Self {
             buffer_manager,
             sam_url: sam_addr,
-            channel_buffer,
+            channel_buffer_size,
             ws_proxy_tls_config: ws_proxy_tls_config.map(Arc::new),
         }
     }
@@ -35,8 +35,8 @@ impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider> Den
         &self.sam_url
     }
 
-    pub fn channel_buffer(&self) -> usize {
-        self.channel_buffer
+    pub fn channel_buffer_size(&self) -> usize {
+        self.channel_buffer_size
     }
 
     pub fn ws_proxy_tls_config(&self) -> Option<Arc<rustls::ClientConfig>> {
