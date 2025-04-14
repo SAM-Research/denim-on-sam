@@ -160,7 +160,7 @@ async fn cli() -> Result<(), CliError> {
         .inspect_err(|e| debug!("{e}"))
         .map_err(|_| CliError::AddressParseError)?;
 
-    let rcfg = InMemoryReceivingBufferConfig::default();
+    let rcfg = InMemoryReceivingBufferConfig;
     let scfg = InMemorySendingBufferConfig::builder()
         .q(config.deniable_ratio.unwrap_or(DEFAULT_DENIABLE_RATIO))
         .build();
