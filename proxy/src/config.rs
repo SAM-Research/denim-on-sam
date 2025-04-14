@@ -1,9 +1,10 @@
 use axum::http;
 use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use log::debug;
-use sam_client::net::{
-    protocol::websocket::WebSocketClientConfig,
+
+use sam_net::{
     tls::{create_tls_config, MutualTlsConfig},
+    websocket::WebSocketClientConfig,
 };
 use sam_server::create_tls_config as create_server_tls_config;
 use serde::{Deserialize, Serialize};

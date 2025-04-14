@@ -56,6 +56,14 @@ where the looks like this:
 }
 ```
 
+# Docker
+
+Building the `denim-sam-proxy` docker image:
+
+```sh
+docker build -t denim-sam-proxy .
+```
+
 # SAM Dependencies
 
 to update sam dependencies just do:
