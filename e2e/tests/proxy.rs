@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rstest::rstest;
+use test_utils::get_next_port;
 use utils::tls::{client_config, proxy_config, sam_config};
 
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
@@ -15,8 +16,16 @@ mod utils;
 const TIMEOUT_SECS: u64 = 120;
 
 #[rstest]
-#[case(false, None, None, None, None, "8080", "8081")]
-#[case(true, Some(true), Some(true), Some(true), Some(false), "8082", "8083")]
+#[case(false, None, None, None, None, get_next_port(), get_next_port())]
+#[case(
+    true,
+    Some(true),
+    Some(true),
+    Some(true),
+    Some(false),
+    get_next_port(),
+    get_next_port()
+)]
 #[tokio::test]
 async fn can_connect(
     #[case] install_tls: bool,
@@ -24,8 +33,8 @@ async fn can_connect(
     #[case] proxy_tls: Option<bool>,
     #[case] client_https: Option<bool>,
     #[case] client_wss: Option<bool>,
-    #[case] port: &str,
-    #[case] proxy_port: &str,
+    #[case] port: u16,
+    #[case] proxy_port: u16,
 ) {
     if install_tls {
         let _ = rustls::crypto::ring::default_provider().install_default();
@@ -56,7 +65,7 @@ async fn can_connect(
             "alice device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -68,8 +77,16 @@ async fn can_connect(
 }
 
 #[rstest]
-#[case(false, None, None, None, None, "8084", "8085")]
-#[case(true, Some(true), Some(true), Some(true), Some(false), "8086", "8087")]
+#[case(false, None, None, None, None, get_next_port(), get_next_port())]
+#[case(
+    true,
+    Some(true),
+    Some(true),
+    Some(true),
+    Some(false),
+    get_next_port(),
+    get_next_port()
+)]
 #[tokio::test]
 async fn can_send_message(
     #[case] install_tls: bool,
@@ -77,8 +94,8 @@ async fn can_send_message(
     #[case] proxy_tls: Option<bool>,
     #[case] client_https: Option<bool>,
     #[case] client_wss: Option<bool>,
-    #[case] port: &str,
-    #[case] proxy_port: &str,
+    #[case] port: u16,
+    #[case] proxy_port: u16,
 ) {
     if install_tls {
         let _ = rustls::crypto::ring::default_provider().install_default();
@@ -109,7 +126,7 @@ async fn can_send_message(
             "Alice's device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -120,7 +137,7 @@ async fn can_send_message(
             "Bob's device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

@@ -13,6 +13,7 @@ pub mod denim_client;
 pub struct DenimProtocolClientConfig<T, U> {
     base_url: String,
     config: Option<ClientConfig>,
+    channel_buffer_size: usize,
     sending_buffer: T,
     receiving_buffer: U,
 }
@@ -21,12 +22,14 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClientConfig<T, U> {
     pub fn new(
         base_url: String,
         config: Option<ClientConfig>,
+        channel_buffer_size: usize,
         sending_buffer: T,
         receiving_buffer: U,
     ) -> DenimProtocolClientConfig<T, U> {
         DenimProtocolClientConfig {
             base_url,
             config,
+            channel_buffer_size,
             sending_buffer,
             receiving_buffer,
         }
@@ -69,6 +72,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolConfig for DenimProtocol
 
         Ok(DenimProtocolClient::new(
             ws_client,
+            self.channel_buffer_size,
             self.sending_buffer,
             self.receiving_buffer,
         ))

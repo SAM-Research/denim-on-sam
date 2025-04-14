@@ -15,6 +15,16 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DenimCliConfig {
+    pub sam_address: Option<String>,
+    pub denim_proxy_address: Option<String>,
+    pub deniable_ratio: Option<f32>, // q
+    pub tls: Option<TlsConfig>,
+    pub channel_buffer_size: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TlsConfig {
     pub ca_cert_path: String,
     pub proxy_cert_path: String,
@@ -30,11 +40,28 @@ pub struct ProxyMtlsConfig {
     pub key_path: String,
 }
 
-impl TlsConfig {
+impl DenimCliConfig {
+    pub fn new(
+        sam_address: Option<String>,
+        denim_proxy_address: Option<String>,
+        deniable_ratio: Option<f32>,
+        tls: Option<TlsConfig>,
+        channel_buffer_size: Option<usize>,
+    ) -> Self {
+        Self {
+            sam_address,
+            denim_proxy_address,
+            deniable_ratio,
+            tls,
+            channel_buffer_size,
+        }
+    }
     pub fn load<R: std::io::Read>(reader: R) -> Result<Self, serde_json::Error> {
         serde_json::from_reader(reader)
     }
+}
 
+impl TlsConfig {
     pub fn create(self) -> Result<(rustls::ServerConfig, rustls::ClientConfig), TlsError> {
         let mtls = if self.proxy_mtls {
             Some(self.ca_cert_path.clone())

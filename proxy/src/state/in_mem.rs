@@ -5,7 +5,7 @@ use sam_server::managers::in_memory::{
     account::InMemoryAccountManager, device::InMemoryDeviceManager,
 };
 
-use crate::managers::{in_mem::InMemoryDenimKeyManager, BufferManager, InMemoryMessageIdProvider};
+use crate::managers::{in_mem::InMemoryDenimKeyManager, InMemoryMessageIdProvider};
 
 use super::{BufferManagerType, StateType};
 
@@ -19,8 +19,6 @@ impl BufferManagerType for InMemoryBufferManagerType {
 
     type MessageIdProvider = InMemoryMessageIdProvider;
 }
-
-pub type InMemoryBufferManager = BufferManager<InMemoryBufferManagerType>;
 
 #[derive(Clone)]
 pub struct InMemoryStateType;

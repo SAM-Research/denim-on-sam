@@ -32,14 +32,14 @@ pub struct DenimState<T: StateType> {
     pub devices: T::DeviceManger,
     pub accounts: T::AccountManager,
     sam_addr: String,
-    channel_buffer: usize,
+    channel_buffer_size: usize,
     ws_proxy_tls_config: Option<Arc<rustls::ClientConfig>>,
 }
 
 impl<T: StateType> DenimState<T> {
     pub fn new(
         sam_addr: String,
-        channel_buffer: usize,
+        channel_buffer_size: usize,
         ws_proxy_tls_config: Option<rustls::ClientConfig>,
         buffer_manager: BufferManager<T::BufferManager>,
         keys: DenimKeyManager<T::DenimKeyManagerType>,
@@ -48,7 +48,7 @@ impl<T: StateType> DenimState<T> {
     ) -> Self {
         Self {
             sam_addr,
-            channel_buffer,
+            channel_buffer_size,
             ws_proxy_tls_config: ws_proxy_tls_config.map(Arc::new),
             buffer_manager,
             keys,
@@ -61,8 +61,8 @@ impl<T: StateType> DenimState<T> {
         &self.sam_addr
     }
 
-    pub fn channel_buffer(&self) -> usize {
-        self.channel_buffer
+    pub fn channel_buffer_size(&self) -> usize {
+        self.channel_buffer_size
     }
 
     pub fn ws_proxy_tls_config(&self) -> Option<Arc<rustls::ClientConfig>> {
@@ -83,10 +83,7 @@ impl<T: StateType> DenimState<T> {
             InMemoryMessageIdProvider,
         };
         let rcfg = InMemoryReceivingBufferConfig;
-        let scfg = InMemorySendingBufferConfig::builder()
-            .min_payload_length(10)
-            .q(1.0)
-            .build();
+        let scfg = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
         let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
 

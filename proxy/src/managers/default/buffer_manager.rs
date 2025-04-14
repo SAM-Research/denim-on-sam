@@ -202,10 +202,7 @@ mod test {
     #[tokio::test]
     async fn buffer_mgr_enqueue_message_and_deqeue() {
         let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder()
-            .q(1.0)
-            .min_payload_length(10)
-            .build();
+        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
             BufferManager::new(receiver, sender, id_provider);
@@ -241,12 +238,8 @@ mod test {
     #[case(true)]
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
-        let _ = env_logger::try_init();
         let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder()
-            .q(1.0)
-            .min_payload_length(10)
-            .build();
+        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
             BufferManager::new(receiver, sender, id_provider);
