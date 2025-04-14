@@ -21,9 +21,9 @@ pub fn http_config(addr: &str, https: Option<ClientConfig>) -> HttpClientConfig 
 #[allow(unused)]
 pub fn ws_config(addr: &str, wss: Option<ClientConfig>) -> WebSocketProtocolClientConfig {
     if let Some(tls) = wss {
-        WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls)
+        WebSocketProtocolClientConfig::new_with_tls(addr.to_string(), tls, 10)
     } else {
-        WebSocketProtocolClientConfig::new(addr.to_string())
+        WebSocketProtocolClientConfig::new(addr.to_string(), 10)
     }
 }
 
