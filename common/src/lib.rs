@@ -3,13 +3,14 @@ mod error;
 mod keys;
 mod seed;
 
+pub use error::DenimBufferError;
+pub use keys::PreKeyBundle;
+pub use seed::Seed;
+
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 
 use denim_message::MessageType;
-pub use error::DenimBufferError;
-pub use keys::PreKeyBundle;
 use libsignal_protocol::CiphertextMessageType;
-pub use seed::Seed;
 
 impl From<CiphertextMessageType> for MessageType {
     fn from(val: CiphertextMessageType) -> Self {

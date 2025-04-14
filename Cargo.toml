@@ -14,9 +14,6 @@ denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 e2e = { path = "e2e" }
 
-
-bincode = "2.0.1"
-rand_chacha = "0.3.1"
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
@@ -42,6 +39,8 @@ serde = "1.0.210"
 prost-build = "0.13.5"
 prost = "0.13.5"
 rand = "0.8.5"
+bincode = "2.0.1"
+rand_chacha = "0.3.1"
 
 
 # Dev dependencies

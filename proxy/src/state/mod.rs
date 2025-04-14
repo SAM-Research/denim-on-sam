@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 mod in_mem;
 
-pub use in_mem::InMemory;
 pub use in_mem::InMemoryBufferManagerType;
+pub use in_mem::InMemoryStateType;
 
 pub trait BufferManagerType: 'static + Clone {
     type ReceivingBufferConfig: ReceivingBufferConfig;
@@ -70,7 +70,7 @@ impl<T: StateType> DenimState<T> {
     }
 
     #[cfg(test)]
-    pub fn in_memory_test(sam_addr: String) -> DenimState<InMemory> {
+    pub fn in_memory_test(sam_addr: String) -> DenimState<InMemoryStateType> {
         use denim_sam_common::buffers::in_mem::{
             InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
         };

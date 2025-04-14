@@ -111,12 +111,13 @@ mod test {
     use crate::{
         logic::keys::get_keys_for,
         managers::{DenimEcPreKeyManager, DenimSignedPreKeyManager, DEFAULT_DEVICE},
-        state::{DenimState, InMemory},
+        state::{DenimState, InMemoryStateType},
     };
 
     #[tokio::test]
     async fn test_get_keybundle() {
-        let mut state = DenimState::<InMemory>::in_memory_test("127.0.0.1:8000".to_owned());
+        let mut state =
+            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let pair = IdentityKeyPair::generate(&mut rng);
 

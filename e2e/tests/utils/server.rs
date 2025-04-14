@@ -8,7 +8,7 @@ use denim_sam_proxy::{
         BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
     },
     server::{start_proxy, DenimConfig},
-    state::{DenimState, InMemory, InMemoryBufferManagerType},
+    state::{DenimState, InMemoryStateType},
 };
 use sam_server::{
     managers::{
@@ -99,14 +99,13 @@ impl TestDenimProxy {
             .q(1.0)
             .build();
         let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(rcfg, scfg, id_provider);
+        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
 
-        let config = if let Some(tls) = config {
+        let config: DenimConfig<InMemoryStateType> = if let Some(tls) = config {
             let (server, client) = tls.create().expect("Can create tls config");
 
             DenimConfig {
-                state: DenimState::<InMemory>::new(
+                state: DenimState::new(
                     sam_addr.to_string(),
                     10,
                     Some(client),

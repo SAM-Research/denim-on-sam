@@ -10,7 +10,7 @@ use denim_sam_proxy::{
         BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
     },
     server,
-    state::{self, InMemory, InMemoryBufferManagerType},
+    state::{self, InMemoryBufferManagerType, InMemoryStateType},
 };
 use log::{debug, error, info};
 use sam_server::managers::in_memory::{
@@ -101,7 +101,7 @@ async fn cli() -> Result<(), CliError> {
         DenimConfig {
             addr,
             tls_config: Some(server),
-            state: DenimState::<InMemory>::new(
+            state: DenimState::<InMemoryStateType>::new(
                 format!("{}:{}", sam_ip, sam_port),
                 10,
                 Some(client),
