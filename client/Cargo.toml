@@ -26,3 +26,4 @@ rustls = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
+test-utils = { workspace = true }

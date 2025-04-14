@@ -48,6 +48,7 @@ pub async fn client_with_proxy(
         .protocol_config(DenimProtocolClientConfig::new(
             proxy_addr.to_owned(),
             wss,
+            10,
             sending_buffer,
             receiving_buffer,
         ))

@@ -6,6 +6,7 @@ use denim_sam_client::{
 };
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use sam_client::{net::HttpClientConfig, storage::SqliteStoreConfig};
+use test_utils::get_next_port;
 use tokio::time::timeout;
 use utils::{
     client::client_with_proxy,
@@ -18,9 +19,10 @@ const TIMEOUT_SECS: u64 = 120;
 
 #[tokio::test]
 async fn can_link_device() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8070".to_owned();
-        let proxy_addr = "127.0.0.1:8071".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 
@@ -63,6 +65,7 @@ async fn can_link_device() {
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
+                10,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
@@ -80,9 +83,10 @@ async fn can_link_device() {
 
 #[tokio::test]
 async fn can_unlink_device() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8072".to_owned();
-        let proxy_addr = "127.0.0.1:8073".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 
@@ -125,6 +129,7 @@ async fn can_unlink_device() {
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
+                10,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
@@ -146,9 +151,10 @@ async fn can_unlink_device() {
 
 #[tokio::test]
 async fn can_delete_device() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8074".to_owned();
-        let proxy_addr = "127.0.0.1:8075".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}");
+        let proxy_addr = format!("127.0.0.1:{denim_port}");
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 
@@ -191,6 +197,7 @@ async fn can_delete_device() {
             .protocol_config(DenimProtocolClientConfig::new(
                 proxy_addr,
                 None,
+                10,
                 InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
@@ -209,9 +216,10 @@ async fn can_delete_device() {
 
 #[tokio::test]
 async fn can_delete_account() {
+    let (sam_port, denim_port) = (get_next_port(), get_next_port());
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = "127.0.0.1:8076".to_owned();
-        let proxy_addr = "127.0.0.1:8077".to_owned();
+        let sam_addr = format!("127.0.0.1:{sam_port}").to_owned();
+        let proxy_addr = format!("127.0.0.1:{denim_port}").to_owned();
         let mut server = TestSamServer::start(&sam_addr, None).await;
         let mut proxy = TestDenimProxy::start(&sam_addr, &proxy_addr, None).await;
 

@@ -46,16 +46,23 @@ pub trait DenimSamClient {
 pub struct DenimProtocolClient<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     status_messages: Option<Receiver<ServerStatus>>,
+    channel_buffer_size: usize,
     sending_buffer: T,
     receiving_buffer: U,
     denim_id: AtomicU32,
 }
 
 impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClient<T, U> {
-    pub fn new(client: WebSocketClient, sending_buffer: T, receiving_buffer: U) -> Self {
+    pub fn new(
+        client: WebSocketClient,
+        channel_buffer_size: usize,
+        sending_buffer: T,
+        receiving_buffer: U,
+    ) -> Self {
         Self {
             client: Arc::new(Mutex::new(client)),
             status_messages: None,
+            channel_buffer_size,
             sending_buffer,
             receiving_buffer,
             denim_id: AtomicU32::new(0),
@@ -66,11 +73,9 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClient<T, U> {
 #[async_trait::async_trait]
 impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClient<T, U> {
     async fn connect(&mut self) -> Result<Receiver<SamDenimMessage>, DenimProtocolError> {
-        // Implement the connection logic here
-
-        let (status_tx, status_rx) = channel(10);
+        let (status_tx, status_rx) = channel(self.channel_buffer_size);
         self.status_messages = Some(status_rx);
-        let (tx, rx) = channel(10);
+        let (tx, rx) = channel(self.channel_buffer_size);
         let handler = DenimReceiver::new(
             self.client.clone(),
             status_tx,
@@ -199,6 +204,7 @@ mod test {
         },
         AccountId,
     };
+    use test_utils::get_next_port;
     use tokio::{
         net::{TcpListener, TcpStream},
         sync::mpsc::Receiver as MpscReceiver,
@@ -218,19 +224,19 @@ mod test {
         RecvRegular,
     }
     #[rstest]
-    #[case(vec![ServerAction::SendDenim], "3080")]
-    #[case(vec![ServerAction::SendRegular], "3081")]
-    #[case(vec![ServerAction::RecvDenim], "3082")]
-    #[case(vec![ServerAction::RecvRegular], "3083")]
-    #[case(vec![ServerAction::RecvRegular, ServerAction::RecvRegular], "3084")]
-    #[case(vec![ServerAction::SendRegular, ServerAction::SendRegular], "3085")]
-    #[case(vec![ServerAction::SendDenim, ServerAction::SendDenim], "3086")]
-    #[case(vec![ServerAction::RecvDenim, ServerAction::RecvDenim], "3087")]
-    #[case(vec![ServerAction::SendDenim, ServerAction::RecvDenim], "3088")]
-    #[case(vec![ServerAction::SendRegular, ServerAction::RecvRegular], "3089")]
-    #[case(vec![ServerAction::RecvRegular, ServerAction::SendRegular], "3090")]
+    #[case(vec![ServerAction::SendDenim], get_next_port())]
+    #[case(vec![ServerAction::SendRegular], get_next_port())]
+    #[case(vec![ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::RecvRegular, ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::SendRegular, ServerAction::SendRegular], get_next_port())]
+    #[case(vec![ServerAction::SendDenim, ServerAction::SendDenim], get_next_port())]
+    #[case(vec![ServerAction::RecvDenim, ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::SendDenim, ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::SendRegular, ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::RecvRegular, ServerAction::SendRegular], get_next_port())]
     #[tokio::test]
-    async fn deniable_communication(#[case] actions: Vec<ServerAction>, #[case] port: &str) {
+    async fn deniable_communication(#[case] actions: Vec<ServerAction>, #[case] port: u16) {
         let _ = env_logger::try_init();
         let addr = format!("127.0.0.1:{port}");
         let (stop_tx, stop_rx) = oneshot::channel();
@@ -242,6 +248,7 @@ mod test {
                 .url(format!("ws://{}", addr))
                 .build()
                 .into(),
+            10,
             InMemorySendingBuffer::new(1.0, 10).expect("can create sending buffer"),
             InMemoryReceivingBuffer::default(),
         );

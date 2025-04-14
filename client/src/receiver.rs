@@ -214,6 +214,7 @@ pub mod test {
         },
         AccountId,
     };
+    use test_utils::get_next_port;
     use tokio::{
         net::TcpListener,
         sync::{
@@ -392,12 +393,12 @@ pub mod test {
     }
 
     #[rstest]
-    #[case(vec![ClientAction::Deniable, ClientAction::Regular, ClientAction::Status], "9080")]
-    #[case(vec![ClientAction::Deniable, ClientAction::Deniable, ClientAction::Deniable], "9081")]
-    #[case(vec![ClientAction::Regular, ClientAction::Regular, ClientAction::Regular], "9082")]
-    #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], "9083")]
+    #[case(vec![ClientAction::Deniable, ClientAction::Regular, ClientAction::Status], get_next_port())]
+    #[case(vec![ClientAction::Deniable, ClientAction::Deniable, ClientAction::Deniable], get_next_port())]
+    #[case(vec![ClientAction::Regular, ClientAction::Regular, ClientAction::Regular], get_next_port())]
+    #[case(vec![ClientAction::Status, ClientAction::Status, ClientAction::Status], get_next_port())]
     #[tokio::test]
-    async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: &str) {
+    async fn receive_denim_message(#[case] actions: Vec<ClientAction>, #[case] port: u16) {
         let (q, len) = (1.0, 10);
         let addr = format!("127.0.0.1:{port}");
 
