@@ -43,7 +43,7 @@ pub trait DenimSamClient {
     ) -> Result<MessageStatus, DenimProtocolError>;
 }
 
-pub struct DenimProtcolClient<T: SendingBuffer, U: ReceivingBuffer> {
+pub struct DenimProtocolClient<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     status_messages: Option<Receiver<ServerStatus>>,
     sending_buffer: T,
@@ -51,7 +51,7 @@ pub struct DenimProtcolClient<T: SendingBuffer, U: ReceivingBuffer> {
     denim_id: AtomicU32,
 }
 
-impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtcolClient<T, U> {
+impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClient<T, U> {
     pub fn new(client: WebSocketClient, sending_buffer: T, receiving_buffer: U) -> Self {
         Self {
             client: Arc::new(Mutex::new(client)),
@@ -64,15 +64,17 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtcolClient<T, U> {
 }
 
 #[async_trait::async_trait]
-impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtcolClient<T, U> {
+impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClient<T, U> {
     async fn connect(&mut self) -> Result<Receiver<SamDenimMessage>, DenimProtocolError> {
         // Implement the connection logic here
 
         let (status_tx, status_rx) = channel(10);
         self.status_messages = Some(status_rx);
+        let (tx, rx) = channel(10);
         let handler = DenimReceiver::new(
             self.client.clone(),
             status_tx,
+            tx,
             self.sending_buffer.clone(),
             self.receiving_buffer.clone(),
         );
@@ -82,7 +84,8 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtcolClient
             .connect(handler)
             .await
             .inspect_err(|e| error!("DenimProtocolClient Error: {e}"))
-            .map_err(DenimProtocolError::WebSocketError)
+            .map_err(DenimProtocolError::WebSocketError)?;
+        Ok(rx)
     }
 
     async fn disconnect(&mut self) -> Result<(), DenimProtocolError> {
@@ -172,7 +175,7 @@ mod test {
     use std::time::Duration;
 
     use crate::{
-        denim_client::{DenimProtcolClient, DenimSamClient},
+        protocol::denim_client::{DenimProtocolClient, DenimSamClient},
         receiver::{
             test::{get_payload, make_user_message},
             SamDenimMessage,
@@ -234,7 +237,7 @@ mod test {
 
         let server_result = test_server(&addr, actions.clone(), stop_rx).await;
 
-        let mut client = DenimProtcolClient::new(
+        let mut client = DenimProtocolClient::new(
             WebSocketClientConfig::builder()
                 .url(format!("ws://{}", addr))
                 .build()
@@ -513,7 +516,7 @@ mod test {
     }
 
     async fn perform_client_actions(
-        client: &mut DenimProtcolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
+        client: &mut DenimProtocolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
         receiver: &mut MpscReceiver<SamDenimMessage>,
         actions: Vec<ServerAction>,
     ) -> Vec<(ServerAction, Option<Vec<u8>>, Option<DeniableMessage>, bool)> {

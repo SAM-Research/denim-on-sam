@@ -1,8 +1,12 @@
 use denim_sam_common::{buffers::SendingBuffer, denim_message::DenimMessage};
+use error::MessageError;
 use prost::Message;
 use sam_common::sam_message::ClientMessage;
 
-use crate::error::MessageError;
+pub mod error;
+pub mod process;
+pub mod queue;
+pub mod traits;
 
 pub async fn create_message<T: SendingBuffer>(
     sending_buffer: &mut T,

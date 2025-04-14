@@ -1,7 +1,7 @@
+mod id_provider;
 mod keys;
-mod message;
 
+pub use id_provider::InMemoryMessageIdProvider;
 pub use keys::{
     InMemoryDenimEcPreKeyManager, InMemoryDenimKeyManager, InMemoryDenimSignedPreKeyManager,
 };
-pub use message::InMemoryBufferManager;

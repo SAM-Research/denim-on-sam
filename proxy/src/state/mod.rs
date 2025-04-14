@@ -1,14 +1,25 @@
-use crate::managers::{BufferManager, DenimKeyManager, DenimKeyManagerType};
-use std::sync::Arc;
-mod in_mem;
-
-pub use in_mem::InMemory;
+use crate::managers::{
+    traits::MessageIdProvider, BufferManager, DenimKeyManager, DenimKeyManagerType,
+};
+use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use sam_server::managers::traits::{
     account_manager::AccountManager, device_manager::DeviceManager,
 };
+use std::sync::Arc;
+
+mod in_mem;
+
+pub use in_mem::InMemory;
+pub use in_mem::InMemoryBufferManagerType;
+
+pub trait BufferManagerType: 'static + Clone {
+    type ReceivingBufferConfig: ReceivingBufferConfig;
+    type SendingBufferConfig: SendingBufferConfig;
+    type MessageIdProvider: MessageIdProvider;
+}
 
 pub trait StateType: 'static + Clone {
-    type BufferManager: BufferManager;
+    type BufferManager: BufferManagerType;
     type DenimKeyManagerType: DenimKeyManagerType;
     type AccountManager: AccountManager;
     type DeviceManger: DeviceManager;
@@ -16,7 +27,7 @@ pub trait StateType: 'static + Clone {
 
 #[derive(Clone)]
 pub struct DenimState<T: StateType> {
-    _buffer_manager: T::BufferManager,
+    pub buffer_manager: BufferManager<T::BufferManager>,
     pub keys: DenimKeyManager<T::DenimKeyManagerType>,
     pub devices: T::DeviceManger,
     pub accounts: T::AccountManager,
@@ -30,7 +41,7 @@ impl<T: StateType> DenimState<T> {
         sam_addr: String,
         channel_buffer: usize,
         ws_proxy_tls_config: Option<rustls::ClientConfig>,
-        buffer_manager: T::BufferManager,
+        buffer_manager: BufferManager<T::BufferManager>,
         keys: DenimKeyManager<T::DenimKeyManagerType>,
         accounts: T::AccountManager,
         devices: T::DeviceManger,
@@ -39,7 +50,7 @@ impl<T: StateType> DenimState<T> {
             sam_addr,
             channel_buffer,
             ws_proxy_tls_config: ws_proxy_tls_config.map(Arc::new),
-            _buffer_manager: buffer_manager,
+            buffer_manager,
             keys,
             devices,
             accounts,
@@ -60,19 +71,30 @@ impl<T: StateType> DenimState<T> {
 
     #[cfg(test)]
     pub fn in_memory_test(sam_addr: String) -> DenimState<InMemory> {
+        use denim_sam_common::buffers::in_mem::{
+            InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
+        };
         use sam_server::managers::in_memory::{
             account::InMemoryAccountManager, device::InMemoryDeviceManager,
         };
 
-        use crate::managers::in_mem::{
-            InMemoryBufferManager, InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager,
+        use crate::managers::{
+            in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
+            InMemoryMessageIdProvider,
         };
+        let rcfg = InMemoryReceivingBufferConfig;
+        let scfg = InMemorySendingBufferConfig::builder()
+            .min_payload_length(10)
+            .q(1.0)
+            .build();
+        let id_provider = InMemoryMessageIdProvider::default();
+        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
 
         DenimState::new(
             sam_addr.to_string(),
             10,
             None,
-            InMemoryBufferManager::default(),
+            buffer_mgr,
             DenimKeyManager::new(
                 InMemoryDenimEcPreKeyManager::default(),
                 InMemoryDenimSignedPreKeyManager::default(),

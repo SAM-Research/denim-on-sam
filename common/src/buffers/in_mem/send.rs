@@ -1,10 +1,12 @@
-use crate::buffers::{DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SequenceNumber};
+use crate::buffers::{
+    DeniablePayload, DenimChunk, Flag, MessageId, SendingBuffer, SendingBufferConfig,
+    SequenceNumber,
+};
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use async_trait::async_trait;
 use log::debug;
 use prost::Message;
-use rand::rngs::OsRng;
 use rand::RngCore;
 use std::collections::VecDeque;
 use std::mem::take;
@@ -24,6 +26,20 @@ pub struct InMemorySendingBuffer {
     chunk_size_without_payload: usize,
     outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
     buffer: Arc<Mutex<Buffer>>,
+}
+
+#[derive(Clone, bon::Builder)]
+pub struct InMemorySendingBufferConfig {
+    min_payload_length: u8,
+    q: f32,
+}
+
+#[async_trait]
+impl SendingBufferConfig for InMemorySendingBufferConfig {
+    type Buffer = InMemorySendingBuffer;
+    async fn create(&self) -> Result<InMemorySendingBuffer, DenimBufferError> {
+        InMemorySendingBuffer::new(self.q, self.min_payload_length)
+    }
 }
 
 #[async_trait]
@@ -187,8 +203,9 @@ impl InMemorySendingBuffer {
     }
 
     fn create_n_random_bytes(n: usize) -> Vec<u8> {
+        let mut rng = rand::thread_rng();
         let mut random_bytes = vec![0u8; n];
-        OsRng.fill_bytes(&mut random_bytes);
+        rng.fill_bytes(&mut random_bytes);
         random_bytes
     }
 }
@@ -198,18 +215,18 @@ mod test {
     use super::*;
     use crate::denim_message::deniable_message::MessageKind;
     use crate::denim_message::{DenimMessage, MessageType, UserMessage};
-    use rand::RngCore;
     use rstest::rstest;
 
     fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
+        let mut rng = rand::thread_rng();
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
         for (i, length) in lengths.into_iter().enumerate() {
             let mut random_bytes = vec![0u8; length];
-            OsRng.fill_bytes(&mut random_bytes);
+            rng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
-                    destination_account_id: vec![i as u8],
+                    account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
                     content: random_bytes,
                 })),

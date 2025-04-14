@@ -16,7 +16,7 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
         deniable_messages.push_back(DeniableMessage {
             message_id: i as u32,
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
-                destination_account_id: vec![i as u8],
+                account_id: vec![i as u8],
 
                 message_type: MessageType::SignalMessage.into(),
                 content,
@@ -94,7 +94,7 @@ pub async fn send_recv_buffer(
             assert_eq!(
                 message.clone().message_kind.expect("Should be a message"),
                 MessageKind::DeniableMessage(UserMessage {
-                    destination_account_id: vec![i as u8],
+                    account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
                     content,
                 })

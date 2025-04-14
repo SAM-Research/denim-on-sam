@@ -4,10 +4,8 @@ use axum::{routing::get, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use log::info;
 
-use crate::{
-    routes::websocket_endpoint,
-    state::{DenimState, StateType},
-};
+use crate::routes::websocket_endpoint;
+use crate::state::{DenimState, StateType};
 
 pub struct DenimConfig<T: StateType> {
     pub state: DenimState<T>,

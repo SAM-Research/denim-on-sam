@@ -1,4 +1,5 @@
 use axum::{http::StatusCode, response::IntoResponse};
+
 use derive_more::{Display, Error, From};
 use log::error;
 use sam_client::net::error::TlsError as ClientTlsError;
@@ -33,8 +34,8 @@ impl IntoResponse for ServerError {
 pub enum CliError {
     AddressParseError,
     FailedToStartProxy,
-    #[error(ignore)]
-    ArgumentError(String),
+
+    ArgumentError(#[error(not(source))] String),
     TLSError(TlsError),
     SerdeError(serde_json::Error),
     IoError(std::io::Error),
@@ -44,4 +45,9 @@ pub enum CliError {
 pub enum TlsError {
     Client(ClientTlsError),
     Server(ServerTlsError),
+}
+
+#[derive(Debug, Display, Error, From)]
+pub enum DenimRouterError {
+    Error, // TODO: fill out this
 }

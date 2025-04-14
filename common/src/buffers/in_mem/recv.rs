@@ -2,6 +2,7 @@ use crate::buffers::DenimChunk;
 use crate::buffers::Flag;
 use crate::buffers::MessageId;
 use crate::buffers::ReceivingBuffer;
+use crate::buffers::ReceivingBufferConfig;
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use async_trait::async_trait;
@@ -29,6 +30,17 @@ impl Default for ChunkBuffer {
             chunks: Arc::new(Mutex::new(Default::default())),
             waiting_for: Arc::new(Mutex::new(waiting_for)),
         }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct InMemoryReceivingBufferConfig;
+
+#[async_trait]
+impl ReceivingBufferConfig for InMemoryReceivingBufferConfig {
+    type Buffer = InMemoryReceivingBuffer;
+    async fn create(&self) -> Result<InMemoryReceivingBuffer, DenimBufferError> {
+        Ok(InMemoryReceivingBuffer::default())
     }
 }
 
@@ -146,7 +158,6 @@ mod test {
             .message_id(0)
             .message_kind(MessageKind::SeedUpdate(crate::denim_message::SeedUpdate {
                 pre_key_seed: vec![1],
-                pq_pre_key_seed: vec![2],
             }))
             .build()
     }

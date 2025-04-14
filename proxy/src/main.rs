@@ -1,22 +1,25 @@
 use clap::{Arg, Command};
-use log::{debug, error, info};
-use sam_server::managers::in_memory::{
-    account::InMemoryAccountManager, device::InMemoryDeviceManager,
+use denim_sam_common::buffers::in_mem::{
+    InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
 };
-use std::io::BufReader;
-
 use denim_sam_proxy::{
     config::TlsConfig,
     error::CliError,
     managers::{
-        in_mem::{
-            InMemoryBufferManager, InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager,
-        },
-        DenimKeyManager,
+        in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
+        BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
     },
-    server::{start_proxy, DenimConfig},
-    state::{DenimState, InMemory},
+    server,
+    state::{self, InMemory, InMemoryBufferManagerType},
 };
+use log::{debug, error, info};
+use sam_server::managers::in_memory::{
+    account::InMemoryAccountManager, device::InMemoryDeviceManager,
+};
+use server::{start_proxy, DenimConfig};
+use std::io::BufReader;
+
+use state::DenimState;
 
 async fn cli() -> Result<(), CliError> {
     let matches = Command::new("sam_server")
@@ -84,13 +87,25 @@ async fn cli() -> Result<(), CliError> {
         None
     };
 
-    let config: DenimConfig<InMemory> = if let Some((server, client)) = tls_config {
+    let rcfg = InMemoryReceivingBufferConfig;
+    // TODO: this should be configurable
+    let scfg = InMemorySendingBufferConfig::builder()
+        .min_payload_length(10)
+        .q(1.0)
+        .build();
+    let id_provider = InMemoryMessageIdProvider::default();
+    let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
+        BufferManager::new(rcfg, scfg, id_provider);
+
+    let config = if let Some((server, client)) = tls_config {
         DenimConfig {
-            state: DenimState::new(
+            addr,
+            tls_config: Some(server),
+            state: DenimState::<InMemory>::new(
                 format!("{}:{}", sam_ip, sam_port),
                 10,
                 Some(client),
-                InMemoryBufferManager::default(),
+                buffer_mgr,
                 DenimKeyManager::new(
                     InMemoryDenimEcPreKeyManager::default(),
                     InMemoryDenimSignedPreKeyManager::default(),
@@ -98,8 +113,6 @@ async fn cli() -> Result<(), CliError> {
                 InMemoryAccountManager::default(),
                 InMemoryDeviceManager::new("Test".to_owned(), 120),
             ),
-            addr,
-            tls_config: Some(server),
         }
     } else {
         DenimConfig {
@@ -107,7 +120,7 @@ async fn cli() -> Result<(), CliError> {
                 format!("{}:{}", sam_ip, sam_port),
                 10,
                 None,
-                InMemoryBufferManager::default(),
+                buffer_mgr,
                 DenimKeyManager::new(
                     InMemoryDenimEcPreKeyManager::default(),
                     InMemoryDenimSignedPreKeyManager::default(),

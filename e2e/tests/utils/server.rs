@@ -1,13 +1,14 @@
+use denim_sam_common::buffers::in_mem::{
+    InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
+};
 use denim_sam_proxy::{
     config::TlsConfig,
     managers::{
-        in_mem::{
-            InMemoryBufferManager, InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager,
-        },
-        DenimKeyManager,
+        in_mem::{InMemoryDenimEcPreKeyManager, InMemoryDenimSignedPreKeyManager},
+        BufferManager, DenimKeyManager, InMemoryMessageIdProvider,
     },
     server::{start_proxy, DenimConfig},
-    state::{DenimState, InMemory},
+    state::{DenimState, InMemory, InMemoryBufferManagerType},
 };
 use sam_server::{
     managers::{
@@ -89,16 +90,27 @@ impl Drop for TestDenimProxy {
     }
 }
 
+#[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
-        let config: DenimConfig<InMemory> = if let Some(tls) = config {
+        let rcfg = InMemoryReceivingBufferConfig;
+        let scfg = InMemorySendingBufferConfig::builder()
+            .min_payload_length(10)
+            .q(1.0)
+            .build();
+        let id_provider = InMemoryMessageIdProvider::default();
+        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(rcfg, scfg, id_provider);
+
+        let config = if let Some(tls) = config {
             let (server, client) = tls.create().expect("Can create tls config");
+
             DenimConfig {
-                state: DenimState::new(
+                state: DenimState::<InMemory>::new(
                     sam_addr.to_string(),
                     10,
                     Some(client),
-                    InMemoryBufferManager::default(),
+                    buffer_mgr,
                     DenimKeyManager::new(
                         InMemoryDenimEcPreKeyManager::default(),
                         InMemoryDenimSignedPreKeyManager::default(),
@@ -115,7 +127,7 @@ impl TestDenimProxy {
                     sam_addr.to_string(),
                     10,
                     None,
-                    InMemoryBufferManager::default(),
+                    buffer_mgr,
                     DenimKeyManager::new(
                         InMemoryDenimEcPreKeyManager::default(),
                         InMemoryDenimSignedPreKeyManager::default(),

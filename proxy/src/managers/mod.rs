@@ -1,7 +1,10 @@
+pub mod default;
+pub mod error;
 pub mod in_mem;
-mod traits;
+pub mod traits;
 
-pub use traits::BufferManager;
+pub use default::BufferManager;
+pub use in_mem::InMemoryMessageIdProvider;
 pub use traits::{DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager};
 
 pub const DEFAULT_DEVICE: u32 = 0u32;
