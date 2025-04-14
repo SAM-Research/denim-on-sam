@@ -237,7 +237,6 @@ mod test {
     #[case(vec![ServerAction::RecvRegular, ServerAction::SendRegular], get_next_port())]
     #[tokio::test]
     async fn deniable_communication(#[case] actions: Vec<ServerAction>, #[case] port: u16) {
-        let _ = env_logger::try_init();
         let addr = format!("127.0.0.1:{port}");
         let (stop_tx, stop_rx) = oneshot::channel();
 

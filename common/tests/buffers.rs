@@ -41,7 +41,6 @@ pub async fn send_recv_buffer(
     #[case] message_lengths: Vec<usize>,
     #[case] seed: Option<u64>,
 ) {
-    let _ = env_logger::try_init();
     let deniable_messages = make_deniable_messages(message_lengths.clone());
     let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
