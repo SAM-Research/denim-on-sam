@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 sam-client = { workspace = true }
 sam-common = { workspace = true }
+sam-net = { workspace = true }
 denim-sam-common = { workspace = true }
 libsignal-protocol = { workspace = true }
 libsignal-core = { workspace = true }

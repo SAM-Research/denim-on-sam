@@ -9,15 +9,12 @@ use denim_sam_common::{
 };
 use log::error;
 use prost::Message as PMessage;
-use sam_client::net::protocol::{
-    decode::ServerStatus,
-    websocket::{WebSocketClient, WebSocketError},
-    MessageStatus,
-};
+use sam_client::net::protocol::{decode::ServerStatus, MessageStatus};
 use sam_common::{
     address::MessageId,
     sam_message::{ClientEnvelope, ClientMessage, ClientMessageType},
 };
+use sam_net::{error::WebSocketError, websocket::WebSocketClient};
 use tokio::sync::mpsc::channel;
 use tokio::sync::{mpsc::Receiver, Mutex};
 use tokio_tungstenite::tungstenite::{
@@ -195,7 +192,7 @@ mod test {
     use futures_util::{SinkExt, StreamExt};
     use prost::{bytes::Bytes, Message as PMessage};
     use rstest::rstest;
-    use sam_client::net::protocol::{websocket::WebSocketClientConfig, MessageStatus};
+    use sam_client::net::protocol::MessageStatus;
     use sam_common::{
         address::MessageId,
         sam_message::{
@@ -204,6 +201,7 @@ mod test {
         },
         AccountId,
     };
+    use sam_net::websocket::WebSocketClientConfig;
     use test_utils::get_next_port;
     use tokio::{
         net::{TcpListener, TcpStream},

@@ -3,9 +3,9 @@ use denim_client::{DenimProtocolClient, DenimSamClient};
 use denim_sam_common::buffers::{ReceivingBuffer, SendingBuffer};
 use log::debug;
 use rustls::ClientConfig;
-use sam_client::net::protocol::websocket::WebSocketClientConfig;
 use sam_client::net::protocol::{get_ws_auth, get_ws_url_and_connector};
 use sam_common::{AccountId, DeviceId};
+use sam_net::websocket::WebSocketClientConfig;
 use tokio_tungstenite::tungstenite::http;
 
 pub mod denim_client;

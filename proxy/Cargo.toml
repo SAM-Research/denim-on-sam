@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 sam-server = { workspace = true }
 sam-common = { workspace = true }
-sam-client = { workspace = true }
+sam-net = { workspace = true }
 async-trait = { workspace = true }
 futures-util = { workspace = true }
 prost = { workspace = true }
