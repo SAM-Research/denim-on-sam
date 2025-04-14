@@ -244,6 +244,10 @@ impl<T: DenimClientType> DenimClient<T> {
         Ok(self.store.account_store.get_device_id().await?)
     }
 
+    async fn password(&self) -> Result<String, DenimClientError> {
+        Ok(self.store.account_store.get_password().await?)
+    }
+
     pub async fn identity_key_pair(&self) -> Result<IdentityKeyPair, DenimClientError> {
         Ok(self
             .store
@@ -257,12 +261,7 @@ impl<T: DenimClientType> DenimClient<T> {
     pub async fn delete_account(self) -> Result<(), (Self, DenimClientError)> {
         let account_id = self.account_id().await;
         let device_id = self.device_id().await;
-        let password = self
-            .store
-            .account_store
-            .get_password()
-            .await
-            .map_err(DenimClientError::Client);
+        let password = self.password().await;
 
         let Ok(account_id) = account_id else {
             return Err((self, account_id.unwrap_err()));
@@ -295,12 +294,7 @@ impl<T: DenimClientType> DenimClient<T> {
     pub async fn delete_device(self) -> Result<(), (Self, DenimClientError)> {
         let account_id = self.account_id().await;
         let device_id = self.device_id().await;
-        let password = self
-            .store
-            .account_store
-            .get_password()
-            .await
-            .map_err(DenimClientError::Client);
+        let password = self.password().await;
 
         let Ok(account_id) = account_id else {
             return Err((self, account_id.unwrap_err()));
@@ -481,7 +475,7 @@ impl<T: DenimClientType> DenimClient<T> {
         #[builder(default = false)] new_signed_prekey: bool,
         #[builder(default = false)] new_last_resort: bool,
     ) -> Result<(), DenimClientError> {
-        publish_prekeys(
+        Ok(publish_prekeys(
             &mut self.store,
             &self.api_client,
             onetime_prekeys,
@@ -489,8 +483,7 @@ impl<T: DenimClientType> DenimClient<T> {
             new_last_resort,
             &mut self.rng,
         )
-        .await
-        .map_err(DenimClientError::Client)
+        .await?)
     }
 
     /// Create a provisioning token for linking a new device to your account.

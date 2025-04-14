@@ -14,10 +14,10 @@ denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 e2e = { path = "e2e" }
 
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
-test-utils = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "refactor-client-errors" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "refactor-client-errors" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "refactor-client-errors" }
+test-utils = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "refactor-client-errors" }
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal.git", version = "0.1.0" }
 libsignal-core = { git = "https://github.com/signalapp/libsignal.git", version = "0.1.0" }
 rustls = "0.23.15"
