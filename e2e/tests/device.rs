@@ -42,7 +42,7 @@ async fn can_link_device() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -66,7 +66,7 @@ async fn can_link_device() {
                 proxy_addr,
                 None,
                 10,
-                InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+                InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
             .device_name("Alice's Other Device")
@@ -106,7 +106,7 @@ async fn can_unlink_device() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -130,7 +130,7 @@ async fn can_unlink_device() {
                 proxy_addr,
                 None,
                 10,
-                InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+                InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
             .device_name("Alice's Other Device")
@@ -174,7 +174,7 @@ async fn can_delete_device() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -198,7 +198,7 @@ async fn can_delete_device() {
                 proxy_addr,
                 None,
                 10,
-                InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+                InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
                 InMemoryReceivingBuffer::default(),
             ))
             .device_name("Alice's Other Device")
@@ -239,7 +239,7 @@ async fn can_delete_account() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

@@ -36,7 +36,7 @@ pub async fn alice_can_upload_keys() {
             "Alice's device",
             None,
             None,
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

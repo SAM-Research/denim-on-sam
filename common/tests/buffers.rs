@@ -43,7 +43,7 @@ pub async fn send_recv_buffer(
 ) {
     let _ = env_logger::try_init();
     let deniable_messages = make_deniable_messages(message_lengths.clone());
-    let mut sending_buffer = InMemorySendingBuffer::new(q, 10).expect("Can make SendingBuffer");
+    let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
     for message in deniable_messages {
         sending_buffer.enqueue_message(message).await;

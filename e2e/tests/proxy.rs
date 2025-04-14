@@ -65,7 +65,7 @@ async fn can_connect(
             "alice device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -126,7 +126,7 @@ async fn can_send_message(
             "Alice's device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -137,7 +137,7 @@ async fn can_send_message(
             "Bob's device",
             client_https.map(client_config),
             client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5, 10).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

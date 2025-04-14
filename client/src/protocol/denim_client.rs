@@ -249,7 +249,7 @@ mod test {
                 .build()
                 .into(),
             10,
-            InMemorySendingBuffer::new(1.0, 10).expect("can create sending buffer"),
+            InMemorySendingBuffer::new(1.0).expect("can create sending buffer"),
             InMemoryReceivingBuffer::default(),
         );
 
@@ -431,8 +431,7 @@ mod test {
         tokio::spawn(async move {
             let (stream, _) = listener.accept().await.unwrap();
             let mut ws_stream = accept_async(stream).await.unwrap();
-            let mut sending =
-                InMemorySendingBuffer::new(1.0, 10).expect("can create sending buffer");
+            let mut sending = InMemorySendingBuffer::new(1.0).expect("can create sending buffer");
             let mut receiving = InMemoryReceivingBuffer::default();
 
             let mut error = Ok(());

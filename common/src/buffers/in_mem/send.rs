@@ -21,7 +21,6 @@ struct Buffer {
 
 #[derive(Clone)]
 pub struct InMemorySendingBuffer {
-    min_payload_length: u8,
     q: f32,
     chunk_size_without_payload: usize,
     outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
@@ -30,7 +29,6 @@ pub struct InMemorySendingBuffer {
 
 #[derive(Clone, bon::Builder)]
 pub struct InMemorySendingBufferConfig {
-    min_payload_length: u8,
     q: f32,
 }
 
@@ -38,7 +36,7 @@ pub struct InMemorySendingBufferConfig {
 impl SendingBufferConfig for InMemorySendingBufferConfig {
     type Buffer = InMemorySendingBuffer;
     async fn create(&self) -> Result<InMemorySendingBuffer, DenimBufferError> {
-        InMemorySendingBuffer::new(self.q, self.min_payload_length)
+        InMemorySendingBuffer::new(self.q)
     }
 }
 
@@ -54,7 +52,7 @@ impl SendingBuffer for InMemorySendingBuffer {
 
         let mut available_bytes = self.calculate_deniable_payload_length(reg_message_len);
 
-        if available_bytes < self.min_payload_length.into() {
+        if available_bytes < self.chunk_size_without_payload {
             return Ok(Some(
                 DeniablePayload::builder()
                     .denim_chunks(vec![])
@@ -129,15 +127,10 @@ impl SendingBuffer for InMemorySendingBuffer {
 }
 
 impl InMemorySendingBuffer {
-    pub fn new(q: f32, min_payload_length: u8) -> Result<Self, DenimBufferError> {
+    pub fn new(q: f32) -> Result<Self, DenimBufferError> {
         let chunk_size_without_payload = DenimChunk::get_size_without_payload()?;
 
-        if min_payload_length as usize > chunk_size_without_payload {
-            return Err(DenimBufferError::MinPayloadLengthTooHighError);
-        }
-
         Ok(Self {
-            min_payload_length,
             q,
             chunk_size_without_payload,
             outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
@@ -247,7 +240,7 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer::new(q, 10).expect("Can make SendingBuffer");
+        let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
         for message in deniable_messages {
             sending_buffer.enqueue_message(message).await;
@@ -282,7 +275,7 @@ mod test {
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
-        let mut sending_buffer = InMemorySendingBuffer::new(q, 10).expect("Can make SendingBuffer");
+        let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
         for message in deniable_messages {
             sending_buffer.enqueue_message(message).await;
