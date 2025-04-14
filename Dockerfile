@@ -15,10 +15,9 @@ LABEL org.opencontainers.image.licenses=MIT
 
 
 RUN ls -l /denim-on-sam/target/x86_64-unknown-linux-musl/release/
+
 FROM scratch
 COPY --from=builder /denim-on-sam/target/x86_64-unknown-linux-musl/release/denim-sam-proxy /denim-sam-proxy
-
-
 
 ENV PORT=8081
 
