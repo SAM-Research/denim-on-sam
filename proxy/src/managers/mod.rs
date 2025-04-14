@@ -7,7 +7,7 @@ pub use default::BufferManager;
 pub use in_mem::InMemoryMessageIdProvider;
 pub use traits::{DenimEcPreKeyManager, DenimKeyManagerError, DenimSignedPreKeyManager};
 
-pub const DEFAULT_DEVICE: u32 = 0u32;
+pub const DEFAULT_DEVICE: u32 = 1u32;
 
 pub trait DenimKeyManagerType: Clone + Send + Sync {
     type EcPreKeyManager: DenimEcPreKeyManager;
