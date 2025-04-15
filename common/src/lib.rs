@@ -3,7 +3,7 @@ mod error;
 mod seed;
 
 pub use error::DenimBufferError;
-pub use seed::{Seed, RNG_SEED_SIZE};
+pub use seed::Seed;
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 

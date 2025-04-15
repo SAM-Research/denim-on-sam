@@ -1,8 +1,9 @@
 use std::ops::Deref;
 
 use derive_more::From;
+use rand::Rng;
 
-pub const RNG_SEED_SIZE: usize = 32;
+const RNG_SEED_SIZE: usize = 32;
 
 #[derive(Debug, Clone, From)]
 pub struct Seed([u8; RNG_SEED_SIZE]);
@@ -10,6 +11,14 @@ pub struct Seed([u8; RNG_SEED_SIZE]);
 impl Seed {
     pub fn new(seed: [u8; RNG_SEED_SIZE]) -> Self {
         Self(seed)
+    }
+}
+
+impl Seed {
+    pub fn random(rng: &mut impl Rng) -> Self {
+        let mut bytes = [0u8; RNG_SEED_SIZE];
+        rng.fill_bytes(&mut bytes);
+        Self(bytes)
     }
 }
 

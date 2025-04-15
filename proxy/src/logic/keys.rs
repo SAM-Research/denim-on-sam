@@ -85,9 +85,9 @@ pub async fn update_seed<T: StateType>(
 
 #[cfg(test)]
 mod test {
-    use denim_sam_common::{Seed, RNG_SEED_SIZE};
+    use denim_sam_common::Seed;
     use libsignal_protocol::IdentityKeyPair;
-    use rand::{rngs::OsRng, RngCore, SeedableRng};
+    use rand::{rngs::OsRng, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use sam_client::storage::key_generation::generate_signed_pre_key;
     use sam_common::{
@@ -359,9 +359,7 @@ mod test {
             .await
             .expect("Can set signed pre key");
 
-        let mut bytes = [0u8; RNG_SEED_SIZE];
-        OsRng.fill_bytes(&mut bytes);
-        let seed = Seed::new(bytes);
+        let seed = Seed::random(&mut OsRng);
 
         let alice_rng = ChaCha20Rng::from_seed(*seed);
         let bob_rng = ChaCha20Rng::from_seed(*seed);
