@@ -9,7 +9,6 @@ license.workspace = true
 [dependencies]
 sam-server = { workspace = true }
 sam-common = { workspace = true }
-sam-client = { workspace = true }
 sam-net = { workspace = true }
 sam-security = { workspace = true }
 denim-sam-common = { workspace = true }
