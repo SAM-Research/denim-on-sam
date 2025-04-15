@@ -10,9 +10,6 @@ use sam_net::error::{ClientTlsError, ServerTlsError};
 #[derive(Debug, Display, Error, From)]
 pub enum ServerError {
     SAMUnAuth,
-    KeyManager(DenimKeyManagerError),
-    DeviceManager(DeviceManagerError),
-    AccountManager(AccountManagerError),
 }
 
 impl IntoResponse for ServerError {
@@ -20,9 +17,16 @@ impl IntoResponse for ServerError {
         error!("ServerError occured: {}", self);
         match self {
             ServerError::SAMUnAuth => StatusCode::UNAUTHORIZED.into_response(),
-            err => panic!("Unexpected server error: {err}"),
         }
     }
+}
+
+#[derive(Debug, Display, Error, From)]
+pub enum LogicError {
+    Encode,
+    KeyManager(DenimKeyManagerError),
+    DeviceManager(DeviceManagerError),
+    AccountManager(AccountManagerError),
 }
 
 #[derive(Debug, Display, Error, From)]

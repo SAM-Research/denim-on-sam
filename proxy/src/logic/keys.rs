@@ -1,4 +1,5 @@
 use denim_sam_common::{denim_message::KeyBundle, Seed};
+use log::error;
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use sam_common::{
@@ -11,7 +12,7 @@ use sam_server::managers::traits::{
 };
 
 use crate::{
-    error::ServerError,
+    error::LogicError,
     managers::{DenimEcPreKeyManager, DenimKeyManagerError},
     state::{DenimState, StateType},
 };
@@ -20,14 +21,17 @@ pub async fn get_keys_for<T: StateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
-) -> Result<KeyBundle, ServerError> {
+) -> Result<KeyBundle, LogicError> {
     let pre_key = state
         .keys
         .pre_keys
         .get_ec_pre_key(account_id, device_id)
         .await?
         .encode()
-        .unwrap();
+        .map_err(|err| {
+            error!("{err}");
+            LogicError::Encode
+        })?;
 
     let signed_pre_key = state
         .keys
@@ -36,7 +40,10 @@ pub async fn get_keys_for<T: StateType>(
         .await
         .map_err(DenimKeyManagerError::from)?
         .encode()
-        .unwrap();
+        .map_err(|err| {
+            error!("{err}");
+            LogicError::Encode
+        })?;
 
     let device = state.devices.get_device(account_id, device_id).await?;
 
@@ -53,7 +60,7 @@ pub async fn update_signed_pre_key<T: StateType>(
     account_id: AccountId,
     device_id: DeviceId,
     signed_pre_key: SignedEcPreKey,
-) -> Result<(), ServerError> {
+) -> Result<(), LogicError> {
     state
         .keys
         .signed_pre_keys
@@ -73,7 +80,7 @@ pub async fn update_seed<T: StateType>(
     account_id: AccountId,
     device_id: DeviceId,
     seed: Seed,
-) -> Result<(), ServerError> {
+) -> Result<(), LogicError> {
     let csprng = ChaCha20Rng::from_seed(*seed);
     state
         .keys
@@ -107,7 +114,7 @@ mod test {
     };
 
     use crate::{
-        error::ServerError,
+        error::LogicError,
         logic::keys::get_keys_for,
         managers::{DenimEcPreKeyManager, DenimKeyManagerError},
         state::{DenimState, InMemoryStateType},
@@ -237,10 +244,7 @@ mod test {
         assert!(get_keys_for(&mut state, account_id, device_id)
             .await
             .inspect_err(|err| println!("{err}"))
-            .is_err_and(|err| matches!(
-                err,
-                ServerError::KeyManager(DenimKeyManagerError::NoSeed)
-            )));
+            .is_err_and(|err| matches!(err, LogicError::KeyManager(DenimKeyManagerError::NoSeed))));
 
         let alice_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
         state
