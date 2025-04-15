@@ -17,15 +17,24 @@ use crate::managers::{
 
 #[derive(Clone)]
 pub struct InMemoryDenimEcPreKeyManager {
-    keys_generated: usize,
+    key_generate_amount: usize,
     manager: InMemoryEcPreKeyManager,
     seeds: Arc<Mutex<HashMap<DeviceAddress, (Seed, u128)>>>,
+}
+
+impl InMemoryDenimEcPreKeyManager {
+    pub fn new(key_generate_amount: usize) -> Self {
+        Self {
+            key_generate_amount,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for InMemoryDenimEcPreKeyManager {
     fn default() -> Self {
         Self {
-            keys_generated: 10,
+            key_generate_amount: 10,
             manager: InMemoryEcPreKeyManager::default(),
             seeds: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -42,7 +51,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys(self, account_id, device_id, self.keys_generated).await?;
+            generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
             self.manager
                 .get_pre_key(account_id, device_id)
                 .await?

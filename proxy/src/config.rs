@@ -21,6 +21,7 @@ pub struct DenimCliConfig {
     pub deniable_ratio: Option<f32>, // q
     pub tls: Option<TlsConfig>,
     pub channel_buffer_size: Option<usize>,
+    pub key_generate_amount: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ impl DenimCliConfig {
         deniable_ratio: Option<f32>,
         tls: Option<TlsConfig>,
         channel_buffer_size: Option<usize>,
+        key_generate_amount: Option<usize>,
     ) -> Self {
         Self {
             sam_address,
@@ -54,6 +56,7 @@ impl DenimCliConfig {
             deniable_ratio,
             tls,
             channel_buffer_size,
+            key_generate_amount,
         }
     }
     pub fn load<R: std::io::Read>(reader: R) -> Result<Self, serde_json::Error> {
