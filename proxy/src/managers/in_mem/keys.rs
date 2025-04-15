@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
 use futures_util::TryFutureExt;
-use rand::SeedableRng;
+use rand::{rngs::OsRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use sam_common::{address::DeviceAddress, api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::{
@@ -20,6 +20,7 @@ pub struct InMemoryDenimEcPreKeyManager {
     key_generate_amount: usize,
     manager: InMemoryEcPreKeyManager,
     seeds: Arc<Mutex<HashMap<DeviceAddress, (Seed, u128)>>>,
+    used_keys: Arc<Mutex<HashMap<DeviceAddress, Vec<u32>>>>,
 }
 
 impl InMemoryDenimEcPreKeyManager {
@@ -37,6 +38,7 @@ impl Default for InMemoryDenimEcPreKeyManager {
             key_generate_amount: 10,
             manager: InMemoryEcPreKeyManager::default(),
             seeds: Arc::new(Mutex::new(HashMap::new())),
+            used_keys: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -93,6 +95,36 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
             .await?;
         Ok(())
     }
+
+    async fn next_key_id(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<u32, DenimKeyManagerError> {
+        let entry = DeviceAddress::new(account_id, device_id);
+
+        for _ in 0..32 {
+            let key_id = OsRng.next_u32();
+            let reserved = self
+                .used_keys
+                .lock()
+                .await
+                .get(&entry)
+                .is_some_and(|ids| ids.contains(&key_id));
+
+            if !reserved {
+                self.used_keys
+                    .lock()
+                    .await
+                    .entry(entry)
+                    .or_default()
+                    .push(key_id);
+                return Ok(key_id);
+            }
+        }
+        Err(DenimKeyManagerError::CouldNotGenerateKeyId)
+    }
+
     async fn get_csprng_for(
         &self,
         account_id: AccountId,

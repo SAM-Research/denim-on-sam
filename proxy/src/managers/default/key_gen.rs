@@ -11,7 +11,12 @@ pub async fn generate_ec_pre_keys(
 ) -> Result<(), DenimKeyManagerError> {
     let mut csprng = key_manager.get_csprng_for(account_id, device_id).await?;
     for _ in 0..amount {
-        let pk: EcPreKey = generate_ec_pre_key(44.into(), &mut csprng).await.into();
+        let pk: EcPreKey = generate_ec_pre_key(
+            key_manager.next_key_id(account_id, device_id).await?.into(),
+            &mut csprng,
+        )
+        .await
+        .into();
         key_manager
             .add_ec_pre_key(account_id, device_id, pk.clone())
             .await?;

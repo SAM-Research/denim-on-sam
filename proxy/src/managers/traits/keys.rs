@@ -9,6 +9,7 @@ pub enum DenimKeyManagerError {
     Sam(KeyManagerError),
     NoSeed,
     NoKeyInStore,
+    CouldNotGenerateKeyId,
 }
 
 #[async_trait]
@@ -39,11 +40,18 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
         id: u32,
     ) -> Result<(), DenimKeyManagerError>;
 
+    async fn next_key_id(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<u32, DenimKeyManagerError>;
+
     async fn get_csprng_for(
         &self,
         account_id: AccountId,
         device_id: DeviceId,
     ) -> Result<ChaCha20Rng, DenimKeyManagerError>;
+
     async fn store_csprng_for(
         &mut self,
         account_id: AccountId,
