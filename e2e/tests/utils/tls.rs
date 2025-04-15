@@ -1,6 +1,6 @@
 use denim_sam_proxy::config::{ProxyMtlsConfig, TlsConfig};
 use rustls::ClientConfig;
-use sam_client::net::tls::{create_tls_config, MutualTlsConfig};
+use sam_net::tls::{create_tls_client_config, MutualTlsConfig};
 use sam_server::config::TlsConfig as SamTlsConfig;
 
 #[allow(unused)]
@@ -47,5 +47,5 @@ pub fn client_config(mtls: bool) -> ClientConfig {
         None
     };
 
-    create_tls_config("./cert/rootCA.crt", mutual).expect("Can create client tls")
+    create_tls_client_config("./cert/rootCA.crt", mutual).expect("Can create client tls")
 }
