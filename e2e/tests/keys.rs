@@ -1,6 +1,6 @@
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use sam_test_utils::get_next_port;
 use std::time::Duration;
-use test_utils::get_next_port;
 use tokio::time::timeout;
 use utils::{
     client::client_with_proxy,

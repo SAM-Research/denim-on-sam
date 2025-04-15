@@ -15,7 +15,10 @@ use log::debug;
 use sam_common::AccountId;
 use tokio::sync::Mutex;
 
-use crate::managers::{error::BufferManagerError, traits::MessageIdProvider};
+use crate::{
+    managers::{error::BufferManagerError, traits::MessageIdProvider},
+    state::BufferManagerType,
+};
 
 pub enum ClientRequest {
     BlockRequest(MessageId, BlockRequest),
@@ -25,18 +28,22 @@ pub enum ClientRequest {
 }
 
 #[derive(Clone)]
-pub struct BufferManager<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider> {
-    receiving_buffers: Arc<Mutex<HashMap<AccountId, T::Buffer>>>,
-    sending_buffers: Arc<Mutex<HashMap<AccountId, U::Buffer>>>,
-    id_provider: V,
-    receiving_config: T,
-    sending_config: U,
+pub struct BufferManager<T: BufferManagerType> {
+    receiving_buffers:
+        Arc<Mutex<HashMap<AccountId, <T::ReceivingBufferConfig as ReceivingBufferConfig>::Buffer>>>,
+    sending_buffers:
+        Arc<Mutex<HashMap<AccountId, <T::SendingBufferConfig as SendingBufferConfig>::Buffer>>>,
+    id_provider: T::MessageIdProvider,
+    receiving_config: T::ReceivingBufferConfig,
+    sending_config: T::SendingBufferConfig,
 }
 
-impl<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>
-    BufferManager<T, U, V>
-{
-    pub fn new(receiving_config: T, sending_config: U, id_provider: V) -> Self {
+impl<T: BufferManagerType> BufferManager<T> {
+    pub fn new(
+        receiving_config: T::ReceivingBufferConfig,
+        sending_config: T::SendingBufferConfig,
+        id_provider: T::MessageIdProvider,
+    ) -> Self {
         Self {
             receiving_buffers: Arc::new(Mutex::new(HashMap::new())),
             sending_buffers: Arc::new(Mutex::new(HashMap::new())),
@@ -187,14 +194,18 @@ mod test {
     use rstest::rstest;
     use sam_common::AccountId;
 
-    use crate::managers::{default::ClientRequest, BufferManager, InMemoryMessageIdProvider};
+    use crate::{
+        managers::{default::ClientRequest, BufferManager, InMemoryMessageIdProvider},
+        state::InMemoryBufferManagerType,
+    };
 
     #[tokio::test]
     async fn buffer_mgr_enqueue_message_and_deqeue() {
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
-        let mut mgr = BufferManager::new(receiver, sender, id_provider);
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, id_provider);
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -229,7 +240,8 @@ mod test {
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
-        let mut mgr = BufferManager::new(receiver, sender, id_provider);
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, id_provider);
 
         let account_id = AccountId::generate();
         let kind = if is_request {

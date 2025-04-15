@@ -1,18 +1,17 @@
 use axum::http;
-use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use log::debug;
-use sam_client::net::{
-    protocol::websocket::WebSocketClientConfig,
-    tls::{create_tls_config, MutualTlsConfig},
+
+use sam_net::{
+    tls::{create_tls_client_config, create_tls_server_config, MutualTlsConfig},
+    websocket::WebSocketClientConfig,
 };
-use sam_server::create_tls_config as create_server_tls_config;
+
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::Connector;
 
 use crate::{
     error::{ServerError, TlsError},
-    managers::traits::MessageIdProvider,
-    state::DenimState,
+    state::{DenimState, StateType},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -23,6 +22,8 @@ pub struct DenimCliConfig {
     pub deniable_ratio: Option<f32>, // q
     pub tls: Option<TlsConfig>,
     pub channel_buffer_size: Option<usize>,
+    pub key_generate_amount: Option<usize>,
+    pub logging: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,6 +50,8 @@ impl DenimCliConfig {
         deniable_ratio: Option<f32>,
         tls: Option<TlsConfig>,
         channel_buffer_size: Option<usize>,
+        key_generate_amount: Option<usize>,
+        logging: Option<String>,
     ) -> Self {
         Self {
             sam_address,
@@ -56,6 +59,8 @@ impl DenimCliConfig {
             deniable_ratio,
             tls,
             channel_buffer_size,
+            key_generate_amount,
+            logging,
         }
     }
     pub fn load<R: std::io::Read>(reader: R) -> Result<Self, serde_json::Error> {
@@ -71,26 +76,26 @@ impl TlsConfig {
             None
         };
         let server =
-            create_server_tls_config(&self.proxy_cert_path, &self.proxy_key_path, mtls.as_deref())?;
+            create_tls_server_config(&self.proxy_cert_path, &self.proxy_key_path, mtls.as_deref())?;
         let mutual = if let Some(config) = self.proxy_client {
             Some(MutualTlsConfig::new(config.key_path, config.cert_path))
         } else {
             None
         };
 
-        let client = create_tls_config(&self.ca_cert_path, mutual)?;
+        let client = create_tls_client_config(&self.ca_cert_path, mutual)?;
         Ok((server, client))
     }
 }
 
-pub fn websocket_config<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>(
+pub fn websocket_config<T: StateType>(
     basic: String,
-    state: &DenimState<T, U, V>,
+    state: &DenimState<T>,
 ) -> Result<WebSocketClientConfig, ServerError> {
     let (url, connector) = match state.ws_proxy_tls_config() {
-        None => (format!("ws://{}", state.sam_url()), None),
+        None => (format!("ws://{}", state.sam_address()), None),
         Some(config) => (
-            format!("wss://{}", state.sam_url()),
+            format!("wss://{}", state.sam_address()),
             Some(Connector::Rustls(config)),
         ),
     };

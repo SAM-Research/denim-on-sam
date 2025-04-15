@@ -47,11 +47,9 @@ message DeniableMessage {
   }
 }
 
-
-
 message KeyBundle {
   required uint32 device_id = 1;
   required uint32 registration_id = 2;
-  required bytes pre_key = 3; // SAM EcPreKey
+  required bytes pre_key = 3;        // SAM EcPreKey
   required bytes signed_pre_key = 5; // SAM SignedEcPreKey
 }

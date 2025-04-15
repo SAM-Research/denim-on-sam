@@ -17,9 +17,7 @@ pub async fn create_message<T: SendingBuffer>(
         .len()
         .try_into()
         .map_err(|_| MessageError::MessageTooBig)?;
-    let deniable_payload = sending_buffer
-        .get_deniable_payload(size)
-        .await?;
+    let deniable_payload = sending_buffer.get_deniable_payload(size).await?;
 
     Ok(DenimMessage::builder()
         .regular_payload(message)
