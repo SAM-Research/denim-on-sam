@@ -91,6 +91,7 @@ mod test {
     use rand_chacha::ChaCha20Rng;
     use sam_client::storage::key_generation::generate_signed_pre_key;
     use sam_common::{
+        address::DEFAULT_DEVICE_ID,
         api::{Decode as _, EcPreKey, Key},
         AccountId,
     };
@@ -108,7 +109,7 @@ mod test {
     use crate::{
         error::ServerError,
         logic::keys::get_keys_for,
-        managers::{DenimEcPreKeyManager, DenimKeyManagerError, DEFAULT_DEVICE},
+        managers::{DenimEcPreKeyManager, DenimKeyManagerError},
         state::{DenimState, InMemoryStateType},
     };
 
@@ -132,7 +133,7 @@ mod test {
             .expect("Can add account");
 
         let device = Device::builder()
-            .id(DEFAULT_DEVICE.into())
+            .id(DEFAULT_DEVICE_ID.into())
             .name("Alice Secret Phone".to_string())
             .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
             .creation(0)
@@ -140,7 +141,7 @@ mod test {
             .build();
 
         let account_id = account.id();
-        let device_id = DEFAULT_DEVICE.into();
+        let device_id = DEFAULT_DEVICE_ID.into();
         state
             .devices
             .add_device(account_id, &device)
@@ -176,7 +177,7 @@ mod test {
             .await
             .expect("User have uploaded bundles");
 
-        assert!(bundle.device_id == DEFAULT_DEVICE);
+        assert!(bundle.device_id == DEFAULT_DEVICE_ID);
         assert!(bundle.registration_id == 1);
     }
 
@@ -201,7 +202,7 @@ mod test {
             .expect("Can add account");
 
         let device = Device::builder()
-            .id(DEFAULT_DEVICE.into())
+            .id(DEFAULT_DEVICE_ID.into())
             .name("Alice Secret Phone".to_string())
             .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
             .creation(0)
@@ -209,7 +210,7 @@ mod test {
             .build();
 
         let account_id = account.id();
-        let device_id = DEFAULT_DEVICE.into();
+        let device_id = DEFAULT_DEVICE_ID.into();
         state
             .devices
             .add_device(account_id, &device)
@@ -262,7 +263,7 @@ mod test {
             .await
             .is_ok());
 
-        assert!(bundle.device_id == DEFAULT_DEVICE);
+        assert!(bundle.device_id == DEFAULT_DEVICE_ID);
         assert!(bundle.registration_id == 1);
     }
 
@@ -294,8 +295,10 @@ mod test {
 
         state.accounts.add_account(&bob).await.expect("Can add bob");
 
+        let device_id = DEFAULT_DEVICE_ID.into();
+
         let alice_device = Device::builder()
-            .id(DEFAULT_DEVICE.into())
+            .id(device_id)
             .name("Alice Secret Phone".to_string())
             .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
             .creation(0)
@@ -303,14 +306,12 @@ mod test {
             .build();
 
         let bob_device = Device::builder()
-            .id(DEFAULT_DEVICE.into())
+            .id(device_id)
             .name("Bob Secret Phone".to_string())
             .password(Password::generate("dave<3".to_string()).expect("Bob can create password"))
             .creation(0)
             .registration_id(1.into())
             .build();
-
-        let device_id = DEFAULT_DEVICE.into();
 
         state
             .devices

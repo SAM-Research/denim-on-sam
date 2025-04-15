@@ -8,8 +8,6 @@ pub use in_mem::InMemoryMessageIdProvider;
 use sam_server::managers::traits::key_manager::SignedPreKeyManager;
 pub use traits::{DenimEcPreKeyManager, DenimKeyManagerError};
 
-pub const DEFAULT_DEVICE: u32 = 1u32;
-
 pub trait DenimKeyManagerType: Clone + Send + Sync {
     type EcPreKeyManager: DenimEcPreKeyManager;
     type SignedPreKeyManager: SignedPreKeyManager;
