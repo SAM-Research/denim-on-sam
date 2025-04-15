@@ -1,5 +1,5 @@
 pub mod buffers;
-mod error;
+pub mod error;
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 

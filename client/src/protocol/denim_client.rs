@@ -8,7 +8,6 @@ use denim_sam_common::{
     denim_message::{deniable_message::MessageKind, DeniableMessage},
 };
 use log::error;
-use prost::Message as PMessage;
 use sam_client::net::protocol::{
     decode::ServerStatus,
     websocket::{WebSocketClient, WebSocketError},
@@ -136,7 +135,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode_to_vec().into()))
+            .send(Message::Binary(msg.to_bytes()?.into()))
             .await
             .map_err(DenimProtocolError::WebSocketError)?;
 
@@ -188,9 +187,9 @@ mod test {
     };
     use denim_sam_common::{
         buffers::{
-            DeniablePayload, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
+            types::DenimMessage, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
         },
-        denim_message::{DeniableMessage, DenimMessage},
+        denim_message::DeniableMessage,
     };
     use futures_util::{SinkExt, StreamExt};
     use prost::{bytes::Bytes, Message as PMessage};
@@ -346,7 +345,7 @@ mod test {
         msg: Result<Option<Result<Message, Error>>, String>,
     ) -> Result<DenimMessage, String> {
         Ok(match msg? {
-            Some(Ok(Message::Binary(x))) => DenimMessage::decode(x),
+            Some(Ok(Message::Binary(x))) => DenimMessage::decode(x.to_vec()),
             _ => Err("Failed to receive message from client")?,
         }
         .map_err(|_| "Failed to decode client message")?)
@@ -359,7 +358,7 @@ mod test {
         msg: Result<Option<Result<Message, Error>>, String>,
     ) -> Result<DenimMessage, String> {
         let msg = unpack_client_msg(msg)?;
-        let chunks = DeniablePayload::decode(msg.deniable_payload).map_err(|e| format!("{e}"))?;
+        let chunks = msg.deniable_payload.denim_chunks().to_owned();
         let sam =
             ClientMessage::decode(Bytes::from(msg.regular_payload)).map_err(|e| format!("{e}"))?;
         let results = receiving.process_chunks(chunks).await;
@@ -453,8 +452,16 @@ mod test {
                     }
                 };
 
+                let encoded_msg = match msg.to_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(_) => {
+                        error = Err("Failed to encode DenimMessage".to_string());
+                        break;
+                    }
+                };
+
                 if ws_stream
-                    .send(Message::Binary(Bytes::from(msg.encode_to_vec())))
+                    .send(Message::Binary(Bytes::from(encoded_msg)))
                     .await
                     .is_err()
                 {

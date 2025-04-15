@@ -9,7 +9,7 @@ pub trait SendingBuffer: Clone + Send + Sync + 'static {
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
-    ) -> Result<Option<DeniablePayload>, DenimBufferError>;
+    ) -> Result<DeniablePayload, DenimBufferError>;
 
     async fn enqueue_message(&mut self, deniable_message: DeniableMessage);
 }

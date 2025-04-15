@@ -6,5 +6,9 @@ pub enum DenimBufferError {
     ChunkEncodeError,
     MinPayloadLengthTooHighError,
     ChunkBufferNotFound,
-    NoChunksInDeniablePayloadError,
+}
+
+#[derive(Debug, Display, Error, From)]
+pub enum DenimEncodeError {
+    DenimMessageEncodeError,
 }

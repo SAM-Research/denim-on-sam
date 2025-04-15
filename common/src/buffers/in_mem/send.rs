@@ -45,22 +45,20 @@ impl SendingBuffer for InMemorySendingBuffer {
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
-    ) -> Result<Option<DeniablePayload>, DenimBufferError> {
+    ) -> Result<DeniablePayload, DenimBufferError> {
         if self.q == 0.0 {
-            return Ok(None);
+            return Ok(DeniablePayload::default());
         }
 
         let mut available_bytes = self.calculate_deniable_payload_length(reg_message_len);
 
         if available_bytes < self.chunk_size_without_payload {
-            return Ok(Some(
-                DeniablePayload::builder()
-                    .denim_chunks(vec![])
-                    .garbage(InMemorySendingBuffer::create_n_random_bytes(
-                        available_bytes,
-                    ))
-                    .build(),
-            ));
+            return Ok(DeniablePayload::builder()
+                .denim_chunks(vec![])
+                .garbage(InMemorySendingBuffer::create_n_random_bytes(
+                    available_bytes,
+                ))
+                .build());
         }
 
         let mut denim_chunks: Vec<DenimChunk> = Vec::new();
@@ -97,25 +95,18 @@ impl SendingBuffer for InMemorySendingBuffer {
         }
 
         if available_bytes > 0 {
-            denim_chunks
-                .last_mut()
-                .ok_or(DenimBufferError::NoChunksInDeniablePayloadError)?
-                .set_garbage_flag();
-            return Ok(Some(
-                DeniablePayload::builder()
-                    .denim_chunks(denim_chunks)
-                    .garbage(InMemorySendingBuffer::create_n_random_bytes(
-                        available_bytes,
-                    ))
-                    .build(),
-            ));
+            return Ok(DeniablePayload::builder()
+                .denim_chunks(denim_chunks)
+                .garbage(InMemorySendingBuffer::create_n_random_bytes(
+                    available_bytes,
+                ))
+                .build());
         }
 
-        Ok(Some(
-            DeniablePayload::builder()
-                .denim_chunks(denim_chunks)
-                .build(),
-        ))
+        Ok(DeniablePayload::builder()
+            .denim_chunks(denim_chunks)
+            .garbage(vec![])
+            .build())
     }
 
     async fn enqueue_message(&mut self, deniable_message: DeniableMessage) {
@@ -207,7 +198,7 @@ impl InMemorySendingBuffer {
 mod test {
     use super::*;
     use crate::denim_message::deniable_message::MessageKind;
-    use crate::denim_message::{DenimMessage, MessageType, UserMessage};
+    use crate::denim_message::{MessageType, UserMessage};
     use rstest::rstest;
 
     fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
@@ -229,14 +220,17 @@ mod test {
     }
 
     #[rstest]
-    #[case(150, 0.32, vec![20, 30, 40])]
-    #[case(150, 0.625, vec![23, 31])]
-    #[case(300, 0.721, vec![21])]
+    #[case(150, 1.0, vec![20, 30, 40], 3)]
+    #[case(150, 0.625, vec![23, 31], 2)]
+    #[case(300, 0.721, vec![21], 2)]
+    #[case(300, 0.8, vec![], 1)]
+    #[case(300, 0.01, vec![21,3,14], 0)]
     #[tokio::test]
     async fn get_deniable_payload(
         #[case] regular_msg_len: u32,
         #[case] q: f32,
         #[case] message_lengths: Vec<usize>,
+        #[case] expected_chunks: usize,
     ) {
         let deniable_messages = make_deniable_messages(message_lengths);
 
@@ -249,30 +243,28 @@ mod test {
         let deniable_payload = sending_buffer
             .get_deniable_payload(regular_msg_len)
             .await
-            .unwrap()
-            .expect("Should be Some");
+            .expect("Can get deniable payload");
 
-        let total_size: usize = deniable_payload
-            .to_bytes()
-            .expect("Should get bytes")
-            .iter()
-            .map(|bytes| bytes.len())
-            .sum::<usize>();
-
-        assert_eq!(total_size, (regular_msg_len as f32 * q).ceil() as usize);
+        assert_eq!(deniable_payload.denim_chunks().len(), expected_chunks);
     }
 
+    const PROTOBUF_EXTRA_BYTES: usize = 24;
+
     #[rstest]
-    #[case(InMemorySendingBuffer::create_n_random_bytes(123), 0.32, vec![20, 30, 40])]
-    #[case(InMemorySendingBuffer::create_n_random_bytes(50), 0.625, vec![23, 31,15])]
-    #[case(InMemorySendingBuffer::create_n_random_bytes(1023), 0.721, vec![21,3,5,123])]
-    #[case(InMemorySendingBuffer::create_n_random_bytes(300), 1.0, vec![260])]
+    #[case(InMemorySendingBuffer::create_n_random_bytes(123), 0.32, vec![20, 30, 40])] // 1 Chunk, No garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(50), 0.625, vec![23, 31,15])] // 1 chunk, No garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(1023), 0.721, vec![21,3,5,123])] // 5 Chunks, No garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(300), 1.0, vec![260])] // Denim chunk and garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(100), 0.05, vec![123,331])] // Only garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(1500), 0.5, vec![12,31,31,15,64,132,523])] // Only garbage
     #[tokio::test]
     async fn encode_and_decode_deniable_payload_in_denim_message(
         #[case] regular_msg: Vec<u8>,
         #[case] q: f32,
         #[case] message_lengths: Vec<usize>,
     ) {
+        use crate::buffers::types::DenimMessage;
+
         let deniable_messages = make_deniable_messages(message_lengths);
 
         let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
@@ -284,34 +276,30 @@ mod test {
         let deniable_payload = sending_buffer
             .get_deniable_payload(regular_msg.len() as u32)
             .await
-            .unwrap()
-            .expect("Should be Some");
+            .expect("Should be able to create deniable payload");
 
-        let deniable_payload_chunks = deniable_payload.denim_chunks().len();
+        let chunks = deniable_payload.denim_chunks().len();
+
+        let l = regular_msg.len();
 
         let denim_message = DenimMessage::builder()
-            .deniable_payload(
-                deniable_payload
-                    .to_bytes()
-                    .expect("Should be able to make it to bytes"),
-            )
+            .deniable_payload(deniable_payload)
             .regular_payload(regular_msg.clone())
             .build();
 
-        let deniable_payload = DeniablePayload::decode(denim_message.deniable_payload.clone())
-            .expect("Should be able to decode deniable payload");
-
-        let deniable_payload_size = denim_message
-            .deniable_payload
-            .iter()
-            .map(|bytes| bytes.len())
-            .sum::<usize>();
+        let encoded_denim_message = denim_message.to_bytes().expect("Can encode denim message");
 
         assert_eq!(
-            deniable_payload_size,
-            (regular_msg.len() as f32 * q).ceil() as usize
+            encoded_denim_message.len(),
+            PROTOBUF_EXTRA_BYTES + l + (l as f32 * q).ceil() as usize
         );
 
-        assert_eq!(deniable_payload.len(), deniable_payload_chunks);
+        let decoded_denim_message = DenimMessage::decode(encoded_denim_message)
+            .expect("Can decode denim message from bytes");
+
+        assert_eq!(
+            decoded_denim_message.deniable_payload.denim_chunks().len(),
+            chunks
+        );
     }
 }

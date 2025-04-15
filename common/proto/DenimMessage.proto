@@ -55,8 +55,3 @@ message KeyBundle {
   required bytes pre_key = 3; // SAM EcPreKey
   required bytes signed_pre_key = 5; // SAM SignedEcPreKey
 }
-
-message DenimMessage {
-  required bytes regular_payload = 1;
-  repeated bytes deniable_payload = 2;
-}
