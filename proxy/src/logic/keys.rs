@@ -96,12 +96,12 @@ mod test {
     use libsignal_protocol::IdentityKeyPair;
     use rand::{rngs::OsRng, SeedableRng};
     use rand_chacha::ChaCha20Rng;
-    use sam_client::storage::key_generation::generate_signed_pre_key;
     use sam_common::{
         address::DEFAULT_DEVICE_ID,
         api::{Decode as _, EcPreKey, Key},
         AccountId,
     };
+    use sam_security::key_gen::generate_signed_pre_key;
     use sam_server::{
         auth::password::Password,
         managers::{

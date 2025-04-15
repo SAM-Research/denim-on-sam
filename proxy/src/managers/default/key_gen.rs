@@ -1,5 +1,5 @@
-use sam_client::storage::key_generation::generate_ec_pre_key;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
+use sam_security::key_gen::generate_ec_pre_key;
 
 use crate::managers::{DenimEcPreKeyManager, DenimKeyManagerError};
 

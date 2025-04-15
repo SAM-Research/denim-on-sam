@@ -6,8 +6,8 @@ use rstest::rstest;
 use sam_client::storage::InMemoryStoreConfig;
 
 use denim_sam_client::store::inmem::InMemoryDeniableStoreConfig;
+use sam_test_utils::get_next_port;
 use std::time::Duration;
-use test_utils::get_next_port;
 use tokio::time::timeout;
 use utils::server::TestDenimProxy;
 use utils::{

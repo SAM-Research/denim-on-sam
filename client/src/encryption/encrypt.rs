@@ -99,7 +99,7 @@ mod test {
     use rand::{rngs::OsRng, CryptoRng, Rng};
     use rstest::rstest;
     use sam_client::storage::{
-        key_generation::{generate_ec_pre_key, KyberKeyGenerator, SignedPreKeyGenerator},
+        key_generation::{KyberKeyGenerator, SignedPreKeyGenerator},
         AccountStore, InMemoryStoreConfig, InMemoryStoreType, Store, StoreConfig, StoreType,
     };
     use sam_common::{
@@ -107,6 +107,7 @@ mod test {
         api::{EcPreKey, Encode, SignedEcPreKey},
         AccountId,
     };
+    use sam_security::key_gen::generate_ec_pre_key;
 
     use crate::{
         encryption::{decrypt, encrypt, key::into_libsignal_bundle},

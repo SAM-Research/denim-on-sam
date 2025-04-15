@@ -10,6 +10,7 @@ license.workspace = true
 sam-client = { workspace = true }
 sam-common = { workspace = true }
 sam-net = { workspace = true }
+sam-security = { workspace = true }
 denim-sam-common = { workspace = true }
 libsignal-protocol = { workspace = true }
 libsignal-core = { workspace = true }
@@ -27,4 +28,4 @@ rustls = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
-test-utils = { workspace = true }
+sam-test-utils = { workspace = true }
