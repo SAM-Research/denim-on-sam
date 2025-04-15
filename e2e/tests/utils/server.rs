@@ -86,10 +86,11 @@ impl Drop for TestDenimProxy {
 #[allow(unused)]
 impl TestDenimProxy {
     pub async fn start(sam_addr: &str, proxy_addr: &str, config: Option<TlsConfig>) -> Self {
-        let (tls_config, ws_proxy_tls_config) = match config {
+        let (maybe_tls_config, maybe_ws_proxy_tls_config) = match config {
             Some(tls) => {
-                let (a, b) = tls.create().expect("Can create tls config");
-                (Some(a), Some(b))
+                let (tls_config, ws_proxy_tls_config) =
+                    tls.create().expect("Can create tls config");
+                (Some(tls_config), Some(ws_proxy_tls_config))
             }
             None => (None, None),
         };
@@ -97,8 +98,8 @@ impl TestDenimProxy {
         let config: DenimConfig<InMemoryStateType> = DenimConfig::in_memory()
             .addr(proxy_addr.parse().expect("Unable to parse socket address"))
             .sam_address(sam_addr.to_string())
-            .maybe_tls_config(tls_config)
-            .maybe_ws_proxy_tls_config(ws_proxy_tls_config)
+            .maybe_tls_config(maybe_tls_config)
+            .maybe_ws_proxy_tls_config(maybe_ws_proxy_tls_config)
             .call();
 
         let (tx, started_rx) = oneshot::channel::<()>();
