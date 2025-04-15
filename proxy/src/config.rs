@@ -3,10 +3,10 @@ use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use log::debug;
 
 use sam_net::{
-    tls::{create_tls_config, MutualTlsConfig},
+    tls::{create_tls_client_config, create_tls_server_config, MutualTlsConfig},
     websocket::WebSocketClientConfig,
 };
-use sam_server::create_tls_config as create_server_tls_config;
+
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::Connector;
 
@@ -75,14 +75,14 @@ impl TlsConfig {
             None
         };
         let server =
-            create_server_tls_config(&self.proxy_cert_path, &self.proxy_key_path, mtls.as_deref())?;
+            create_tls_server_config(&self.proxy_cert_path, &self.proxy_key_path, mtls.as_deref())?;
         let mutual = if let Some(config) = self.proxy_client {
             Some(MutualTlsConfig::new(config.key_path, config.cert_path))
         } else {
             None
         };
 
-        let client = create_tls_config(&self.ca_cert_path, mutual)?;
+        let client = create_tls_client_config(&self.ca_cert_path, mutual)?;
         Ok((server, client))
     }
 }
