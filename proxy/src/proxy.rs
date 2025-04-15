@@ -1,8 +1,5 @@
 use axum::http::HeaderMap;
-use denim_sam_common::{
-    buffers::{DeniablePayload, ReceivingBufferConfig, SendingBufferConfig},
-    denim_message::DenimMessage,
-};
+use denim_sam_common::{buffers::DeniablePayload, denim_message::DenimMessage};
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -17,21 +14,17 @@ use crate::{
     config::websocket_config,
     denim_routes::denim_router,
     error::ServerError,
-    managers::{traits::MessageIdProvider, BufferManager},
-    state::DenimState,
-    utils::{into_axum_message, AxumMessage, AxumWebSocket, TungsteniteMessage},
+    state::{DenimState, StateType},
+    utils::TungsteniteMessage,
+    utils::{into_axum_message, AxumMessage, AxumWebSocket},
 };
 
 type ProxyMessage = AxumMessage;
 
 /// Try and establish connection to sam server using clients credentials
-pub async fn connect_to_sam_server<
-    T: ReceivingBufferConfig,
-    U: SendingBufferConfig,
-    V: MessageIdProvider,
->(
+pub async fn connect_to_sam_server<T: StateType>(
     headers: HeaderMap,
-    state: &DenimState<T, U, V>,
+    state: &DenimState<T>,
 ) -> Result<(WebSocketClient, Receiver<ProxyMessage>), ServerError> {
     let basic = headers
         .get("authorization")
@@ -49,15 +42,10 @@ pub async fn connect_to_sam_server<
     Ok((client, rx))
 }
 
-pub async fn init_proxy_service<
-    T: ReceivingBufferConfig,
-    U: SendingBufferConfig,
-    V: MessageIdProvider,
->(
-    state: DenimState<T, U, V>,
+pub async fn init_proxy_service<T: StateType>(
+    state: DenimState<T>,
     socket: AxumWebSocket,
     server_client: WebSocketClient,
-
     server_receiver: Receiver<ProxyMessage>,
     account_id: AccountId,
     _device_id: DeviceId,
@@ -65,7 +53,7 @@ pub async fn init_proxy_service<
     let (sender, receiver) = socket.split();
 
     tokio::spawn(sam_server_handler(
-        state.buffer_manager(),
+        state.clone(),
         server_receiver,
         sender,
         account_id,
@@ -80,12 +68,8 @@ pub async fn init_proxy_service<
 
 /// Handles messages from SAM Server and send them to client
 /// This is here we should put piggy back denim messages to the client
-async fn sam_server_handler<
-    T: ReceivingBufferConfig,
-    U: SendingBufferConfig,
-    V: MessageIdProvider,
->(
-    mut buffer_mgr: BufferManager<T, U, V>,
+async fn sam_server_handler<T: StateType>(
+    mut state: DenimState<T>,
     mut server_receiver: Receiver<ProxyMessage>,
     mut client_sender: SplitSink<AxumWebSocket, AxumMessage>,
     account_id: AccountId,
@@ -100,7 +84,11 @@ async fn sam_server_handler<
                 break;
             }
         };
-        let res = match buffer_mgr.get_deniable_payload(account_id, len).await {
+        let res = match state
+            .buffer_manager
+            .get_deniable_payload(account_id, len)
+            .await
+        {
             Ok(payload) => payload.map_or(Ok(Vec::new()), |x| x.to_bytes()),
             Err(e) => {
                 error!("get_deniable_payload failed '{e}'");
@@ -136,18 +124,12 @@ async fn sam_server_handler<
 /// Handles messages from Denim Client and forward them to SAM Server
 /// This is here we should extract SAM Message and send it
 /// We should also build chunks to Denim Messages here
-async fn denim_client_receiver<
-    T: ReceivingBufferConfig,
-    U: SendingBufferConfig,
-    V: MessageIdProvider,
->(
-    state: DenimState<T, U, V>,
-
+async fn denim_client_receiver<T: StateType>(
+    mut state: DenimState<T>,
     mut server_client: WebSocketClient,
     mut client_receiver: SplitStream<AxumWebSocket>,
     account_id: AccountId,
 ) {
-    let mut buffer_mgr = state.buffer_manager();
     // Client sends proxy a message
     while let Some(Ok(AxumMessage::Binary(msg))) = client_receiver.next().await {
         let msg = match DenimMessage::decode(msg) {
@@ -175,7 +157,11 @@ async fn denim_client_receiver<
             }
         };
         //TODO: this should not happen if a user is blocked.
-        match buffer_mgr.enqueue_chunks(account_id, chunks).await {
+        match state
+            .buffer_manager
+            .enqueue_chunks(account_id, chunks)
+            .await
+        {
             Ok(results) => {
                 for res in results {
                     let response = match res {
@@ -188,7 +174,7 @@ async fn denim_client_receiver<
                     };
 
                     let enqueue_res = match response {
-                        Ok(msg) => buffer_mgr.enqueue_message(account_id, msg).await,
+                        Ok(msg) => state.buffer_manager.enqueue_message(account_id, msg).await,
                         Err(e) => {
                             error!("Denim routing failed '{e}'");
                             continue;

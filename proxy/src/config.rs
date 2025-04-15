@@ -1,5 +1,4 @@
 use axum::http;
-use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use log::debug;
 
 use sam_net::{
@@ -12,8 +11,7 @@ use tokio_tungstenite::Connector;
 
 use crate::{
     error::{ServerError, TlsError},
-    managers::traits::MessageIdProvider,
-    state::DenimState,
+    state::{DenimState, StateType},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,6 +22,7 @@ pub struct DenimCliConfig {
     pub deniable_ratio: Option<f32>, // q
     pub tls: Option<TlsConfig>,
     pub channel_buffer_size: Option<usize>,
+    pub key_generate_amount: Option<usize>,
     pub logging: Option<String>,
 }
 
@@ -51,6 +50,7 @@ impl DenimCliConfig {
         deniable_ratio: Option<f32>,
         tls: Option<TlsConfig>,
         channel_buffer_size: Option<usize>,
+        key_generate_amount: Option<usize>,
         logging: Option<String>,
     ) -> Self {
         Self {
@@ -59,6 +59,7 @@ impl DenimCliConfig {
             deniable_ratio,
             tls,
             channel_buffer_size,
+            key_generate_amount,
             logging,
         }
     }
@@ -87,14 +88,14 @@ impl TlsConfig {
     }
 }
 
-pub fn websocket_config<T: ReceivingBufferConfig, U: SendingBufferConfig, V: MessageIdProvider>(
+pub fn websocket_config<T: StateType>(
     basic: String,
-    state: &DenimState<T, U, V>,
+    state: &DenimState<T>,
 ) -> Result<WebSocketClientConfig, ServerError> {
     let (url, connector) = match state.ws_proxy_tls_config() {
-        None => (format!("ws://{}", state.sam_url()), None),
+        None => (format!("ws://{}", state.sam_address()), None),
         Some(config) => (
-            format!("wss://{}", state.sam_url()),
+            format!("wss://{}", state.sam_address()),
             Some(Connector::Rustls(config)),
         ),
     };

@@ -8,24 +8,18 @@ use axum_extra::{
     headers::{authorization::Basic, Authorization},
     TypedHeader,
 };
-use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 use log::info;
 
 use sam_server::auth::get_credentials;
 
 use crate::{
     error::ServerError,
-    managers::traits::MessageIdProvider,
     proxy::{connect_to_sam_server, init_proxy_service},
-    state::DenimState,
+    state::{DenimState, StateType},
 };
 
-pub async fn websocket_endpoint<
-    T: ReceivingBufferConfig,
-    U: SendingBufferConfig,
-    V: MessageIdProvider,
->(
-    State(state): State<DenimState<T, U, V>>,
+pub async fn websocket_endpoint<T: StateType>(
+    State(state): State<DenimState<T>>,
     headers: HeaderMap,
     TypedHeader(Authorization(basic)): TypedHeader<Authorization<Basic>>,
     ws: WebSocketUpgrade,

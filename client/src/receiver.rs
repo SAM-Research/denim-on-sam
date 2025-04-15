@@ -217,7 +217,7 @@ pub mod test {
         AccountId,
     };
     use sam_net::websocket::{WebSocketClient, WebSocketClientConfig};
-    use test_utils::get_next_port;
+    use sam_test_utils::get_next_port;
     use tokio::{
         net::TcpListener,
         sync::{

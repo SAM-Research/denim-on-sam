@@ -1,10 +1,13 @@
 pub mod buffers;
 mod error;
+mod seed;
+
+pub use error::DenimBufferError;
+pub use seed::Seed;
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 
 use denim_message::MessageType;
-pub use error::DenimBufferError;
 use libsignal_protocol::CiphertextMessageType;
 
 impl From<CiphertextMessageType> for MessageType {

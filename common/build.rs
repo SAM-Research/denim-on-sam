@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute("Error", "#[derive(bon::Builder)]")
         .type_attribute("DummyPadding", "#[derive(bon::Builder)]")
         .type_attribute("DenimMessage", "#[derive(bon::Builder)]")
+        .type_attribute("KeyBundle", "#[derive(bon::Builder)]")
         .include_file("_includes.rs")
         .compile_protos(&["proto/DenimMessage.proto"], &["proto"])?;
 

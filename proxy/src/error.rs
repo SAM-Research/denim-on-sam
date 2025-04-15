@@ -2,6 +2,9 @@ use axum::{http::StatusCode, response::IntoResponse};
 
 use derive_more::{Display, Error, From};
 use log::error;
+use sam_server::managers::error::{AccountManagerError, DeviceManagerError};
+
+use crate::managers::DenimKeyManagerError;
 use sam_net::error::{ClientTlsError, ServerTlsError};
 
 #[derive(Debug, Display, Error, From)]
@@ -16,6 +19,14 @@ impl IntoResponse for ServerError {
             ServerError::SAMUnAuth => StatusCode::UNAUTHORIZED.into_response(),
         }
     }
+}
+
+#[derive(Debug, Display, Error, From)]
+pub enum LogicError {
+    Encode,
+    KeyManager(DenimKeyManagerError),
+    DeviceManager(DeviceManagerError),
+    AccountManager(AccountManagerError),
 }
 
 #[derive(Debug, Display, Error, From)]

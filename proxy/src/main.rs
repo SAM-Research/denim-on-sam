@@ -1,26 +1,17 @@
-use std::io::BufReader;
-
 use clap::{Arg, Command};
-use denim_sam_common::buffers::in_mem::{
-    InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
-};
 use denim_sam_proxy::{
     config::DenimCliConfig,
-    error,
-    managers::{BufferManager, InMemoryMessageIdProvider},
-    server, state,
+    error::CliError,
+    server::{start_proxy, DenimConfig},
 };
-use error::CliError;
-
 use log::{debug, error, info};
-use server::{start_proxy, DenimConfig};
-
-use state::DenimState;
+use std::io::BufReader;
 
 const DEFAULT_SAM_ADDR: &str = "127.0.0.1:8080";
 const DEFAULT_PROXY_ADDR: &str = "127.0.0.1:8081";
 const DEFAULT_DENIABLE_RATIO: f32 = 1.0; // q
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 10;
+const DEFAULT_KEY_GENERATE_AMOUNT: usize = 10;
 
 fn welcome(config: &DenimCliConfig) {
     let sam_addr = config
@@ -143,6 +134,7 @@ async fn cli() -> Result<(), CliError> {
             None,
             Some(buffer_size),
             None,
+            None,
         )
     };
 
@@ -167,40 +159,28 @@ async fn cli() -> Result<(), CliError> {
         .inspect_err(|e| debug!("{e}"))
         .map_err(|_| CliError::AddressParseError)?;
 
-    let rcfg = InMemoryReceivingBufferConfig;
-    let scfg = InMemorySendingBufferConfig::builder()
-        .q(config.deniable_ratio.unwrap_or(DEFAULT_DENIABLE_RATIO))
-        .build();
-    let id_provider = InMemoryMessageIdProvider::default();
-    let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
-
-    let denim_cfg = if let Some((server, client)) = tls_config {
-        DenimConfig {
-            state: DenimState::new(
-                buffer_mgr,
-                config.sam_address.unwrap_or(DEFAULT_SAM_ADDR.to_string()),
-                config
-                    .channel_buffer_size
-                    .unwrap_or(DEFAULT_CHANNEL_BUFFER_SIZE),
-                Some(client),
-            ),
-            addr,
-            tls_config: Some(server),
-        }
-    } else {
-        DenimConfig {
-            state: DenimState::new(
-                buffer_mgr,
-                config.sam_address.unwrap_or(DEFAULT_SAM_ADDR.to_string()),
-                config
-                    .channel_buffer_size
-                    .unwrap_or(DEFAULT_CHANNEL_BUFFER_SIZE),
-                None,
-            ),
-            addr,
-            tls_config: None,
-        }
+    let (tls_config, ws_proxy_tls_config) = match tls_config {
+        Some((server, client)) => (Some(server), Some(client)),
+        None => (None, None),
     };
+
+    let denim_cfg = DenimConfig::in_memory()
+        .addr(addr)
+        .sam_address(config.sam_address.unwrap_or(DEFAULT_SAM_ADDR.to_string()))
+        .maybe_tls_config(tls_config)
+        .maybe_ws_proxy_tls_config(ws_proxy_tls_config)
+        .channel_buffer_size(
+            config
+                .channel_buffer_size
+                .unwrap_or(DEFAULT_CHANNEL_BUFFER_SIZE),
+        )
+        .deniable_ratio(config.deniable_ratio.unwrap_or(DEFAULT_DENIABLE_RATIO))
+        .key_generate_amount(
+            config
+                .key_generate_amount
+                .unwrap_or(DEFAULT_KEY_GENERATE_AMOUNT),
+        )
+        .call();
 
     start_proxy(denim_cfg)
         .await

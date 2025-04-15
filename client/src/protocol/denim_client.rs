@@ -202,7 +202,7 @@ mod test {
         AccountId,
     };
     use sam_net::websocket::WebSocketClientConfig;
-    use test_utils::get_next_port;
+    use sam_test_utils::get_next_port;
     use tokio::{
         net::{TcpListener, TcpStream},
         sync::mpsc::Receiver as MpscReceiver,
