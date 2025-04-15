@@ -27,8 +27,8 @@ fn welcome(config: &DenimCliConfig) {
         .channel_buffer_size
         .unwrap_or(DEFAULT_CHANNEL_BUFFER_SIZE);
     info!("*********Configuration*********");
-    info!("SAM Addr: {sam_addr}");
-    info!("Proxy Addr: {proxy_addr}");
+    info!("SAM Address: {sam_addr}");
+    info!("Proxy Address: {proxy_addr}");
     info!("Deniable Ratio (q): {den_rat}");
     info!("Channel Buffer size: {channel_buffer}");
     if let Some(tls) = &config.tls {
@@ -134,8 +134,15 @@ async fn cli() -> Result<(), CliError> {
             None,
             Some(buffer_size),
             None,
+            None,
         )
     };
+
+    if let Some(filter) = &config.logging {
+        env_logger::builder().parse_filters(filter).init();
+    } else {
+        env_logger::init();
+    }
 
     welcome(&config);
     let tls_config = if let Some(tls_config) = config.tls {
@@ -183,8 +190,9 @@ async fn cli() -> Result<(), CliError> {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
-    match cli().await {
+    let res = cli().await;
+    let _ = env_logger::try_init();
+    match res {
         Ok(_) => info!("Goodbye!"),
         Err(e) => error!("Fatal Proxy Error: {}", e),
     }

@@ -2,13 +2,10 @@ use axum::{http::StatusCode, response::IntoResponse};
 
 use derive_more::{Display, Error, From};
 use log::error;
-use sam_client::net::error::TlsError as ClientTlsError;
-use sam_server::{
-    error::TlsError as ServerTlsError,
-    managers::error::{AccountManagerError, DeviceManagerError},
-};
+use sam_server::managers::error::{AccountManagerError, DeviceManagerError};
 
 use crate::managers::DenimKeyManagerError;
+use sam_net::error::{ClientTlsError, ServerTlsError};
 
 #[derive(Debug, Display, Error, From)]
 pub enum ServerError {

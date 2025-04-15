@@ -66,11 +66,12 @@ impl DenimConfig<InMemoryStateType> {
 
 pub async fn start_proxy<T: StateType>(config: DenimConfig<T>) -> Result<(), std::io::Error> {
     let app = Router::new()
+        .route("/hello", get(|| async { "Hello From DenIM SAM Proxy" }))
         .route("/api/v1/websocket", get(websocket_endpoint))
         .with_state(config.state);
 
     info!(
-        "Starting Denim Proxy on http{}://{}...",
+        "Starting Denim Proxy on ws{}://{}",
         if config.tls_config.is_some() { "s" } else { "" },
         config.addr
     );

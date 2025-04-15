@@ -10,6 +10,7 @@ license.workspace = true
 sam-server = { workspace = true }
 sam-common = { workspace = true }
 sam-client = { workspace = true }
+sam-net = { workspace = true }
 denim-sam-common = { workspace = true }
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal.git", version = "0.1.0" }
 async-trait = { workspace = true }

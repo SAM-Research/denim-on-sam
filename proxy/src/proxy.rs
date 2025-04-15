@@ -6,8 +6,8 @@ use futures_util::{
 };
 use log::{error, info};
 use prost::{bytes::Bytes, Message as PMessage};
-use sam_client::net::protocol::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
 use sam_common::{AccountId, DeviceId};
+use sam_net::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::{

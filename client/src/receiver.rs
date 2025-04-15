@@ -9,13 +9,14 @@ use log::{debug, error};
 
 use prost::bytes::Bytes;
 use prost::Message as PMessage;
-use sam_client::net::protocol::{
-    decode::{EnvelopeOrStatus, ServerStatus},
-    websocket::{WebSocket, WebSocketClient, WebSocketError, WebSocketReceiver},
-};
+use sam_client::net::protocol::decode::{EnvelopeOrStatus, ServerStatus};
 use sam_common::{
     address::MessageId,
     sam_message::{ClientMessage, ClientMessageType, ServerEnvelope, ServerMessage},
+};
+use sam_net::{
+    error::WebSocketError,
+    websocket::{WebSocket, WebSocketClient, WebSocketReceiver},
 };
 use tokio::sync::{mpsc::Sender, Mutex};
 use tokio_tungstenite::tungstenite::Message;
@@ -205,7 +206,8 @@ pub mod test {
     use prost::Message as PMessage;
     use rand::RngCore;
     use rstest::rstest;
-    use sam_client::net::protocol::websocket::{WebSocketClient, WebSocketClientConfig};
+
+    use crate::receiver::DenimReceiver;
     use sam_common::{
         address::MessageId,
         sam_message::{
@@ -214,6 +216,7 @@ pub mod test {
         },
         AccountId,
     };
+    use sam_net::websocket::{WebSocketClient, WebSocketClientConfig};
     use test_utils::get_next_port;
     use tokio::{
         net::TcpListener,
@@ -224,8 +227,6 @@ pub mod test {
         },
     };
     use tokio_tungstenite::{accept_async, tungstenite::Message};
-
-    use crate::receiver::DenimReceiver;
 
     use super::SamDenimMessage;
 
