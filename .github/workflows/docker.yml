@@ -1,4 +1,4 @@
-name: Create and publish SAM Server
+name: Create and publish DenIM SAM Proxy
 
 on:
   push:
