@@ -40,6 +40,7 @@ where the looks like this:
   "denimProxyAddress": "127.0.0.1:8081", // Address to run DenIM Proxy on (optional)
   "deniableRatio": 1.0, // Deniable ratio (q) (optional)
   "channelBufferSize": 10, // Internal message communication, might affect performance of proxy (optional)
+  "logging": "info", // enable logging, uses the same syntax as RUST_LOG (optional)
 
   "tls": {
     // Tls config (optional)
