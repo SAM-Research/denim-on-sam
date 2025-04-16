@@ -197,6 +197,7 @@ impl InMemorySendingBuffer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::buffers::types::DenimMessage;
     use crate::denim_message::deniable_message::MessageKind;
     use crate::denim_message::{MessageType, UserMessage};
     use rstest::rstest;
@@ -248,8 +249,6 @@ mod test {
         assert_eq!(deniable_payload.denim_chunks().len(), expected_chunks);
     }
 
-    const ENCODE_EXTRA_BYTES: usize = 24;
-
     #[rstest]
     #[case(InMemorySendingBuffer::create_n_random_bytes(123), 0.32, vec![20, 30, 40])] // 1 Chunk, No garbage
     #[case(InMemorySendingBuffer::create_n_random_bytes(50), 0.625, vec![23, 31,15])] // 1 chunk, No garbage
@@ -259,12 +258,17 @@ mod test {
     #[case(InMemorySendingBuffer::create_n_random_bytes(1500), 0.5, vec![12,31,31,15,64,132,523])] // Only garbage
     #[case(InMemorySendingBuffer::create_n_random_bytes(1500), 0.0, vec![12,31,31,15,64,132,523])] // DeniablePayload::default()
     #[tokio::test]
-    async fn encode_and_decode_deniable_payload_in_denim_message(
+    async fn encode_and_decode_denim_message(
         #[case] regular_msg: Vec<u8>,
         #[case] q: f32,
         #[case] message_lengths: Vec<usize>,
     ) {
-        use crate::buffers::types::DenimMessage;
+        let empty_denim_message = DenimMessage::builder()
+            .regular_payload(vec![])
+            .deniable_payload(DeniablePayload::default())
+            .build()
+            .encode()
+            .expect("Can encode empty DenimMessage");
 
         let deniable_messages = make_deniable_messages(message_lengths);
 
@@ -292,7 +296,7 @@ mod test {
 
         assert_eq!(
             encoded_denim_message.len(),
-            ENCODE_EXTRA_BYTES + l + (l as f32 * q).ceil() as usize
+            empty_denim_message.len() + l + (l as f32 * q).ceil() as usize
         );
 
         let decoded_denim_message = DenimMessage::decode(encoded_denim_message)
