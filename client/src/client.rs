@@ -398,13 +398,7 @@ impl<T: DenimClientType> DenimClient<T> {
     ) -> Result<(), DenimClientError> {
         self.protocol_client
             .enqueue_deniable(MessageKind::DeniableMessage(
-                encrypt(
-                    msg.into(),
-                    recipient,
-                    &mut self.store,
-                    &mut self.deniable_store,
-                )
-                .await?,
+                encrypt(msg, recipient, &mut self.store, &mut self.deniable_store).await?,
             ))
             .await;
         Ok(())
