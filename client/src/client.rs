@@ -27,7 +27,7 @@ use tokio::sync::broadcast::Receiver;
 
 use crate::encryption::encrypt::encrypt;
 use crate::error::DenimClientError;
-use crate::message::process::process_deniable_message;
+use crate::message::process::{process_deniable_message, DenimResponse};
 use crate::message::queue::InMemoryMessageQueue;
 use crate::message::traits::{MessageQueue, MessageQueueConfig};
 use crate::protocol::{
@@ -388,16 +388,17 @@ impl<T: DenimClientType> DenimClient<T> {
             self.waiting_messages.enqueue(recipient, msg.into()).await;
             return Ok(());
         }
+        self.enqueue_deniable(recipient, msg.into()).await
+    }
 
+    async fn enqueue_deniable(
+        &mut self,
+        recipient: AccountId,
+        msg: Vec<u8>,
+    ) -> Result<(), DenimClientError> {
         self.protocol_client
             .enqueue_deniable(MessageKind::DeniableMessage(
-                encrypt(
-                    msg.into(),
-                    recipient,
-                    &mut self.store,
-                    &mut self.deniable_store,
-                )
-                .await?,
+                encrypt(msg, recipient, &mut self.store, &mut self.deniable_store).await?,
             ))
             .await;
         Ok(())
@@ -436,7 +437,7 @@ impl<T: DenimClientType> DenimClient<T> {
             return Ok(());
         }
         while let Some(envelope) = self.envelope_queue.recv().await {
-            match envelope {
+            let denim_res = match envelope {
                 SamDenimMessage::Denim(den) => {
                     process_deniable_message(
                         den,
@@ -444,10 +445,17 @@ impl<T: DenimClientType> DenimClient<T> {
                         &mut self.deniable_store,
                         &mut self.rng,
                     )
-                    .await?;
+                    .await?
                 }
                 SamDenimMessage::Sam(env) => {
                     process_message(env, &mut self.store).await?;
+                    None
+                }
+            };
+            if let Some(DenimResponse::KeyResponse(account_id)) = denim_res {
+                let message = self.waiting_messages.dequeue(account_id).await;
+                if let Some(bytes) = message {
+                    self.enqueue_deniable(account_id, bytes).await?;
                 }
             }
             if self.envelope_queue.is_empty() {

@@ -75,7 +75,12 @@ async fn sam_server_handler<T: StateType>(
     account_id: AccountId,
 ) {
     // SAM Server sends proxy a message
-    while let Some(AxumMessage::Binary(msg)) = server_receiver.recv().await {
+    while let Some(msg) = server_receiver.recv().await {
+        let msg = match msg {
+            AxumMessage::Binary(msg) => msg,
+            AxumMessage::Close(_) => break,
+            _ => continue,
+        };
         let len = match msg.len().try_into() {
             Ok(len) => len,
             Err(_) => {
@@ -131,7 +136,12 @@ async fn denim_client_receiver<T: StateType>(
     account_id: AccountId,
 ) {
     // Client sends proxy a message
-    while let Some(Ok(AxumMessage::Binary(msg))) = client_receiver.next().await {
+    while let Some(Ok(msg)) = client_receiver.next().await {
+        let msg = match msg {
+            AxumMessage::Binary(msg) => msg,
+            AxumMessage::Close(_) => break,
+            _ => continue,
+        };
         let msg = match DenimMessage::decode(msg.to_vec()) {
             Ok(msg) => msg,
             Err(e) => {
