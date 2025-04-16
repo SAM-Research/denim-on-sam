@@ -1,11 +1,11 @@
 use axum::http::HeaderMap;
-use denim_sam_common::{buffers::DeniablePayload, denim_message::DenimMessage};
+use denim_sam_common::buffers::DenimMessage;
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
 use log::{error, info};
-use prost::{bytes::Bytes, Message as PMessage};
+use prost::bytes::Bytes;
 use sam_common::{AccountId, DeviceId};
 use sam_net::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -84,23 +84,14 @@ async fn sam_server_handler<T: StateType>(
                 break;
             }
         };
-        let res = match state
+        let payload = match state
             .buffer_manager
             .get_deniable_payload(account_id, len)
             .await
         {
-            Ok(payload) => payload.map_or(Ok(Vec::new()), |x| x.to_bytes()),
-            Err(e) => {
-                error!("get_deniable_payload failed '{e}'");
-                info!("Disconnecting...");
-                break;
-            }
-        };
-
-        let payload = match res {
             Ok(payload) => payload,
             Err(e) => {
-                error!("Convertion of Payload Failed '{e}'");
+                error!("get_deniable_payload failed '{e}'");
                 info!("Disconnecting...");
                 break;
             }
@@ -111,8 +102,17 @@ async fn sam_server_handler<T: StateType>(
             .deniable_payload(payload)
             .build();
 
+        let encoded_msg = match msg.encode() {
+            Ok(encoded_msg) => encoded_msg,
+            Err(e) => {
+                error!("Convertion of Payload Failed '{e}'");
+                info!("Disconnecting...");
+                break;
+            }
+        };
+
         if client_sender
-            .send(AxumMessage::Binary(msg.encode_to_vec().into()))
+            .send(AxumMessage::Binary(encoded_msg.into()))
             .await
             .is_err()
         {
@@ -132,7 +132,7 @@ async fn denim_client_receiver<T: StateType>(
 ) {
     // Client sends proxy a message
     while let Some(Ok(AxumMessage::Binary(msg))) = client_receiver.next().await {
-        let msg = match DenimMessage::decode(msg) {
+        let msg = match DenimMessage::decode(msg.to_vec()) {
             Ok(msg) => msg,
             Err(e) => {
                 error!("Failed to decode denim message '{e}'");
@@ -149,13 +149,8 @@ async fn denim_client_receiver<T: StateType>(
             break;
         }
 
-        let chunks = match DeniablePayload::decode(msg.deniable_payload) {
-            Ok(chunks) => chunks,
-            Err(e) => {
-                error!("DeniablePayload::decode failed '{e}' for account '{account_id}'");
-                continue;
-            }
-        };
+        let chunks = msg.deniable_payload.denim_chunks().to_owned();
+
         //TODO: this should not happen if a user is blocked.
         match state
             .buffer_manager

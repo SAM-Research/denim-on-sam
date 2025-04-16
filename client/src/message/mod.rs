@@ -1,4 +1,4 @@
-use denim_sam_common::{buffers::SendingBuffer, denim_message::DenimMessage};
+use denim_sam_common::buffers::{DenimMessage, SendingBuffer};
 use error::MessageError;
 use prost::Message;
 use sam_common::sam_message::ClientMessage;
@@ -17,13 +17,10 @@ pub async fn create_message<T: SendingBuffer>(
         .len()
         .try_into()
         .map_err(|_| MessageError::MessageTooBig)?;
-    let denim_payload = sending_buffer
-        .get_deniable_payload(size)
-        .await?
-        .map_or(Ok(Vec::new()), |x| x.to_bytes())?;
+    let deniable_payload = sending_buffer.get_deniable_payload(size).await?;
 
     Ok(DenimMessage::builder()
         .regular_payload(message)
-        .deniable_payload(denim_payload)
+        .deniable_payload(deniable_payload)
         .build())
 }

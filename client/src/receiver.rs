@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use denim_sam_common::{
-    buffers::{DeniablePayload, DenimChunk, ReceivingBuffer, SendingBuffer},
-    denim_message::{DeniableMessage, DenimMessage},
+    buffers::{DenimChunk, DenimMessage, ReceivingBuffer, SendingBuffer},
+    denim_message::DeniableMessage,
 };
 use futures_util::{stream::SplitStream, StreamExt};
 use log::{debug, error};
@@ -66,7 +66,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode_to_vec().into()))
+            .send(Message::Binary(msg.encode()?.into()))
             .await
             .map_err(DenimProtocolError::from)
     }
@@ -132,11 +132,9 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
     async fn validate_and_enqueue(
         &mut self,
         regular: ServerMessage,
-        deniable: Option<Vec<DenimChunk>>,
+        chunks: Vec<DenimChunk>,
     ) -> Result<(), DenimProtocolError> {
-        if let Some(chunks) = deniable {
-            self.handle_chunks(chunks).await;
-        }
+        self.handle_chunks(chunks).await;
         self.handle_sam_message(regular).await
     }
 }
@@ -146,15 +144,14 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
     async fn handler(&mut self, mut receiver: SplitStream<WebSocket>) {
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
-                Message::Binary(b) => DenimMessage::decode(b),
+                Message::Binary(b) => DenimMessage::decode(b.to_vec()),
                 Message::Close(_) => break,
                 _ => continue,
             };
             let (sam_message, denim_chunks) = match res {
                 Ok(msg) => {
                     let regular = ServerMessage::decode(Bytes::from(msg.regular_payload));
-                    let deniable = DeniablePayload::decode(msg.deniable_payload);
-                    (regular, deniable)
+                    (regular, msg.deniable_payload)
                 }
                 Err(e) => {
                     error!("Failed to decode DenimMessage from server '{e}', disconnecting...");
@@ -170,15 +167,10 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
                 }
             };
 
-            let chunks = match denim_chunks {
-                Ok(chunks) => Some(chunks),
-                Err(e) => {
-                    error!("Failed to decode DenimChunks '{e}'");
-                    None
-                }
-            };
-
-            match self.validate_and_enqueue(msg, chunks).await {
+            match self
+                .validate_and_enqueue(msg, denim_chunks.denim_chunks().to_owned())
+                .await
+            {
                 Ok(()) => continue,
                 Err(DenimProtocolError::WebSocketError(WebSocketError::Disconnected)) => {
                     break;
@@ -197,10 +189,11 @@ pub mod test {
     use std::{sync::Arc, time::Duration};
 
     use denim_sam_common::{
-        buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer, SendingBuffer},
-        denim_message::{
-            deniable_message::MessageKind, DeniableMessage, DenimMessage, MessageType, UserMessage,
+        buffers::{
+            types::DenimMessage, DeniablePayload, InMemoryReceivingBuffer, InMemorySendingBuffer,
+            SendingBuffer,
         },
+        denim_message::{deniable_message::MessageKind, DeniableMessage, MessageType, UserMessage},
     };
     use futures_util::SinkExt;
     use prost::Message as PMessage;
@@ -270,18 +263,28 @@ pub mod test {
         buffer: &mut T,
         denim: bool,
         len: u32,
-    ) -> Result<Vec<Vec<u8>>, String> {
+    ) -> Result<DeniablePayload, String> {
         if denim {
             let msg = make_deniable_message(10);
             buffer.enqueue_message(msg).await;
         }
-        Ok(buffer
+        buffer
             .get_deniable_payload(len)
             .await
-            .map_err(|_| "Failed to get_deniable_payload")?
-            .ok_or("Payload was none")?
-            .to_bytes()
-            .map_err(|_| "Failed to convert to bytes")?)
+            .map_err(|_| "Failed to get deniable payload".to_string())
+    }
+
+    pub fn encode(
+        payload: Result<DeniablePayload, String>,
+        regular_msg: Vec<u8>,
+    ) -> Result<Vec<u8>, String> {
+        let payload = payload?;
+        DenimMessage::builder()
+            .regular_payload(regular_msg.clone())
+            .deniable_payload(payload)
+            .build()
+            .encode()
+            .map_err(|_| "Failed to encode DenimMessage".to_string())
     }
 
     pub async fn test_server(
@@ -301,41 +304,39 @@ pub mod test {
         let env_len: u32 = env_msg.len().try_into().expect("envelope fits");
         let status_msg = status.encode_to_vec();
         let status_len: u32 = status_msg.len().try_into().expect("message fits");
+
         tokio::spawn(async move {
-            let (stream, _) = listener.accept().await.expect("can  accept");
-            let mut ws_stream = accept_async(stream)
-                .await
-                .expect("can get websocket stream");
             let mut error = None;
+            let stream = match listener.accept().await {
+                Ok((stream, _)) => stream,
+                Err(_) => {
+                    let _ = tokio::time::timeout(Duration::from_secs(5), stop_signal).await;
+                    let _ = tx.send(Some("Failed to accept TCP stream".to_string()));
+                    return;
+                }
+            };
+            let mut ws_stream = match accept_async(stream).await {
+                Ok(stream) => stream,
+                Err(_) => {
+                    let _ = tokio::time::timeout(Duration::from_secs(5), stop_signal).await;
+                    let _ = tx.send(Some("Failed to accept WS stream".to_string()));
+                    return;
+                }
+            };
             for action in actions {
                 let payload = match action {
-                    ClientAction::Deniable => get_payload(&mut sending_buffer, true, env_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(env_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .encode_to_vec()
-                        }),
-                    ClientAction::Regular => get_payload(&mut sending_buffer, false, env_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(env_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .encode_to_vec()
-                        }),
-                    ClientAction::Status => get_payload(&mut sending_buffer, false, status_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(status_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .encode_to_vec()
-                        }),
+                    ClientAction::Deniable => {
+                        let payload = get_payload(&mut sending_buffer, true, env_len).await;
+                        encode(payload, env_msg.clone())
+                    }
+                    ClientAction::Regular => {
+                        let payload = get_payload(&mut sending_buffer, false, env_len).await;
+                        encode(payload, env_msg.clone())
+                    }
+                    ClientAction::Status => {
+                        let payload = get_payload(&mut sending_buffer, false, status_len).await;
+                        encode(payload, status_msg.clone())
+                    }
                 };
 
                 let res = match payload {

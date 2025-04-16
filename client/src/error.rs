@@ -1,3 +1,4 @@
+use denim_sam_common::DenimEncodeDecodeError;
 use derive_more::{Display, Error, From};
 use libsignal_protocol::SignalProtocolError;
 use sam_client::logic::LogicError;
@@ -16,6 +17,7 @@ use crate::message::error::{MessageError, MessageProcessingError};
 pub enum DenimProtocolError {
     SamDecodeError(DecodeError),
     WebSocketError(WebSocketError),
+    DenimEncodeDecode(DenimEncodeDecodeError),
     MessageError(MessageError),
     Protocol(ProtocolError),
     ReceivedWrongResponseId,

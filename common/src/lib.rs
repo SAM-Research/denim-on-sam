@@ -2,7 +2,7 @@ pub mod buffers;
 mod error;
 mod seed;
 
-pub use error::DenimBufferError;
+pub use error::{DenimBufferError, DenimEncodeDecodeError};
 pub use seed::Seed;
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));

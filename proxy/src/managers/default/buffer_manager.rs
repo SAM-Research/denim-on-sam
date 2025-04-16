@@ -73,7 +73,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         &mut self,
         account_id: AccountId,
         reg_message_len: u32,
-    ) -> Result<Option<DeniablePayload>, BufferManagerError> {
+    ) -> Result<DeniablePayload, BufferManagerError> {
         let mut guard = self.sending_buffers.lock().await;
         // or_insert_with would be better, but you know async closures
         let buffer = guard.entry(account_id).or_insert(
@@ -224,8 +224,7 @@ mod test {
         let payload = mgr
             .get_deniable_payload(account_id, 50)
             .await
-            .expect("can get payload")
-            .expect("payload is some");
+            .expect("can get payload");
 
         assert!(payload
             .denim_chunks()
@@ -272,8 +271,7 @@ mod test {
         let payload = mgr
             .get_deniable_payload(account_id, 200)
             .await
-            .expect("Can get payload")
-            .expect("Payload is some");
+            .expect("Can get payload");
 
         let results = mgr
             .enqueue_chunks(account_id, payload.denim_chunks().to_vec())
@@ -292,8 +290,7 @@ mod test {
             let payload = mgr
                 .get_deniable_payload(account_id, 50)
                 .await
-                .expect("Can get payload")
-                .expect("Payload is some");
+                .expect("Can get payload");
             assert!(payload.denim_chunks().len() == 1);
             assert!(payload
                 .denim_chunks()

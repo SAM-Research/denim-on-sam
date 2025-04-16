@@ -50,11 +50,7 @@ pub async fn send_recv_buffer(
 
     let mut deniable_payloads: Vec<DeniablePayload> = Vec::new();
 
-    while let Some(deniable_payload) = sending_buffer
-        .get_deniable_payload(regular_msg_len)
-        .await
-        .expect("Should produce a deniable payload")
-    {
+    while let Ok(deniable_payload) = sending_buffer.get_deniable_payload(regular_msg_len).await {
         if deniable_payload
             .denim_chunks()
             .first()
@@ -76,10 +72,9 @@ pub async fn send_recv_buffer(
     }
 
     for deniable_payload in deniable_payloads {
-        let bytes = deniable_payload.to_bytes().expect("Can make it to bytes");
-        let denim_chunks = DeniablePayload::decode(bytes).expect("Can decode bytes");
-
-        let result_from_process = receiving_buffer.process_chunks(denim_chunks).await;
+        let result_from_process = receiving_buffer
+            .process_chunks(deniable_payload.denim_chunks().to_owned())
+            .await;
         for result in result_from_process {
             let deniable_message = result.expect("Can decode message");
             messages.push(deniable_message);

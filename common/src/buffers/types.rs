@@ -1,4 +1,4 @@
-use crate::error::DenimBufferError;
+use crate::error::DenimEncodeDecodeError;
 use bincode::config;
 use bincode::{Decode, Encode};
 use bon::Builder;
@@ -32,28 +32,6 @@ impl DenimChunk {
     pub fn flag(&self) -> Flag {
         self.flag
     }
-    pub fn set_garbage_flag(&mut self) {
-        self.flag = match self.flag {
-            Flag::None => Flag::NoneNextGarbage,
-            Flag::Final => Flag::FinalNextGarbage,
-            Flag::DummyPadding => Flag::DummyPaddingNextGarbage,
-            _ => self.flag,
-        }
-    }
-    pub fn has_garbage_flag(&self) -> bool {
-        match self.flag {
-            Flag::NoneNextGarbage | Flag::FinalNextGarbage | Flag::DummyPaddingNextGarbage => true,
-            Flag::Final | Flag::DummyPadding | Flag::None => false,
-        }
-    }
-    pub fn remove_garbage_flag(&mut self) {
-        self.flag = match self.flag {
-            Flag::NoneNextGarbage => Flag::None,
-            Flag::FinalNextGarbage => Flag::Final,
-            Flag::DummyPaddingNextGarbage => Flag::DummyPadding,
-            _ => self.flag,
-        }
-    }
     pub fn chunk(&self) -> &Vec<u8> {
         &self.chunk
     }
@@ -61,16 +39,16 @@ impl DenimChunk {
         &mut self.chunk
     }
 
-    pub fn get_size_without_payload() -> Result<usize, DenimBufferError> {
+    pub fn get_size_without_payload() -> Result<usize, DenimEncodeDecodeError> {
         let chunk = DenimChunk::new(Vec::new(), 0, 0, Flag::None);
         bincode::encode_to_vec(chunk, config::standard().with_fixed_int_encoding())
-            .map_err(|_| DenimBufferError::ChunkEncodeError)
+            .map_err(|_| DenimEncodeDecodeError::ChunkEncode)
             .map(|encoded| encoded.len())
     }
 
-    pub fn get_size(&self) -> Result<usize, DenimBufferError> {
+    pub fn get_size(&self) -> Result<usize, DenimEncodeDecodeError> {
         bincode::encode_to_vec(self, config::standard().with_fixed_int_encoding())
-            .map_err(|_| DenimBufferError::ChunkEncodeError)
+            .map_err(|_| DenimEncodeDecodeError::ChunkEncode)
             .map(|encoded| encoded.len())
     }
 }
@@ -79,17 +57,14 @@ impl DenimChunk {
 #[repr(u8)]
 pub enum Flag {
     None = 0,
-    NoneNextGarbage = 1,
-    Final = 2,
-    FinalNextGarbage = 3,
-    DummyPadding = 4,
-    DummyPaddingNextGarbage = 5,
+    Final = 1,
+    DummyPadding = 2,
 }
 
-#[derive(Encode, Decode, Builder)]
+#[derive(Encode, Decode, Builder, Clone, Default)]
 pub struct DeniablePayload {
     denim_chunks: Vec<DenimChunk>,
-    garbage: Option<Vec<u8>>,
+    garbage: Vec<u8>,
 }
 
 impl DeniablePayload {
@@ -101,39 +76,27 @@ impl DeniablePayload {
         &mut self.denim_chunks
     }
 
-    pub fn garbage(&self) -> &Option<Vec<u8>> {
+    pub fn garbage(&self) -> &Vec<u8> {
         &self.garbage
     }
+}
 
-    pub fn to_bytes(self) -> Result<Vec<Vec<u8>>, DenimBufferError> {
-        let mut encoded_chunks = Vec::new();
-        for chunk in self.denim_chunks {
-            encoded_chunks.push(
-                bincode::encode_to_vec(chunk, config::standard().with_fixed_int_encoding())
-                    .map_err(|_| DenimBufferError::ChunkEncodeError)?,
-            );
-        }
-        if let Some(garbage) = self.garbage {
-            encoded_chunks.push(garbage);
-        }
-        Ok(encoded_chunks)
+#[derive(Encode, Decode, Builder, Clone)]
+pub struct DenimMessage {
+    pub regular_payload: Vec<u8>,
+    pub deniable_payload: DeniablePayload,
+}
+
+impl DenimMessage {
+    pub fn encode(self) -> Result<Vec<u8>, DenimEncodeDecodeError> {
+        bincode::encode_to_vec(self, config::standard().with_fixed_int_encoding())
+            .map_err(|_| DenimEncodeDecodeError::DenimMessageEncode)
     }
 
-    pub fn decode(bytes: Vec<Vec<u8>>) -> Result<Vec<DenimChunk>, DenimBufferError> {
-        let mut denim_chunks = Vec::new();
-        for chunk in bytes {
-            let (mut denim_chunk, _): (DenimChunk, usize) =
-                bincode::decode_from_slice(&chunk, config::standard().with_fixed_int_encoding())
-                    .map_err(|_| DenimBufferError::ChunkDecodeError)?;
-
-            if denim_chunk.has_garbage_flag() {
-                denim_chunk.remove_garbage_flag();
-                denim_chunks.push(denim_chunk);
-                return Ok(denim_chunks);
-            }
-            denim_chunks.push(denim_chunk);
-        }
-
-        Ok(denim_chunks)
+    pub fn decode(bytes: Vec<u8>) -> Result<Self, DenimEncodeDecodeError> {
+        let (denim_chunk, _): (DenimMessage, usize) =
+            bincode::decode_from_slice(&bytes, config::standard().with_fixed_int_encoding())
+                .map_err(|_| DenimEncodeDecodeError::DenimMessageDecode)?;
+        Ok(denim_chunk)
     }
 }

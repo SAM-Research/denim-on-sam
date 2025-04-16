@@ -5,6 +5,7 @@ use crate::buffers::ReceivingBuffer;
 use crate::buffers::ReceivingBufferConfig;
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
+use crate::error::DenimEncodeDecodeError;
 use async_trait::async_trait;
 use log::{debug, error};
 
@@ -137,7 +138,7 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
 
             let payload = DeniableMessage::decode(bytes.as_slice())
                 .inspect_err(|err| error!("{err}"))
-                .map_err(|_| DenimBufferError::ChunkDecodeError);
+                .map_err(|_| DenimEncodeDecodeError::DeniableMessageDecode.into());
             messages.push(payload);
         }
         messages
