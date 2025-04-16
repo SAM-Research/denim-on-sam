@@ -133,7 +133,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.to_bytes()?.into()))
+            .send(Message::Binary(msg.encode()?.into()))
             .await
             .map_err(DenimProtocolError::WebSocketError)?;
 
@@ -451,7 +451,7 @@ mod test {
                     }
                 };
 
-                let encoded_msg = match msg.to_bytes() {
+                let encoded_msg = match msg.encode() {
                     Ok(bytes) => bytes,
                     Err(_) => {
                         error = Err("Failed to encode DenimMessage".to_string());

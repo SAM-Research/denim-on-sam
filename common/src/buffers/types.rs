@@ -1,4 +1,4 @@
-use crate::error::{DenimBufferError, DenimEncodeError};
+use crate::error::DenimEncodeDecodeError;
 use bincode::config;
 use bincode::{Decode, Encode};
 use bon::Builder;
@@ -39,16 +39,16 @@ impl DenimChunk {
         &mut self.chunk
     }
 
-    pub fn get_size_without_payload() -> Result<usize, DenimBufferError> {
+    pub fn get_size_without_payload() -> Result<usize, DenimEncodeDecodeError> {
         let chunk = DenimChunk::new(Vec::new(), 0, 0, Flag::None);
         bincode::encode_to_vec(chunk, config::standard().with_fixed_int_encoding())
-            .map_err(|_| DenimBufferError::ChunkEncodeError)
+            .map_err(|_| DenimEncodeDecodeError::ChunkEncode)
             .map(|encoded| encoded.len())
     }
 
-    pub fn get_size(&self) -> Result<usize, DenimBufferError> {
+    pub fn get_size(&self) -> Result<usize, DenimEncodeDecodeError> {
         bincode::encode_to_vec(self, config::standard().with_fixed_int_encoding())
-            .map_err(|_| DenimBufferError::ChunkEncodeError)
+            .map_err(|_| DenimEncodeDecodeError::ChunkEncode)
             .map(|encoded| encoded.len())
     }
 }
@@ -88,15 +88,15 @@ pub struct DenimMessage {
 }
 
 impl DenimMessage {
-    pub fn to_bytes(self) -> Result<Vec<u8>, DenimEncodeError> {
+    pub fn encode(self) -> Result<Vec<u8>, DenimEncodeDecodeError> {
         bincode::encode_to_vec(self, config::standard().with_fixed_int_encoding())
-            .map_err(|_| DenimEncodeError::DenimMessageEncodeError)
+            .map_err(|_| DenimEncodeDecodeError::DenimMessageEncode)
     }
 
-    pub fn decode(bytes: Vec<u8>) -> Result<Self, DenimBufferError> {
+    pub fn decode(bytes: Vec<u8>) -> Result<Self, DenimEncodeDecodeError> {
         let (denim_chunk, _): (DenimMessage, usize) =
             bincode::decode_from_slice(&bytes, config::standard().with_fixed_int_encoding())
-                .map_err(|_| DenimBufferError::ChunkDecodeError)?;
+                .map_err(|_| DenimEncodeDecodeError::DenimMessageDecode)?;
         Ok(denim_chunk)
     }
 }

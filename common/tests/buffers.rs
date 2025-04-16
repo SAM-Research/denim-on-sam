@@ -72,9 +72,6 @@ pub async fn send_recv_buffer(
     }
 
     for deniable_payload in deniable_payloads {
-        //let bytes = deniable_payload.to_bytes().expect("Can make it to bytes");
-        //let denim_chunks = DeniablePayload::decode(bytes).expect("Can decode bytes");
-
         let result_from_process = receiving_buffer
             .process_chunks(deniable_payload.denim_chunks().to_owned())
             .await;

@@ -248,7 +248,7 @@ mod test {
         assert_eq!(deniable_payload.denim_chunks().len(), expected_chunks);
     }
 
-    const PROTOBUF_EXTRA_BYTES: usize = 24;
+    const ENCODE_EXTRA_BYTES: usize = 24;
 
     #[rstest]
     #[case(InMemorySendingBuffer::create_n_random_bytes(123), 0.32, vec![20, 30, 40])] // 1 Chunk, No garbage
@@ -257,6 +257,7 @@ mod test {
     #[case(InMemorySendingBuffer::create_n_random_bytes(300), 1.0, vec![260])] // Denim chunk and garbage
     #[case(InMemorySendingBuffer::create_n_random_bytes(100), 0.05, vec![123,331])] // Only garbage
     #[case(InMemorySendingBuffer::create_n_random_bytes(1500), 0.5, vec![12,31,31,15,64,132,523])] // Only garbage
+    #[case(InMemorySendingBuffer::create_n_random_bytes(1500), 0.0, vec![12,31,31,15,64,132,523])] // DeniablePayload::default()
     #[tokio::test]
     async fn encode_and_decode_deniable_payload_in_denim_message(
         #[case] regular_msg: Vec<u8>,
@@ -287,11 +288,11 @@ mod test {
             .regular_payload(regular_msg.clone())
             .build();
 
-        let encoded_denim_message = denim_message.to_bytes().expect("Can encode denim message");
+        let encoded_denim_message = denim_message.encode().expect("Can encode denim message");
 
         assert_eq!(
             encoded_denim_message.len(),
-            PROTOBUF_EXTRA_BYTES + l + (l as f32 * q).ceil() as usize
+            ENCODE_EXTRA_BYTES + l + (l as f32 * q).ceil() as usize
         );
 
         let decoded_denim_message = DenimMessage::decode(encoded_denim_message)

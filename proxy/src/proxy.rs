@@ -102,7 +102,7 @@ async fn sam_server_handler<T: StateType>(
             .deniable_payload(payload)
             .build();
 
-        let encoded_msg = match msg.to_bytes() {
+        let encoded_msg = match msg.encode() {
             Ok(encoded_msg) => encoded_msg,
             Err(e) => {
                 error!("Convertion of Payload Failed '{e}'");

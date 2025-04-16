@@ -2,13 +2,15 @@ use derive_more::{Display, Error, From};
 
 #[derive(Debug, Display, Error, From)]
 pub enum DenimBufferError {
-    ChunkDecodeError,
-    ChunkEncodeError,
     MinPayloadLengthTooHighError,
     ChunkBufferNotFound,
+    EncodingDecoding(DenimEncodeDecodeError),
 }
 
 #[derive(Debug, Display, Error, From)]
-pub enum DenimEncodeError {
-    DenimMessageEncodeError,
+pub enum DenimEncodeDecodeError {
+    DenimMessageEncode,
+    DenimMessageDecode,
+    ChunkEncode,
+    DeniableMessageDecode,
 }

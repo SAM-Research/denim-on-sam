@@ -66,7 +66,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.to_bytes()?.into()))
+            .send(Message::Binary(msg.encode()?.into()))
             .await
             .map_err(DenimProtocolError::from)
     }
@@ -268,10 +268,23 @@ pub mod test {
             let msg = make_deniable_message(10);
             buffer.enqueue_message(msg).await;
         }
-        Ok(buffer
+        buffer
             .get_deniable_payload(len)
             .await
-            .expect("Should be able to get_deniable_payload"))
+            .map_err(|_| "Failed to get deniable payload".to_string())
+    }
+
+    pub fn encode(
+        payload: Result<DeniablePayload, String>,
+        regular_msg: Vec<u8>,
+    ) -> Result<Vec<u8>, String> {
+        let payload = payload?;
+        DenimMessage::builder()
+            .regular_payload(regular_msg.clone())
+            .deniable_payload(payload)
+            .build()
+            .encode()
+            .map_err(|_| "Failed to encode DenimMessage".to_string())
     }
 
     pub async fn test_server(
@@ -291,44 +304,39 @@ pub mod test {
         let env_len: u32 = env_msg.len().try_into().expect("envelope fits");
         let status_msg = status.encode_to_vec();
         let status_len: u32 = status_msg.len().try_into().expect("message fits");
+
         tokio::spawn(async move {
-            let (stream, _) = listener.accept().await.expect("can  accept");
-            let mut ws_stream = accept_async(stream)
-                .await
-                .expect("can get websocket stream");
             let mut error = None;
+            let stream = match listener.accept().await {
+                Ok((stream, _)) => stream,
+                Err(_) => {
+                    let _ = tokio::time::timeout(Duration::from_secs(5), stop_signal).await;
+                    let _ = tx.send(Some("Failed to accept TCP stream".to_string()));
+                    return;
+                }
+            };
+            let mut ws_stream = match accept_async(stream).await {
+                Ok(stream) => stream,
+                Err(_) => {
+                    let _ = tokio::time::timeout(Duration::from_secs(5), stop_signal).await;
+                    let _ = tx.send(Some("Failed to accept WS stream".to_string()));
+                    return;
+                }
+            };
             for action in actions {
                 let payload = match action {
-                    ClientAction::Deniable => get_payload(&mut sending_buffer, true, env_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(env_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .to_bytes()
-                                .expect("Can encode DenimMessage")
-                        }),
-                    ClientAction::Regular => get_payload(&mut sending_buffer, false, env_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(env_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .to_bytes()
-                                .expect("Can encode DenimMessage")
-                        }),
-                    ClientAction::Status => get_payload(&mut sending_buffer, false, status_len)
-                        .await
-                        .map(|x| {
-                            DenimMessage::builder()
-                                .regular_payload(status_msg.clone())
-                                .deniable_payload(x)
-                                .build()
-                                .to_bytes()
-                                .expect("Can encode DenimMessage")
-                        }),
+                    ClientAction::Deniable => {
+                        let payload = get_payload(&mut sending_buffer, true, env_len).await;
+                        encode(payload, env_msg.clone())
+                    }
+                    ClientAction::Regular => {
+                        let payload = get_payload(&mut sending_buffer, false, env_len).await;
+                        encode(payload, env_msg.clone())
+                    }
+                    ClientAction::Status => {
+                        let payload = get_payload(&mut sending_buffer, false, status_len).await;
+                        encode(payload, status_msg.clone())
+                    }
                 };
 
                 let res = match payload {
