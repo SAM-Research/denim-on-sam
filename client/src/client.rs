@@ -296,16 +296,19 @@ impl<T: DenimClientType> DenimClient<T> {
         let device_id = self.device_id().await;
         let password = self.password().await;
 
-        let Ok(account_id) = account_id else {
-            return Err((self, account_id.unwrap_err()));
+        let account_id = match account_id {
+            Ok(id) => id,
+            Err(err) => return Err((self, err)),
         };
 
-        let Ok(device_id) = device_id else {
-            return Err((self, device_id.unwrap_err()));
+        let device_id = match device_id {
+            Ok(id) => id,
+            Err(err) => return Err((self, err)),
         };
 
-        let Ok(password) = password else {
-            return Err((self, password.unwrap_err()));
+        let password = match password {
+            Ok(pwd) => pwd,
+            Err(err) => return Err((self, err)),
         };
 
         let delete_result = self
