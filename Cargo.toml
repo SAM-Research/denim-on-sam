@@ -14,9 +14,9 @@ denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
 e2e = { path = "e2e" }
 
-sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "managers" }
-sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "managers" }
-sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "managers" }
+sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
+sam-client = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-net = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-security = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-test-utils = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
