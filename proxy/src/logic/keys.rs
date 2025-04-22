@@ -142,7 +142,10 @@ mod test {
         let device = Device::builder()
             .id(DEFAULT_DEVICE_ID.into())
             .name("Alice Secret Phone".to_string())
-            .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
+            .password(
+                Password::generate("dave<3".to_string(), &mut rng)
+                    .expect("Alice can create password"),
+            )
             .creation(0)
             .registration_id(1.into())
             .build();
@@ -211,7 +214,10 @@ mod test {
         let device = Device::builder()
             .id(DEFAULT_DEVICE_ID.into())
             .name("Alice Secret Phone".to_string())
-            .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
+            .password(
+                Password::generate("dave<3".to_string(), &mut rng)
+                    .expect("Alice can create password"),
+            )
             .creation(0)
             .registration_id(1.into())
             .build();
@@ -304,7 +310,10 @@ mod test {
         let alice_device = Device::builder()
             .id(device_id)
             .name("Alice Secret Phone".to_string())
-            .password(Password::generate("dave<3".to_string()).expect("Alice can create password"))
+            .password(
+                Password::generate("dave<3".to_string(), &mut rng)
+                    .expect("Alice can create password"),
+            )
             .creation(0)
             .registration_id(1.into())
             .build();
@@ -312,7 +321,10 @@ mod test {
         let bob_device = Device::builder()
             .id(device_id)
             .name("Bob Secret Phone".to_string())
-            .password(Password::generate("dave<3".to_string()).expect("Bob can create password"))
+            .password(
+                Password::generate("dave<3".to_string(), &mut rng)
+                    .expect("Bob can create password"),
+            )
             .creation(0)
             .registration_id(1.into())
             .build();

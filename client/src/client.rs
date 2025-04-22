@@ -451,7 +451,7 @@ impl<T: DenimClientType> DenimClient<T> {
                     .await?
                 }
                 SamDenimMessage::Sam(env) => {
-                    process_message(env, &mut self.store).await?;
+                    process_message(env, &mut self.store, &mut self.rng).await?;
                     None
                 }
             };
