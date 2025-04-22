@@ -21,8 +21,9 @@ message KeyRequest {
 }
 
 message KeyResponse {
-  required bytes identity_key = 1;
-  repeated KeyBundle key_bundle = 2;
+  required bytes account_id = 1;
+  required bytes identity_key = 2;  
+  required KeyBundle key_bundle = 3;
 }
 
 message KeyUpdate { required bytes signed_pre_key = 1; }
