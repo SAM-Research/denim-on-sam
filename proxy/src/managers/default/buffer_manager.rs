@@ -172,6 +172,7 @@ impl<T: BufferManagerType> BufferManager<T> {
             receiver_id,
             DeniableMessage {
                 message_id: id,
+                q: 1.0, // TODO: Change
                 message_kind: Some(MessageKind::DeniableMessage(message)),
             },
         )
@@ -217,6 +218,7 @@ mod test {
             DeniableMessage::builder()
                 .message_id(1)
                 .message_kind(MessageKind::DeniableMessage(user_msg))
+                .q(1.0) // TODO: CHANGE
                 .build(),
         )
         .await
@@ -263,6 +265,7 @@ mod test {
         let msg = DeniableMessage::builder()
             .message_id(1)
             .message_kind(kind)
+            .q(1.0) // TODO: CHANGE
             .build();
 
         mgr.enqueue_message(account_id, msg)

@@ -255,6 +255,7 @@ pub mod test {
     fn make_deniable_message(length: usize) -> DeniableMessage {
         DeniableMessage {
             message_id: 1u32,
+            q: 1.0, // TODO: CHANGE
             message_kind: Some(make_user_message(length)),
         }
     }

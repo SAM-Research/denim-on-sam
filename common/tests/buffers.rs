@@ -15,6 +15,7 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
         let content = vec![0u8; length];
         deniable_messages.push_back(DeniableMessage {
             message_id: i as u32,
+            q: 1.0, // TODO: CHANGE
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                 account_id: vec![i as u8],
 

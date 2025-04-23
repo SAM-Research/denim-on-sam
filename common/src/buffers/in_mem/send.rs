@@ -210,6 +210,7 @@ mod test {
             rng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
+                q: 1.0, // TODO: CHANGE
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                     account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
