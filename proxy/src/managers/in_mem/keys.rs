@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
 use futures_util::TryFutureExt;
-use rand::{rngs::OsRng, RngCore, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand::{rngs::OsRng, RngCore};
 use sam_common::{address::DeviceAddress, api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
@@ -12,7 +11,8 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::managers::{
-    default::generate_ec_pre_keys, DenimEcPreKeyManager, DenimKeyManagerError, DenimKeyManagerType,
+    default::generate_ec_pre_keys, traits::CryptoProvider, DenimEcPreKeyManager,
+    DenimKeyManagerError, DenimKeyManagerType,
 };
 
 #[derive(Clone)]
@@ -45,7 +45,7 @@ impl Default for InMemoryDenimEcPreKeyManager {
 
 #[async_trait]
 impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
-    async fn get_ec_pre_key(
+    async fn get_ec_pre_key<C: CryptoProvider>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -53,7 +53,8 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
+            generate_ec_pre_keys::<C>(self, account_id, device_id, self.key_generate_amount)
+                .await?;
             self.manager
                 .get_pre_key(account_id, device_id)
                 .await?
@@ -131,7 +132,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         &self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaCha20Rng, DenimKeyManagerError> {
+    ) -> Result<(Seed, u128), DenimKeyManagerError> {
         let res = self
             .seeds
             .lock()
@@ -139,25 +140,21 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
             .get(&DeviceAddress::new(account_id, device_id))
             .cloned()
             .ok_or(DenimKeyManagerError::NoSeed)?;
-        let (seed, offset) = res;
-        let mut csprng = ChaCha20Rng::from_seed(*seed);
-        csprng.set_word_pos(offset);
-        Ok(csprng)
+
+        Ok(res)
     }
 
     async fn store_csprng_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        csprng: &ChaCha20Rng,
+        seed: Seed,
+        offset: u128,
     ) -> Result<(), DenimKeyManagerError> {
-        let seed = csprng.get_seed();
-        let offset = csprng.get_word_pos();
-
-        self.seeds.lock().await.insert(
-            DeviceAddress::new(account_id, device_id),
-            (seed.into(), offset),
-        );
+        self.seeds
+            .lock()
+            .await
+            .insert(DeviceAddress::new(account_id, device_id), (seed, offset));
 
         Ok(())
     }
