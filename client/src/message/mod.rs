@@ -22,5 +22,6 @@ pub async fn create_message<T: SendingBuffer>(
     Ok(DenimMessage::builder()
         .regular_payload(message)
         .deniable_payload(deniable_payload)
+        .q(0.0) // Only server sets this field
         .build())
 }

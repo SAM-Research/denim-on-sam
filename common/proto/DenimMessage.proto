@@ -37,7 +37,6 @@ message Error {
 
 message DeniableMessage {
   required uint32 message_id = 1;
-  required double q = 2;
   oneof message_kind {
     BlockRequest block_request = 3;
     UserMessage deniable_message = 4;

@@ -105,6 +105,7 @@ async fn sam_server_handler<T: StateType>(
         let msg = DenimMessage::builder()
             .regular_payload(msg.to_vec())
             .deniable_payload(payload)
+            .q(state.buffer_manager.get_q().await)
             .build();
 
         let encoded_msg = match msg.encode() {

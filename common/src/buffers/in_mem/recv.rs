@@ -160,7 +160,6 @@ mod test {
             .message_kind(MessageKind::SeedUpdate(crate::denim_message::SeedUpdate {
                 pre_key_seed: vec![1],
             }))
-            .q(1.0) // Change
             .build()
     }
 

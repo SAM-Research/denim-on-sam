@@ -25,7 +25,7 @@ use tokio_tungstenite::tungstenite::{
 use crate::{
     error::DenimProtocolError,
     message::create_message,
-    receiver::{DenimReceiver, SamDenimMessage},
+    protocol::{DenimReceiver, SamDenimMessage},
 };
 
 #[async_trait::async_trait]
@@ -113,7 +113,6 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
                 DeniableMessage::builder()
                     .message_id(self.denim_id.fetch_add(1, Ordering::Relaxed))
                     .message_kind(message)
-                    .q(1.0) // TODO: CHANGE CLIENT
                     .build(),
             )
             .await
@@ -179,14 +178,15 @@ mod test {
 
     use crate::{
         protocol::denim_client::{DenimProtocolClient, DenimSamClient},
-        receiver::{
-            test::{get_payload, make_user_message},
+        protocol::{
+            receiver::test::{get_payload, make_user_message},
             SamDenimMessage,
         },
     };
     use denim_sam_common::{
         buffers::{
             types::DenimMessage, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
+            SendingBuffer,
         },
         denim_message::DeniableMessage,
     };
@@ -316,6 +316,7 @@ mod test {
         Ok(DenimMessage::builder()
             .regular_payload(msg)
             .deniable_payload(payload)
+            .q(sending.get_q().await)
             .build())
     }
 

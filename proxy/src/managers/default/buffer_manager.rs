@@ -56,6 +56,14 @@ impl<T: BufferManagerType> BufferManager<T> {
         }
     }
 
+    pub async fn get_q(&self) -> f32 {
+        self.q
+    }
+
+    pub async fn set_q(&mut self, q: f32) {
+        self.q = q;
+    }
+
     pub async fn enqueue_message(
         &mut self,
         account_id: AccountId,
@@ -85,6 +93,7 @@ impl<T: BufferManagerType> BufferManager<T> {
                 .await
                 .map_err(BufferManagerError::DenimBufferError)?,
         );
+
         buffer
             .get_deniable_payload(reg_message_len)
             .await
@@ -175,7 +184,6 @@ impl<T: BufferManagerType> BufferManager<T> {
             receiver_id,
             DeniableMessage {
                 message_id: id,
-                q: self.q.into(),
                 message_kind: Some(MessageKind::DeniableMessage(message)),
             },
         )
@@ -222,7 +230,6 @@ mod test {
             DeniableMessage::builder()
                 .message_id(1)
                 .message_kind(MessageKind::DeniableMessage(user_msg))
-                .q(q.into())
                 .build(),
         )
         .await
@@ -243,9 +250,6 @@ mod test {
     #[case(true)]
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
-        use log::error;
-        let _ = env_logger::try_init();
-
         let receiver = InMemoryReceivingBufferConfig::default();
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
@@ -273,7 +277,6 @@ mod test {
         let msg = DeniableMessage::builder()
             .message_id(1)
             .message_kind(kind)
-            .q(q.into())
             .build();
 
         mgr.enqueue_message(account_id, msg)

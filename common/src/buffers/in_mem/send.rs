@@ -207,7 +207,7 @@ mod test {
     use crate::denim_message::{MessageType, UserMessage};
     use rstest::rstest;
 
-    fn make_deniable_messages(lengths: Vec<usize>, q: f32) -> VecDeque<DeniableMessage> {
+    fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
         let mut rng = rand::thread_rng();
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
         for (i, length) in lengths.into_iter().enumerate() {
@@ -215,7 +215,6 @@ mod test {
             rng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
-                q: q.into(),
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                     account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
@@ -239,7 +238,7 @@ mod test {
         #[case] message_lengths: Vec<usize>,
         #[case] expected_chunks: usize,
     ) {
-        let deniable_messages = make_deniable_messages(message_lengths, q);
+        let deniable_messages = make_deniable_messages(message_lengths);
 
         let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
@@ -272,11 +271,12 @@ mod test {
         let empty_denim_message = DenimMessage::builder()
             .regular_payload(vec![])
             .deniable_payload(DeniablePayload::default())
+            .q(q)
             .build()
             .encode()
             .expect("Can encode empty DenimMessage");
 
-        let deniable_messages = make_deniable_messages(message_lengths, q);
+        let deniable_messages = make_deniable_messages(message_lengths);
 
         let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
@@ -296,6 +296,7 @@ mod test {
         let denim_message = DenimMessage::builder()
             .deniable_payload(deniable_payload)
             .regular_payload(regular_msg.clone())
+            .q(q)
             .build();
 
         let encoded_denim_message = denim_message.encode().expect("Can encode denim message");

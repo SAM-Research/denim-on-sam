@@ -150,6 +150,9 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
             };
             let (sam_message, denim_chunks) = match res {
                 Ok(msg) => {
+                    // q is decided by the server
+                    self.sending_buffer.set_q(msg.q).await;
+
                     let regular = ServerMessage::decode(Bytes::from(msg.regular_payload));
                     (regular, msg.deniable_payload)
                 }
@@ -200,7 +203,7 @@ pub mod test {
     use rand::RngCore;
     use rstest::rstest;
 
-    use crate::receiver::DenimReceiver;
+    use crate::protocol::DenimReceiver;
     use sam_common::{
         address::MessageId,
         sam_message::{
@@ -252,10 +255,9 @@ pub mod test {
         })
     }
 
-    fn make_deniable_message(length: usize, q: f32) -> DeniableMessage {
+    fn make_deniable_message(length: usize) -> DeniableMessage {
         DeniableMessage {
             message_id: 1u32,
-            q: q.into(),
             message_kind: Some(make_user_message(length)),
         }
     }
@@ -266,7 +268,7 @@ pub mod test {
         len: u32,
     ) -> Result<DeniablePayload, String> {
         if denim {
-            let msg = make_deniable_message(10, buffer.get_q().await);
+            let msg = make_deniable_message(10);
             buffer.enqueue_message(msg).await;
         }
         buffer
@@ -278,11 +280,13 @@ pub mod test {
     pub fn encode(
         payload: Result<DeniablePayload, String>,
         regular_msg: Vec<u8>,
+        q: f32,
     ) -> Result<Vec<u8>, String> {
         let payload = payload?;
         DenimMessage::builder()
             .regular_payload(regular_msg.clone())
             .deniable_payload(payload)
+            .q(q)
             .build()
             .encode()
             .map_err(|_| "Failed to encode DenimMessage".to_string())
@@ -328,15 +332,15 @@ pub mod test {
                 let payload = match action {
                     ClientAction::Deniable => {
                         let payload = get_payload(&mut sending_buffer, true, env_len).await;
-                        encode(payload, env_msg.clone())
+                        encode(payload, env_msg.clone(), sending_buffer.get_q().await)
                     }
                     ClientAction::Regular => {
                         let payload = get_payload(&mut sending_buffer, false, env_len).await;
-                        encode(payload, env_msg.clone())
+                        encode(payload, env_msg.clone(), sending_buffer.get_q().await)
                     }
                     ClientAction::Status => {
                         let payload = get_payload(&mut sending_buffer, false, status_len).await;
-                        encode(payload, status_msg.clone())
+                        encode(payload, status_msg.clone(), sending_buffer.get_q().await)
                     }
                 };
 
