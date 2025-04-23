@@ -1,12 +1,13 @@
-use rand::SeedableRng;
+use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 
-use crate::managers::{DenimEcPreKeyManager, DenimKeyManagerError};
+use crate::managers::{traits::CryptoProvider, DenimEcPreKeyManager, DenimKeyManagerError};
 
-pub async fn generate_ec_pre_keys(
+pub async fn generate_ec_pre_keys<R: CryptoRng + Rng>(
     key_manager: &mut impl DenimEcPreKeyManager,
+    _crypto_provider: &impl CryptoProvider<R>,
     account_id: AccountId,
     device_id: DeviceId,
     amount: usize,

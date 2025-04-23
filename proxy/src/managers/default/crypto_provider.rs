@@ -6,10 +6,10 @@ use rand_chacha::ChaCha20Rng;
 use crate::managers::traits::CryptoProvider;
 
 #[derive(Clone, Default)]
-pub struct ChaChaProvider;
+pub struct ChaChaCryptoProvider;
 
 #[async_trait]
-impl CryptoProvider<ChaCha20Rng> for ChaChaProvider {
+impl CryptoProvider<ChaCha20Rng> for ChaChaCryptoProvider {
     async fn get_seeded(&self, seed: Seed) -> ChaCha20Rng {
         ChaCha20Rng::from_seed(*seed)
     }

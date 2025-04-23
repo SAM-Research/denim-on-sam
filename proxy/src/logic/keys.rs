@@ -24,7 +24,7 @@ pub async fn get_keys_for<T: StateType>(
     let pre_key = state
         .keys
         .pre_keys
-        .get_ec_pre_key(account_id, device_id)
+        .get_ec_pre_key(account_id, device_id, &state.crypto_provider)
         .await?
         .encode()
         .map_err(|err| {
@@ -263,7 +263,7 @@ mod test {
         assert!(state
             .keys
             .pre_keys
-            .get_ec_pre_key(account_id, device_id)
+            .get_ec_pre_key(account_id, device_id, &state.crypto_provider)
             .await
             .is_ok());
 
