@@ -54,3 +54,14 @@ message KeyBundle {
   required bytes pre_key = 3;        // SAM EcPreKey
   required bytes signed_pre_key = 5; // SAM SignedEcPreKey
 }
+
+message QStatus {
+  required double q = 1;
+}
+
+message DenimEnvelope {
+  oneof message_kind {
+    bytes denim_message = 1; // DenIM-on-SAM DenimMessage
+    QStatus status = 2; // only server is allowed to send this
+  }
+}

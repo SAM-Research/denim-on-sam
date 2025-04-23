@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use denim_sam_common::{
     buffers::{DenimChunk, DenimMessage, ReceivingBuffer, SendingBuffer},
-    denim_message::DeniableMessage,
+    denim_message::{denim_envelope::MessageKind, DeniableMessage, DenimEnvelope},
 };
 use futures_util::{stream::SplitStream, StreamExt};
 use log::{debug, error};
@@ -66,7 +66,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode()?.into()))
+            .send(Message::Binary(msg.encode_to_vec().into()))
             .await
             .map_err(DenimProtocolError::from)
     }
@@ -144,11 +144,32 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
     async fn handler(&mut self, mut receiver: SplitStream<WebSocket>) {
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
-                Message::Binary(b) => DenimMessage::decode(b.to_vec()),
+                Message::Binary(b) => DenimEnvelope::decode(b),
                 Message::Close(_) => break,
                 _ => continue,
             };
-            let (sam_message, denim_chunks) = match res {
+
+            let envelope = match res {
+                Ok(env) => env,
+                Err(e) => {
+                    error!("Failed to decode DenimEnvelope '{e}', disconnecting...");
+                    break;
+                }
+            };
+            let denim_bytes = match envelope.message_kind {
+                Some(MessageKind::DenimMessage(bytes)) => bytes,
+                Some(MessageKind::Status(q_status)) => {
+                    // Narrowing f64 into f32
+                    self.sending_buffer.set_q(q_status.q as f32).await;
+                    continue;
+                }
+                None => {
+                    error!("Malformed DenimEnvelope (No Body)");
+                    break;
+                }
+            };
+
+            let (sam_message, denim_chunks) = match DenimMessage::decode(denim_bytes) {
                 Ok(msg) => {
                     // q is decided by the server
                     self.sending_buffer.set_q(msg.q).await;
@@ -196,7 +217,9 @@ pub mod test {
             types::DenimMessage, DeniablePayload, InMemoryReceivingBuffer, InMemorySendingBuffer,
             SendingBuffer,
         },
-        denim_message::{deniable_message::MessageKind, DeniableMessage, MessageType, UserMessage},
+        denim_message::{
+            deniable_message::MessageKind, DeniableMessage, DenimEnvelope, MessageType, UserMessage,
+        },
     };
     use futures_util::SinkExt;
     use prost::Message as PMessage;
@@ -283,13 +306,20 @@ pub mod test {
         q: f32,
     ) -> Result<Vec<u8>, String> {
         let payload = payload?;
-        DenimMessage::builder()
-            .regular_payload(regular_msg.clone())
-            .deniable_payload(payload)
-            .q(q)
+        Ok(DenimEnvelope::builder()
+            .message_kind(
+                denim_sam_common::denim_message::denim_envelope::MessageKind::DenimMessage(
+                    DenimMessage::builder()
+                        .regular_payload(regular_msg.clone())
+                        .deniable_payload(payload)
+                        .q(q)
+                        .build()
+                        .encode()
+                        .map_err(|_| "Failed to encode DenimMessage".to_string())?,
+                ),
+            )
             .build()
-            .encode()
-            .map_err(|_| "Failed to encode DenimMessage".to_string())
+            .encode_to_vec())
     }
 
     pub async fn test_server(

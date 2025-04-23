@@ -1,11 +1,14 @@
 use axum::http::HeaderMap;
-use denim_sam_common::buffers::DenimMessage;
+use denim_sam_common::{
+    buffers::DenimMessage,
+    denim_message::{denim_envelope::MessageKind, DenimEnvelope},
+};
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
 use log::{error, info};
-use prost::bytes::Bytes;
+use prost::{bytes::Bytes, Message};
 use sam_common::{AccountId, DeviceId};
 use sam_net::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -117,8 +120,12 @@ async fn sam_server_handler<T: StateType>(
             }
         };
 
+        let envelope = DenimEnvelope::builder()
+            .message_kind(MessageKind::DenimMessage(encoded_msg))
+            .build();
+
         if client_sender
-            .send(AxumMessage::Binary(encoded_msg.into()))
+            .send(AxumMessage::Binary(envelope.encode_to_vec().into()))
             .await
             .is_err()
         {
@@ -143,10 +150,30 @@ async fn denim_client_receiver<T: StateType>(
             AxumMessage::Close(_) => break,
             _ => continue,
         };
-        let msg = match DenimMessage::decode(msg.to_vec()) {
+        let envelope = match DenimEnvelope::decode(msg) {
             Ok(msg) => msg,
             Err(e) => {
-                error!("Failed to decode denim message '{e}'");
+                error!("Failed to decode DenimEnvelope '{e}'");
+                break;
+            }
+        };
+
+        let res = match envelope.message_kind {
+            Some(MessageKind::DenimMessage(msg)) => DenimMessage::decode(msg.into()),
+            Some(MessageKind::Status(_)) => {
+                error!("Malformed DenimEnvelope (Client sent QStatus)");
+                break;
+            }
+            None => {
+                error!("Malformed DenimEnvelope (missing message_kind)");
+                break;
+            }
+        };
+
+        let msg = match res {
+            Ok(msg) => msg,
+            Err(e) => {
+                error!("Failed to decode DenimMessage '{e}'");
                 break;
             }
         };

@@ -9,6 +9,7 @@ use denim_sam_common::{
 };
 use log::error;
 
+use prost::Message as PMessage;
 use sam_client::net::protocol::{decode::ServerStatus, MessageStatus};
 use sam_common::{
     address::MessageId,
@@ -133,7 +134,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode()?.into()))
+            .send(Message::Binary(msg.encode_to_vec().into()))
             .await
             .map_err(DenimProtocolError::WebSocketError)?;
 
@@ -188,7 +189,7 @@ mod test {
             types::DenimMessage, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
             SendingBuffer,
         },
-        denim_message::DeniableMessage,
+        denim_message::{denim_envelope::MessageKind, DeniableMessage, DenimEnvelope},
     };
     use futures_util::{SinkExt, StreamExt};
     use prost::{bytes::Bytes, Message as PMessage};
@@ -215,13 +216,14 @@ mod test {
         WebSocketStream,
     };
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     enum ServerAction {
         SendDenim,
         SendRegular,
         RecvDenim,
         RecvRegular,
     }
+
     #[rstest]
     #[case(vec![ServerAction::SendDenim], get_next_port())]
     #[case(vec![ServerAction::SendRegular], get_next_port())]
@@ -262,7 +264,6 @@ mod test {
 
         // allow client to update state
         tokio::time::sleep(Duration::from_millis(200)).await;
-
         assert!(!client.is_connected().await);
         for (action, env, den, status_ok) in actual {
             match action {
@@ -306,17 +307,23 @@ mod test {
         sending: &mut InMemorySendingBuffer,
         denim: bool,
         msg: Vec<u8>,
-    ) -> Result<DenimMessage, String> {
+    ) -> Result<DenimEnvelope, String> {
         let payload = get_payload(
             sending,
             denim,
             msg.len().try_into().map_err(|_| "Message fits")?,
         )
         .await?;
-        Ok(DenimMessage::builder()
-            .regular_payload(msg)
-            .deniable_payload(payload)
-            .q(sending.get_q().await)
+        Ok(DenimEnvelope::builder()
+            .message_kind(MessageKind::DenimMessage(
+                DenimMessage::builder()
+                    .regular_payload(msg)
+                    .deniable_payload(payload)
+                    .q(sending.get_q().await)
+                    .build()
+                    .encode()
+                    .map_err(|_| "Failed to encode DenimMessage")?,
+            ))
             .build())
     }
 
@@ -345,11 +352,17 @@ mod test {
     fn unpack_client_msg(
         msg: Result<Option<Result<Message, Error>>, String>,
     ) -> Result<DenimMessage, String> {
-        Ok(match msg? {
-            Some(Ok(Message::Binary(x))) => DenimMessage::decode(x.to_vec()),
+        let envelope = match msg? {
+            Some(Ok(Message::Binary(x))) => DenimEnvelope::decode(x),
             _ => Err("Failed to receive message from client")?,
         }
-        .map_err(|_| "Failed to decode client message")?)
+        .map_err(|_| "Failed to decode client message")?;
+        match envelope.message_kind {
+            Some(MessageKind::DenimMessage(bytes)) => {
+                Ok(DenimMessage::decode(bytes).map_err(|_| "Failed to decode DenimMessage")?)
+            }
+            _ => Err("Client sent wrong message type".to_string()),
+        }
     }
 
     async fn create_server_ack(
@@ -357,7 +370,7 @@ mod test {
         receiving: &mut InMemoryReceivingBuffer,
         denim: bool,
         msg: Result<Option<Result<Message, Error>>, String>,
-    ) -> Result<DenimMessage, String> {
+    ) -> Result<DenimEnvelope, String> {
         let msg = unpack_client_msg(msg)?;
         let chunks = msg.deniable_payload.denim_chunks().to_owned();
         let sam =
@@ -386,7 +399,7 @@ mod test {
     async fn prepare_server_message(
         sending: &mut InMemorySendingBuffer,
         action: ServerAction,
-    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+    ) -> Result<(DenimEnvelope, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::SendDenim);
         let (id, msg) = server_envelope(vec![1, 3, 3, 7, 4, 20]);
         create_server_msg(sending, denim, msg)
@@ -399,7 +412,7 @@ mod test {
         sending: &mut InMemorySendingBuffer,
         receiving: &mut InMemoryReceivingBuffer,
         action: ServerAction,
-    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+    ) -> Result<(DenimEnvelope, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::RecvDenim);
         let res = tokio::time::timeout(Duration::from_secs(5), ws_stream.next())
             .await
@@ -453,16 +466,8 @@ mod test {
                     }
                 };
 
-                let encoded_msg = match msg.encode() {
-                    Ok(bytes) => bytes,
-                    Err(_) => {
-                        error = Err("Failed to encode DenimMessage".to_string());
-                        break;
-                    }
-                };
-
                 if ws_stream
-                    .send(Message::Binary(Bytes::from(encoded_msg)))
+                    .send(Message::Binary(msg.encode_to_vec().into()))
                     .await
                     .is_err()
                 {
