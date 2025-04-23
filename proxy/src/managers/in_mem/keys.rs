@@ -45,23 +45,16 @@ impl Default for InMemoryDenimEcPreKeyManager {
 
 #[async_trait]
 impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
-    async fn get_ec_pre_key<R: CryptoRng + Rng>(
+    async fn get_ec_pre_key<C: CryptoProvider<R>, R: CryptoRng + Rng + Send>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        crypto_provider: &impl CryptoProvider<R>,
     ) -> Result<EcPreKey, DenimKeyManagerError> {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys(
-                self,
-                crypto_provider,
-                account_id,
-                device_id,
-                self.key_generate_amount,
-            )
-            .await?;
+            generate_ec_pre_keys::<C, R>(self, account_id, device_id, self.key_generate_amount)
+                .await?;
             self.manager
                 .get_pre_key(account_id, device_id)
                 .await?

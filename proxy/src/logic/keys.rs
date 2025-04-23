@@ -24,7 +24,7 @@ pub async fn get_keys_for<T: StateType>(
     let pre_key = state
         .keys
         .pre_keys
-        .get_ec_pre_key(account_id, device_id, &state.crypto_provider)
+        .get_ec_pre_key::<T::CryptoProvider, T::Rng>(account_id, device_id)
         .await?
         .encode()
         .map_err(|err| {
@@ -114,7 +114,7 @@ mod test {
     use crate::{
         error::LogicError,
         logic::keys::get_keys_for,
-        managers::{DenimEcPreKeyManager, DenimKeyManagerError},
+        managers::{default::ChaChaCryptoProvider, DenimEcPreKeyManager, DenimKeyManagerError},
         state::{DenimState, InMemoryStateType},
     };
 
@@ -263,7 +263,7 @@ mod test {
         assert!(state
             .keys
             .pre_keys
-            .get_ec_pre_key(account_id, device_id, &state.crypto_provider)
+            .get_ec_pre_key::<ChaChaCryptoProvider, ChaCha20Rng>(account_id, device_id)
             .await
             .is_ok());
 

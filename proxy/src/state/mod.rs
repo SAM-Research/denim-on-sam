@@ -27,7 +27,7 @@ pub trait StateType: 'static + Clone {
     type AccountManager: AccountManager;
     type DeviceManger: DeviceManager;
     type CryptoProvider: CryptoProvider<Self::Rng>;
-    type Rng: CryptoRng + Rng;
+    type Rng: CryptoRng + Rng + Send;
 }
 
 #[derive(Clone)]

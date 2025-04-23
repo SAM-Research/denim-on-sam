@@ -18,11 +18,10 @@ pub enum DenimKeyManagerError {
 
 #[async_trait]
 pub trait DenimEcPreKeyManager: Clone + Send + Sync {
-    async fn get_ec_pre_key<R: CryptoRng + Rng>(
+    async fn get_ec_pre_key<C: CryptoProvider<R>, R: CryptoRng + Rng + Send>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        crypto_provider: &impl CryptoProvider<R>,
     ) -> Result<EcPreKey, DenimKeyManagerError>;
 
     async fn get_ec_pre_key_ids(
