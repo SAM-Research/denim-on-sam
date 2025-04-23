@@ -175,7 +175,7 @@ impl<T: BufferManagerType> BufferManager<T> {
             receiver_id,
             DeniableMessage {
                 message_id: id,
-                q: 1.0, // TODO: Change
+                q: self.q.into(),
                 message_kind: Some(MessageKind::DeniableMessage(message)),
             },
         )
@@ -208,8 +208,9 @@ mod test {
         let receiver = InMemoryReceivingBufferConfig::default();
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
+        let q = 1.0;
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider, 1.0);
+            BufferManager::new(receiver, sender, id_provider, q);
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -221,7 +222,7 @@ mod test {
             DeniableMessage::builder()
                 .message_id(1)
                 .message_kind(MessageKind::DeniableMessage(user_msg))
-                .q(1.0) // TODO: CHANGE
+                .q(q.into())
                 .build(),
         )
         .await
@@ -242,11 +243,15 @@ mod test {
     #[case(true)]
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
+        use log::error;
+        let _ = env_logger::try_init();
+
         let receiver = InMemoryReceivingBufferConfig::default();
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
+        let q = 1.0;
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider, 1.0);
+            BufferManager::new(receiver, sender, id_provider, q);
 
         let account_id = AccountId::generate();
         let kind = if is_request {
@@ -268,7 +273,7 @@ mod test {
         let msg = DeniableMessage::builder()
             .message_id(1)
             .message_kind(kind)
-            .q(1.0) // TODO: CHANGE
+            .q(q.into())
             .build();
 
         mgr.enqueue_message(account_id, msg)
@@ -297,6 +302,7 @@ mod test {
                 .get_deniable_payload(account_id, 50)
                 .await
                 .expect("Can get payload");
+
             assert!(payload.denim_chunks().len() == 1);
             assert!(payload
                 .denim_chunks()

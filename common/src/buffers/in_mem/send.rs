@@ -44,6 +44,9 @@ impl SendingBuffer for InMemorySendingBuffer {
     async fn set_q(&mut self, q: f32) {
         self.q = q;
     }
+    async fn get_q(&self) -> f32 {
+        self.q
+    }
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
@@ -204,7 +207,7 @@ mod test {
     use crate::denim_message::{MessageType, UserMessage};
     use rstest::rstest;
 
-    fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
+    fn make_deniable_messages(lengths: Vec<usize>, q: f32) -> VecDeque<DeniableMessage> {
         let mut rng = rand::thread_rng();
         let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
         for (i, length) in lengths.into_iter().enumerate() {
@@ -212,7 +215,7 @@ mod test {
             rng.fill_bytes(&mut random_bytes);
             deniable_messages.push_back(DeniableMessage {
                 message_id: i as u32,
-                q: 1.0, // TODO: CHANGE
+                q: q.into(),
                 message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                     account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
@@ -236,7 +239,7 @@ mod test {
         #[case] message_lengths: Vec<usize>,
         #[case] expected_chunks: usize,
     ) {
-        let deniable_messages = make_deniable_messages(message_lengths);
+        let deniable_messages = make_deniable_messages(message_lengths, q);
 
         let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
@@ -273,7 +276,7 @@ mod test {
             .encode()
             .expect("Can encode empty DenimMessage");
 
-        let deniable_messages = make_deniable_messages(message_lengths);
+        let deniable_messages = make_deniable_messages(message_lengths, q);
 
         let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 

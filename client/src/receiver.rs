@@ -252,10 +252,10 @@ pub mod test {
         })
     }
 
-    fn make_deniable_message(length: usize) -> DeniableMessage {
+    fn make_deniable_message(length: usize, q: f32) -> DeniableMessage {
         DeniableMessage {
             message_id: 1u32,
-            q: 1.0, // TODO: CHANGE
+            q: q.into(),
             message_kind: Some(make_user_message(length)),
         }
     }
@@ -266,7 +266,7 @@ pub mod test {
         len: u32,
     ) -> Result<DeniablePayload, String> {
         if denim {
-            let msg = make_deniable_message(10);
+            let msg = make_deniable_message(10, buffer.get_q().await);
             buffer.enqueue_message(msg).await;
         }
         buffer

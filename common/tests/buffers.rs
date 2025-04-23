@@ -9,13 +9,13 @@ use rand::SeedableRng;
 use rstest::rstest;
 use std::collections::VecDeque;
 
-pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> {
+pub fn make_deniable_messages(lengths: Vec<usize>, q: f32) -> VecDeque<DeniableMessage> {
     let mut deniable_messages: VecDeque<DeniableMessage> = VecDeque::new();
     for (i, length) in lengths.into_iter().enumerate() {
         let content = vec![0u8; length];
         deniable_messages.push_back(DeniableMessage {
             message_id: i as u32,
-            q: 1.0, // TODO: CHANGE
+            q: q.into(),
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                 account_id: vec![i as u8],
 
@@ -42,7 +42,7 @@ pub async fn send_recv_buffer(
     #[case] message_lengths: Vec<usize>,
     #[case] seed: Option<u64>,
 ) {
-    let deniable_messages = make_deniable_messages(message_lengths.clone());
+    let deniable_messages = make_deniable_messages(message_lengths.clone(), q);
     let mut sending_buffer = InMemorySendingBuffer::new(q).expect("Can make SendingBuffer");
 
     for message in deniable_messages {

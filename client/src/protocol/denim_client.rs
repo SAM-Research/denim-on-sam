@@ -113,7 +113,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
                 DeniableMessage::builder()
                     .message_id(self.denim_id.fetch_add(1, Ordering::Relaxed))
                     .message_kind(message)
-                    .q(1.0) // TODO: CHANGE
+                    .q(1.0) // TODO: CHANGE CLIENT
                     .build(),
             )
             .await
