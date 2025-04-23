@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use denim_sam_common::Seed;
 use derive_more::{Display, Error, From};
 
-use rand::{CryptoRng, Rng};
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::error::KeyManagerError;
 
@@ -18,7 +17,7 @@ pub enum DenimKeyManagerError {
 
 #[async_trait]
 pub trait DenimEcPreKeyManager: Clone + Send + Sync {
-    async fn get_ec_pre_key<C: CryptoProvider<R>, R: CryptoRng + Rng + Send>(
+    async fn get_ec_pre_key<C: CryptoProvider>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,

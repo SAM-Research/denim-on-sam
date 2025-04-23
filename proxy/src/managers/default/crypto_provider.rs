@@ -9,7 +9,8 @@ use crate::managers::traits::CryptoProvider;
 pub struct ChaChaCryptoProvider;
 
 #[async_trait]
-impl CryptoProvider<ChaCha20Rng> for ChaChaCryptoProvider {
+impl CryptoProvider for ChaChaCryptoProvider {
+    type Rng = ChaCha20Rng;
     fn get_seeded(seed: Seed) -> ChaCha20Rng {
         ChaCha20Rng::from_seed(*seed)
     }

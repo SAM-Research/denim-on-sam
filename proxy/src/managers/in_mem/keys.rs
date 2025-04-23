@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
 use futures_util::TryFutureExt;
-use rand::{rngs::OsRng, CryptoRng, Rng, RngCore};
+use rand::{rngs::OsRng, RngCore};
 use sam_common::{address::DeviceAddress, api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
@@ -45,7 +45,7 @@ impl Default for InMemoryDenimEcPreKeyManager {
 
 #[async_trait]
 impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
-    async fn get_ec_pre_key<C: CryptoProvider<R>, R: CryptoRng + Rng + Send>(
+    async fn get_ec_pre_key<C: CryptoProvider>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -53,7 +53,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys::<C, R>(self, account_id, device_id, self.key_generate_amount)
+            generate_ec_pre_keys::<C>(self, account_id, device_id, self.key_generate_amount)
                 .await?;
             self.manager
                 .get_pre_key(account_id, device_id)
@@ -151,10 +151,10 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         seed: Seed,
         offset: u128,
     ) -> Result<(), DenimKeyManagerError> {
-        self.seeds.lock().await.insert(
-            DeviceAddress::new(account_id, device_id),
-            (seed.into(), offset),
-        );
+        self.seeds
+            .lock()
+            .await
+            .insert(DeviceAddress::new(account_id, device_id), (seed, offset));
 
         Ok(())
     }

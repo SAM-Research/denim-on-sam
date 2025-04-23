@@ -1,7 +1,7 @@
 use denim_sam_common::buffers::in_mem::{
     InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
 };
-use rand_chacha::ChaCha20Rng;
+
 use sam_server::managers::in_memory::{
     account::InMemoryAccountManager, device::InMemoryDeviceManager,
 };
@@ -35,6 +35,5 @@ impl StateType for InMemoryStateType {
 
     type DeviceManger = InMemoryDeviceManager;
 
-    type Rng = ChaCha20Rng;
     type CryptoProvider = ChaChaCryptoProvider;
 }
