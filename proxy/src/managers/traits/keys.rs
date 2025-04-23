@@ -1,6 +1,7 @@
 use async_trait::async_trait;
+use denim_sam_common::Seed;
 use derive_more::{Display, Error, From};
-use rand_chacha::ChaCha20Rng;
+
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::error::KeyManagerError;
 
@@ -50,12 +51,13 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
         &self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaCha20Rng, DenimKeyManagerError>;
+    ) -> Result<(Seed, u128), DenimKeyManagerError>;
 
     async fn store_csprng_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        csprng: &ChaCha20Rng,
+        seed: Seed,
+        offset: u128,
     ) -> Result<(), DenimKeyManagerError>;
 }
