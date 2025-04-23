@@ -9,6 +9,7 @@ use log::debug;
 use prost::Message;
 use rand::RngCore;
 use std::collections::VecDeque;
+
 use std::mem::take;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -27,21 +28,22 @@ pub struct InMemorySendingBuffer {
     buffer: Arc<Mutex<Buffer>>,
 }
 
-#[derive(Clone, bon::Builder)]
-pub struct InMemorySendingBufferConfig {
-    q: f32,
-}
+#[derive(Clone, Default)]
+pub struct InMemorySendingBufferConfig {}
 
 #[async_trait]
 impl SendingBufferConfig for InMemorySendingBufferConfig {
     type Buffer = InMemorySendingBuffer;
-    async fn create(&self) -> Result<InMemorySendingBuffer, DenimBufferError> {
-        InMemorySendingBuffer::new(self.q)
+    async fn create(&self, q: f32) -> Result<InMemorySendingBuffer, DenimBufferError> {
+        InMemorySendingBuffer::new(q)
     }
 }
 
 #[async_trait]
 impl SendingBuffer for InMemorySendingBuffer {
+    async fn set_q(&mut self, q: f32) {
+        self.q = q;
+    }
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,

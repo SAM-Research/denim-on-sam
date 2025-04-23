@@ -36,6 +36,7 @@ pub struct BufferManager<T: BufferManagerType> {
     id_provider: T::MessageIdProvider,
     receiving_config: T::ReceivingBufferConfig,
     sending_config: T::SendingBufferConfig,
+    q: f32,
 }
 
 impl<T: BufferManagerType> BufferManager<T> {
@@ -43,6 +44,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         receiving_config: T::ReceivingBufferConfig,
         sending_config: T::SendingBufferConfig,
         id_provider: T::MessageIdProvider,
+        q: f32,
     ) -> Self {
         Self {
             receiving_buffers: Arc::new(Mutex::new(HashMap::new())),
@@ -50,6 +52,7 @@ impl<T: BufferManagerType> BufferManager<T> {
             id_provider,
             receiving_config,
             sending_config,
+            q,
         }
     }
 
@@ -61,7 +64,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         let mut guard = self.sending_buffers.lock().await;
         let buffer = guard.entry(account_id).or_insert(
             self.sending_config
-                .create()
+                .create(self.q)
                 .await
                 .map_err(BufferManagerError::DenimBufferError)?,
         );
@@ -78,7 +81,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         // or_insert_with would be better, but you know async closures
         let buffer = guard.entry(account_id).or_insert(
             self.sending_config
-                .create()
+                .create(self.q)
                 .await
                 .map_err(BufferManagerError::DenimBufferError)?,
         );
@@ -202,11 +205,11 @@ mod test {
 
     #[tokio::test]
     async fn buffer_mgr_enqueue_message_and_deqeue() {
-        let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
+        let receiver = InMemoryReceivingBufferConfig::default();
+        let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider);
+            BufferManager::new(receiver, sender, id_provider, 1.0);
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -239,11 +242,11 @@ mod test {
     #[case(true)]
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
-        let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
+        let receiver = InMemoryReceivingBufferConfig::default();
+        let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider);
+            BufferManager::new(receiver, sender, id_provider, 1.0);
 
         let account_id = AccountId::generate();
         let kind = if is_request {
