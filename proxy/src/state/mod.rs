@@ -108,7 +108,7 @@ impl<T: StateType> DenimState<T> {
             ),
             InMemoryAccountManager::default(),
             InMemoryDeviceManager::new("Test".to_owned(), 120),
-            ChaChaCryptoProvider::default(),
+            ChaChaCryptoProvider,
         )
     }
 }
