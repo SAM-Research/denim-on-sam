@@ -2,7 +2,7 @@ use bon::bon;
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 
 use denim_sam_common::denim_message::deniable_message::MessageKind;
-use denim_sam_common::denim_message::KeyRequest;
+use denim_sam_common::denim_message::{KeyRequest, SeedUpdate};
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
@@ -516,6 +516,14 @@ impl<T: DenimClientType> DenimClient<T> {
                     .account_id(account_id.into())
                     .specific_device_ids(vec![1])
                     .build(),
+            ))
+            .await
+    }
+
+    async fn send_seed_update(&mut self, seed: Vec<u8>) {
+        self.protocol_client
+            .enqueue_deniable(MessageKind::SeedUpdate(
+                SeedUpdate::builder().pre_key_seed(seed).build(),
             ))
             .await
     }
