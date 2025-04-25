@@ -38,13 +38,13 @@ message Error {
 message DeniableMessage {
   required uint32 message_id = 1;
   oneof message_kind {
-    BlockRequest block_request = 3;
-    UserMessage deniable_message = 4;
-    KeyRequest key_request = 5;
-    KeyResponse key_response = 6;
-    KeyUpdate key_refill = 7;
-    SeedUpdate seed_update = 8;
-    Error error = 9;
+    BlockRequest block_request = 2;
+    UserMessage deniable_message = 3;
+    KeyRequest key_request = 4;
+    KeyResponse key_response = 5;
+    KeyUpdate key_refill = 6;
+    SeedUpdate seed_update = 7;
+    Error error = 8;
   }
 }
 
