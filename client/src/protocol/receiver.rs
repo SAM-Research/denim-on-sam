@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use denim_sam_common::{
     buffers::{DenimChunk, DenimMessage, ReceivingBuffer, SendingBuffer},
-    denim_message::DeniableMessage,
+    denim_message::{denim_envelope::MessageKind, DeniableMessage, DenimEnvelope},
 };
 use futures_util::{stream::SplitStream, StreamExt};
 use log::{debug, error};
@@ -18,7 +18,11 @@ use sam_net::{
     error::WebSocketError,
     websocket::{WebSocket, WebSocketClient, WebSocketReceiver},
 };
-use tokio::sync::{mpsc::Sender, Mutex};
+use tokio::sync::{
+    mpsc::Sender,
+    oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender},
+    Mutex,
+};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
@@ -33,6 +37,8 @@ pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     enqueue_sam_status: Sender<ServerStatus>,
     enqueue_message: Sender<SamDenimMessage>,
+    first_qstatus_sender: Option<OneshotSender<()>>,
+    first_qstatus_receiver: Option<OneshotReceiver<()>>,
     sending_buffer: T,
     receiving_buffer: U,
 }
@@ -45,12 +51,29 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         sending_buffer: T,
         receiving_buffer: U,
     ) -> Self {
+        let (tx, rx) = oneshot::channel();
         Self {
             client,
             enqueue_sam_status,
             enqueue_message,
+            first_qstatus_sender: Some(tx),
+            first_qstatus_receiver: Some(rx),
             sending_buffer,
             receiving_buffer,
+        }
+    }
+
+    pub fn take_qstatus_receiver(&mut self) -> Option<OneshotReceiver<()>> {
+        self.first_qstatus_receiver.take()
+    }
+
+    fn notify_qstatus_received(&mut self) {
+        let res = match self.first_qstatus_sender.take() {
+            Some(sender) => sender.send(()),
+            None => Ok(()),
+        };
+        if res.is_err() {
+            error!("QStatus Receiver dropped prematurely");
         }
     }
 
@@ -66,7 +89,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode()?.into()))
+            .send(Message::Binary(msg.encode_to_vec().into()))
             .await
             .map_err(DenimProtocolError::from)
     }
@@ -144,12 +167,37 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
     async fn handler(&mut self, mut receiver: SplitStream<WebSocket>) {
         while let Some(Ok(msg)) = receiver.next().await {
             let res = match msg {
-                Message::Binary(b) => DenimMessage::decode(b.to_vec()),
+                Message::Binary(b) => DenimEnvelope::decode(b),
                 Message::Close(_) => break,
                 _ => continue,
             };
-            let (sam_message, denim_chunks) = match res {
+
+            let envelope = match res {
+                Ok(env) => env,
+                Err(e) => {
+                    error!("Failed to decode DenimEnvelope '{e}', disconnecting...");
+                    break;
+                }
+            };
+            let denim_bytes = match envelope.message_kind {
+                Some(MessageKind::DenimMessage(bytes)) => bytes,
+                Some(MessageKind::Status(q_status)) => {
+                    // Narrowing f64 into f32
+                    self.sending_buffer.set_q(q_status.q as f32).await;
+                    self.notify_qstatus_received();
+                    continue;
+                }
+                None => {
+                    error!("Malformed DenimEnvelope (No Body)");
+                    break;
+                }
+            };
+
+            let (sam_message, denim_chunks) = match DenimMessage::decode(denim_bytes) {
                 Ok(msg) => {
+                    // q is decided by the server
+                    self.sending_buffer.set_q(msg.q).await;
+
                     let regular = ServerMessage::decode(Bytes::from(msg.regular_payload));
                     (regular, msg.deniable_payload)
                 }
@@ -193,14 +241,16 @@ pub mod test {
             types::DenimMessage, DeniablePayload, InMemoryReceivingBuffer, InMemorySendingBuffer,
             SendingBuffer,
         },
-        denim_message::{deniable_message::MessageKind, DeniableMessage, MessageType, UserMessage},
+        denim_message::{
+            deniable_message::MessageKind, DeniableMessage, DenimEnvelope, MessageType, UserMessage,
+        },
     };
     use futures_util::SinkExt;
     use prost::Message as PMessage;
     use rand::RngCore;
     use rstest::rstest;
 
-    use crate::receiver::DenimReceiver;
+    use crate::protocol::DenimReceiver;
     use sam_common::{
         address::MessageId,
         sam_message::{
@@ -277,14 +327,23 @@ pub mod test {
     pub fn encode(
         payload: Result<DeniablePayload, String>,
         regular_msg: Vec<u8>,
+        q: f32,
     ) -> Result<Vec<u8>, String> {
         let payload = payload?;
-        DenimMessage::builder()
-            .regular_payload(regular_msg.clone())
-            .deniable_payload(payload)
+        Ok(DenimEnvelope::builder()
+            .message_kind(
+                denim_sam_common::denim_message::denim_envelope::MessageKind::DenimMessage(
+                    DenimMessage::builder()
+                        .regular_payload(regular_msg.clone())
+                        .deniable_payload(payload)
+                        .q(q)
+                        .build()
+                        .encode()
+                        .map_err(|_| "Failed to encode DenimMessage".to_string())?,
+                ),
+            )
             .build()
-            .encode()
-            .map_err(|_| "Failed to encode DenimMessage".to_string())
+            .encode_to_vec())
     }
 
     pub async fn test_server(
@@ -327,15 +386,15 @@ pub mod test {
                 let payload = match action {
                     ClientAction::Deniable => {
                         let payload = get_payload(&mut sending_buffer, true, env_len).await;
-                        encode(payload, env_msg.clone())
+                        encode(payload, env_msg.clone(), sending_buffer.get_q().await)
                     }
                     ClientAction::Regular => {
                         let payload = get_payload(&mut sending_buffer, false, env_len).await;
-                        encode(payload, env_msg.clone())
+                        encode(payload, env_msg.clone(), sending_buffer.get_q().await)
                     }
                     ClientAction::Status => {
                         let payload = get_payload(&mut sending_buffer, false, status_len).await;
-                        encode(payload, status_msg.clone())
+                        encode(payload, status_msg.clone(), sending_buffer.get_q().await)
                     }
                 };
 

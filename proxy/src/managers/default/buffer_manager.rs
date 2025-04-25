@@ -36,6 +36,7 @@ pub struct BufferManager<T: BufferManagerType> {
     id_provider: T::MessageIdProvider,
     receiving_config: T::ReceivingBufferConfig,
     sending_config: T::SendingBufferConfig,
+    q: f32,
 }
 
 impl<T: BufferManagerType> BufferManager<T> {
@@ -43,6 +44,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         receiving_config: T::ReceivingBufferConfig,
         sending_config: T::SendingBufferConfig,
         id_provider: T::MessageIdProvider,
+        q: f32,
     ) -> Self {
         Self {
             receiving_buffers: Arc::new(Mutex::new(HashMap::new())),
@@ -50,6 +52,18 @@ impl<T: BufferManagerType> BufferManager<T> {
             id_provider,
             receiving_config,
             sending_config,
+            q,
+        }
+    }
+
+    pub async fn get_q(&self) -> f32 {
+        self.q
+    }
+
+    pub async fn set_q(&mut self, q: f32) {
+        self.q = q;
+        for buffer in self.sending_buffers.lock().await.values_mut() {
+            buffer.set_q(q).await;
         }
     }
 
@@ -61,7 +75,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         let mut guard = self.sending_buffers.lock().await;
         let buffer = guard.entry(account_id).or_insert(
             self.sending_config
-                .create()
+                .create(self.q)
                 .await
                 .map_err(BufferManagerError::DenimBufferError)?,
         );
@@ -78,10 +92,11 @@ impl<T: BufferManagerType> BufferManager<T> {
         // or_insert_with would be better, but you know async closures
         let buffer = guard.entry(account_id).or_insert(
             self.sending_config
-                .create()
+                .create(self.q)
                 .await
                 .map_err(BufferManagerError::DenimBufferError)?,
         );
+
         buffer
             .get_deniable_payload(reg_message_len)
             .await
@@ -93,7 +108,6 @@ impl<T: BufferManagerType> BufferManager<T> {
         account_id: AccountId,
         chunks: Vec<DenimChunk>,
     ) -> Result<Vec<Result<Option<ClientRequest>, BufferManagerError>>, BufferManagerError> {
-        // or_insert_with would be better, but you know async closures
         let chunks = {
             let mut guard = self.receiving_buffers.lock().await;
             guard
@@ -184,10 +198,11 @@ mod test {
     use denim_sam_common::{
         buffers::{
             in_mem::{InMemoryReceivingBufferConfig, InMemorySendingBufferConfig},
-            Flag,
+            Flag, SendingBuffer,
         },
         denim_message::{
-            deniable_message::MessageKind, DeniableMessage, KeyRequest, MessageType, UserMessage,
+            deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, MessageType,
+            UserMessage,
         },
     };
 
@@ -202,10 +217,11 @@ mod test {
     #[tokio::test]
     async fn buffer_mgr_enqueue_message_and_deqeue() {
         let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
+        let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
+        let q = 1.0;
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider);
+            BufferManager::new(receiver, sender, id_provider, q);
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -238,10 +254,11 @@ mod test {
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
         let receiver = InMemoryReceivingBufferConfig;
-        let sender = InMemorySendingBufferConfig::builder().q(1.0).build();
+        let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
+        let q = 1.0;
         let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider);
+            BufferManager::new(receiver, sender, id_provider, q);
 
         let account_id = AccountId::generate();
         let kind = if is_request {
@@ -291,11 +308,57 @@ mod test {
                 .get_deniable_payload(account_id, 50)
                 .await
                 .expect("Can get payload");
+
             assert!(payload.denim_chunks().len() == 1);
             assert!(payload
                 .denim_chunks()
                 .first()
                 .is_some_and(|x| x.flag() == Flag::Final));
+        }
+    }
+
+    #[tokio::test]
+    async fn set_q_updates_all_sending_buffers() {
+        let init_q = 1.0;
+        let expected_q = 2.3;
+        let receiver = InMemoryReceivingBufferConfig;
+        let sender = InMemorySendingBufferConfig::default();
+        let id_provider = InMemoryMessageIdProvider::default();
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, id_provider, init_q);
+
+        let accounts = vec![AccountId::generate(); 32];
+
+        for account in accounts {
+            mgr.enqueue_message(
+                account,
+                DeniableMessage {
+                    message_id: 1u32,
+                    message_kind: Some(MessageKind::BlockRequest(BlockRequest {
+                        account_id: account.to_string(),
+                    })),
+                },
+            )
+            .await
+            .expect("Can enqueue message");
+        }
+
+        for buffer in mgr.sending_buffers.lock().await.values() {
+            let actual_q = buffer.get_q().await;
+            assert_eq!(
+                actual_q, init_q,
+                "Expected initial q '{}', Actual q '{}'",
+                init_q, actual_q
+            );
+        }
+        mgr.set_q(expected_q).await;
+        for buffer in mgr.sending_buffers.lock().await.values() {
+            let actual_q = buffer.get_q().await;
+            assert_eq!(
+                actual_q, expected_q,
+                "Expected updated q '{}', Actual q '{}'",
+                expected_q, actual_q
+            );
         }
     }
 }

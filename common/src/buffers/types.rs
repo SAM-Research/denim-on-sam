@@ -83,6 +83,7 @@ impl DeniablePayload {
 
 #[derive(Encode, Decode, Builder, Clone)]
 pub struct DenimMessage {
+    pub q: f32,
     pub regular_payload: Vec<u8>,
     pub deniable_payload: DeniablePayload,
 }

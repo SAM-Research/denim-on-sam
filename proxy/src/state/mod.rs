@@ -96,9 +96,9 @@ impl<T: StateType> DenimState<T> {
             InMemoryMessageIdProvider,
         };
         let rcfg = InMemoryReceivingBufferConfig;
-        let scfg = InMemorySendingBufferConfig::builder().q(1.0).build();
+        let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
+        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider, 1.0);
 
         DenimState::builder()
             .sam_addr(sam_addr.to_string())

@@ -30,11 +30,11 @@ use crate::error::DenimClientError;
 use crate::message::process::{process_deniable_message, DenimResponse};
 use crate::message::queue::InMemoryMessageQueue;
 use crate::message::traits::{MessageQueue, MessageQueueConfig};
+use crate::protocol::SamDenimMessage;
 use crate::protocol::{
     denim_client::{DenimProtocolClient, DenimSamClient},
     DenimProtocolConfig,
 };
-use crate::receiver::SamDenimMessage;
 use crate::store::inmem::InMemoryDeniableStoreType;
 use crate::store::{DeniableStore, DeniableStoreConfig, DeniableStoreType};
 use tokio::sync::mpsc::Receiver as MpscReceiver;
