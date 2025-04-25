@@ -1,7 +1,7 @@
 use axum::http::HeaderMap;
 use denim_sam_common::{
     buffers::DenimMessage,
-    denim_message::{denim_envelope::MessageKind, DenimEnvelope},
+    denim_message::{denim_envelope::MessageKind, DenimEnvelope, QStatus},
 };
 use futures_util::{
     stream::{SplitSink, SplitStream},
@@ -53,7 +53,17 @@ pub async fn init_proxy_service<T: StateType>(
     account_id: AccountId,
     _device_id: DeviceId,
 ) {
-    let (sender, receiver) = socket.split();
+    let (mut sender, receiver) = socket.split();
+
+    // clients need to know what the current q is
+    let q_status = DenimEnvelope::builder()
+        .message_kind(MessageKind::Status(QStatus {
+            q: state.buffer_manager.get_q().await as f64,
+        }))
+        .build();
+    if sender.send(q_status.encode_to_vec().into()).await.is_err() {
+        return;
+    };
 
     tokio::spawn(sam_server_handler(
         state.clone(),

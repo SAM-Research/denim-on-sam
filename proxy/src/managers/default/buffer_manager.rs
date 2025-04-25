@@ -62,6 +62,9 @@ impl<T: BufferManagerType> BufferManager<T> {
 
     pub async fn set_q(&mut self, q: f32) {
         self.q = q;
+        for buffer in self.sending_buffers.lock().await.values_mut() {
+            buffer.set_q(q).await;
+        }
     }
 
     pub async fn enqueue_message(
@@ -105,7 +108,6 @@ impl<T: BufferManagerType> BufferManager<T> {
         account_id: AccountId,
         chunks: Vec<DenimChunk>,
     ) -> Result<Vec<Result<Option<ClientRequest>, BufferManagerError>>, BufferManagerError> {
-        // or_insert_with would be better, but you know async closures
         let chunks = {
             let mut guard = self.receiving_buffers.lock().await;
             guard
@@ -196,10 +198,11 @@ mod test {
     use denim_sam_common::{
         buffers::{
             in_mem::{InMemoryReceivingBufferConfig, InMemorySendingBufferConfig},
-            Flag,
+            Flag, SendingBuffer,
         },
         denim_message::{
-            deniable_message::MessageKind, DeniableMessage, KeyRequest, MessageType, UserMessage,
+            deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, MessageType,
+            UserMessage,
         },
     };
 
@@ -311,6 +314,51 @@ mod test {
                 .denim_chunks()
                 .first()
                 .is_some_and(|x| x.flag() == Flag::Final));
+        }
+    }
+
+    #[tokio::test]
+    async fn set_q_updates_all_sending_buffers() {
+        let init_q = 1.0;
+        let expected_q = 2.3;
+        let receiver = InMemoryReceivingBufferConfig::default();
+        let sender = InMemorySendingBufferConfig::default();
+        let id_provider = InMemoryMessageIdProvider::default();
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, id_provider, init_q);
+
+        let accounts = vec![AccountId::generate(); 32];
+
+        for account in accounts {
+            mgr.enqueue_message(
+                account,
+                DeniableMessage {
+                    message_id: 1u32,
+                    message_kind: Some(MessageKind::BlockRequest(BlockRequest {
+                        account_id: account.to_string(),
+                    })),
+                },
+            )
+            .await
+            .expect("Can enqueue message");
+        }
+
+        for buffer in mgr.sending_buffers.lock().await.values() {
+            let actual_q = buffer.get_q().await;
+            assert_eq!(
+                actual_q, init_q,
+                "Expected initial q '{}', Actual q '{}'",
+                init_q, actual_q
+            );
+        }
+        mgr.set_q(expected_q).await;
+        for buffer in mgr.sending_buffers.lock().await.values() {
+            let actual_q = buffer.get_q().await;
+            assert_eq!(
+                actual_q, expected_q,
+                "Expected updated q '{}', Actual q '{}'",
+                expected_q, actual_q
+            );
         }
     }
 }
