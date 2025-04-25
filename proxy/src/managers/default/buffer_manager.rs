@@ -216,7 +216,7 @@ mod test {
 
     #[tokio::test]
     async fn buffer_mgr_enqueue_message_and_deqeue() {
-        let receiver = InMemoryReceivingBufferConfig::default();
+        let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let q = 1.0;
@@ -253,7 +253,7 @@ mod test {
     #[case(true)]
     #[tokio::test]
     async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
-        let receiver = InMemoryReceivingBufferConfig::default();
+        let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let q = 1.0;
@@ -321,7 +321,7 @@ mod test {
     async fn set_q_updates_all_sending_buffers() {
         let init_q = 1.0;
         let expected_q = 2.3;
-        let receiver = InMemoryReceivingBufferConfig::default();
+        let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let mut mgr: BufferManager<InMemoryBufferManagerType> =

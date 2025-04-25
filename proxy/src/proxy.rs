@@ -169,7 +169,7 @@ async fn denim_client_receiver<T: StateType>(
         };
 
         let res = match envelope.message_kind {
-            Some(MessageKind::DenimMessage(msg)) => DenimMessage::decode(msg.into()),
+            Some(MessageKind::DenimMessage(msg)) => DenimMessage::decode(msg),
             Some(MessageKind::Status(_)) => {
                 error!("Malformed DenimEnvelope (Client sent QStatus)");
                 break;
