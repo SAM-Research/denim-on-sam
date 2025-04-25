@@ -4,7 +4,7 @@ use sam_common::AccountId;
 
 use crate::managers::traits::KeyRequestManager;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct InMemoryKeyRequestManager {
     requests: HashMap<AccountId, Vec<AccountId>>,
 }
@@ -18,13 +18,5 @@ impl KeyRequestManager for InMemoryKeyRequestManager {
 
     fn get_requests(&mut self, receiver: AccountId) -> Option<Vec<AccountId>> {
         self.requests.remove(&receiver)
-    }
-}
-
-impl InMemoryKeyRequestManager {
-    pub fn new() -> Self {
-        Self {
-            requests: HashMap::new(),
-        }
     }
 }

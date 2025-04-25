@@ -3,6 +3,7 @@ use crate::managers::traits::KeyRequestManager;
 use crate::managers::{
     traits::MessageIdProvider, BufferManager, DenimKeyManager, DenimKeyManagerType,
 };
+use bon::bon;
 use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 
 use sam_server::managers::traits::{
@@ -43,7 +44,9 @@ pub struct DenimState<T: StateType> {
     ws_proxy_tls_config: Option<Arc<rustls::ClientConfig>>,
 }
 
+#[bon]
 impl<T: StateType> DenimState<T> {
+    #[builder]
     pub fn new(
         sam_addr: String,
         channel_buffer_size: usize,
@@ -97,18 +100,17 @@ impl<T: StateType> DenimState<T> {
         let id_provider = InMemoryMessageIdProvider::default();
         let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider);
 
-        DenimState::new(
-            sam_addr.to_string(),
-            10,
-            None,
-            buffer_mgr,
-            DenimKeyManager::new(
+        DenimState::builder()
+            .sam_addr(sam_addr.to_string())
+            .channel_buffer_size(10)
+            .buffer_manager(buffer_mgr)
+            .keys(DenimKeyManager::new(
                 InMemoryDenimEcPreKeyManager::default(),
                 InMemorySignedPreKeyManager::default(),
-            ),
-            InMemoryAccountManager::default(),
-            InMemoryDeviceManager::new("Test".to_owned(), 120),
-            InMemoryKeyRequestManager::new(),
-        )
+            ))
+            .accounts(InMemoryAccountManager::default())
+            .devices(InMemoryDeviceManager::new("Test".to_owned(), 120))
+            .key_request_manager(InMemoryKeyRequestManager::default())
+            .build()
     }
 }

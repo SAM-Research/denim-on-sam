@@ -38,7 +38,7 @@ pub async fn denim_router<T: StateType>(
                         .store_request(requested_account_id, account_id);
                     return Ok(());
                 }
-                Err(err) => return Err(DenimRouterError::Logic(err).into()),
+                Err(err) => return Err(DenimRouterError::Logic(err)),
             };
             let identity_key = state
                 .accounts

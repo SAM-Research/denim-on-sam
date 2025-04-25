@@ -520,7 +520,7 @@ impl<T: DenimClientType> DenimClient<T> {
             .await
     }
 
-    async fn send_seed_update(&mut self, seed: Vec<u8>) {
+    async fn _send_seed_update(&mut self, seed: Vec<u8>) {
         self.protocol_client
             .enqueue_deniable(MessageKind::SeedUpdate(
                 SeedUpdate::builder().pre_key_seed(seed).build(),
