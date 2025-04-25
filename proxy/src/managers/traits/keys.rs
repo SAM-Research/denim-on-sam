@@ -1,8 +1,11 @@
 use async_trait::async_trait;
+use denim_sam_common::Seed;
 use derive_more::{Display, Error, From};
-use rand_chacha::ChaCha20Rng;
+
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::error::KeyManagerError;
+
+use super::CryptoProvider;
 
 #[derive(Debug, Display, Error, From)]
 pub enum DenimKeyManagerError {
@@ -14,7 +17,7 @@ pub enum DenimKeyManagerError {
 
 #[async_trait]
 pub trait DenimEcPreKeyManager: Clone + Send + Sync {
-    async fn get_ec_pre_key(
+    async fn get_ec_pre_key<C: CryptoProvider>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -50,12 +53,13 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
         &self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaCha20Rng, DenimKeyManagerError>;
+    ) -> Result<(Seed, u128), DenimKeyManagerError>;
 
     async fn store_csprng_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        csprng: &ChaCha20Rng,
+        seed: Seed,
+        offset: u128,
     ) -> Result<(), DenimKeyManagerError>;
 }

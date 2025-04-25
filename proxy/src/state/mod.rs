@@ -1,7 +1,9 @@
+use crate::managers::traits::CryptoProvider;
 use crate::managers::{
     traits::MessageIdProvider, BufferManager, DenimKeyManager, DenimKeyManagerType,
 };
 use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
+
 use sam_server::managers::traits::{
     account_manager::AccountManager, device_manager::DeviceManager,
 };
@@ -23,6 +25,7 @@ pub trait StateType: 'static + Clone {
     type DenimKeyManagerType: DenimKeyManagerType;
     type AccountManager: AccountManager;
     type DeviceManger: DeviceManager;
+    type CryptoProvider: CryptoProvider;
 }
 
 #[derive(Clone)]
@@ -31,6 +34,7 @@ pub struct DenimState<T: StateType> {
     pub keys: DenimKeyManager<T::DenimKeyManagerType>,
     pub devices: T::DeviceManger,
     pub accounts: T::AccountManager,
+
     sam_addr: String,
     channel_buffer_size: usize,
     ws_proxy_tls_config: Option<Arc<rustls::ClientConfig>>,

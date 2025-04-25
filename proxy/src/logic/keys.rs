@@ -1,7 +1,6 @@
 use denim_sam_common::{denim_message::KeyBundle, Seed};
 use log::error;
-use rand::SeedableRng;
-use rand_chacha::ChaCha20Rng;
+
 use sam_common::{
     api::{Encode, SignedEcPreKey},
     AccountId, DeviceId,
@@ -25,7 +24,7 @@ pub async fn get_keys_for<T: StateType>(
     let pre_key = state
         .keys
         .pre_keys
-        .get_ec_pre_key(account_id, device_id)
+        .get_ec_pre_key::<T::CryptoProvider>(account_id, device_id)
         .await?
         .encode()
         .map_err(|err| {
@@ -81,11 +80,10 @@ pub async fn update_seed<T: StateType>(
     device_id: DeviceId,
     seed: Seed,
 ) -> Result<(), LogicError> {
-    let csprng = ChaCha20Rng::from_seed(*seed);
     state
         .keys
         .pre_keys
-        .store_csprng_for(account_id, device_id, &csprng)
+        .store_csprng_for(account_id, device_id, seed, 0)
         .await?;
     Ok(())
 }
@@ -116,7 +114,7 @@ mod test {
     use crate::{
         error::LogicError,
         logic::keys::get_keys_for,
-        managers::{DenimEcPreKeyManager, DenimKeyManagerError},
+        managers::{default::ChaChaCryptoProvider, DenimEcPreKeyManager, DenimKeyManagerError},
         state::{DenimState, InMemoryStateType},
     };
 
@@ -146,7 +144,6 @@ mod test {
                 Password::generate("dave<3".to_string(), &mut rng)
                     .expect("Alice can create password"),
             )
-            .creation(0)
             .registration_id(1.into())
             .build();
 
@@ -175,10 +172,11 @@ mod test {
             .expect("Can set signed pre key");
 
         let alice_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
+        let (seed, offset) = (alice_rng.get_seed().into(), alice_rng.get_word_pos());
         state
             .keys
             .pre_keys
-            .store_csprng_for(account_id, device_id, &alice_rng)
+            .store_csprng_for(account_id, device_id, seed, offset)
             .await
             .expect("Can store csprng");
 
@@ -218,7 +216,6 @@ mod test {
                 Password::generate("dave<3".to_string(), &mut rng)
                     .expect("Alice can create password"),
             )
-            .creation(0)
             .registration_id(1.into())
             .build();
 
@@ -253,10 +250,11 @@ mod test {
             .is_err_and(|err| matches!(err, LogicError::KeyManager(DenimKeyManagerError::NoSeed))));
 
         let alice_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
+        let (seed, offset) = (alice_rng.get_seed().into(), alice_rng.get_word_pos());
         state
             .keys
             .pre_keys
-            .store_csprng_for(account_id, device_id, &alice_rng)
+            .store_csprng_for(account_id, device_id, seed, offset)
             .await
             .expect("Can store csprng");
 
@@ -269,7 +267,7 @@ mod test {
         assert!(state
             .keys
             .pre_keys
-            .get_ec_pre_key(account_id, device_id)
+            .get_ec_pre_key::<ChaChaCryptoProvider>(account_id, device_id)
             .await
             .is_ok());
 
@@ -314,7 +312,6 @@ mod test {
                 Password::generate("dave<3".to_string(), &mut rng)
                     .expect("Alice can create password"),
             )
-            .creation(0)
             .registration_id(1.into())
             .build();
 
@@ -325,7 +322,6 @@ mod test {
                 Password::generate("dave<3".to_string(), &mut rng)
                     .expect("Bob can create password"),
             )
-            .creation(0)
             .registration_id(1.into())
             .build();
 
@@ -378,19 +374,22 @@ mod test {
         let seed = Seed::random(&mut OsRng);
 
         let alice_rng = ChaCha20Rng::from_seed(*seed);
+        let (a_seed, a_offset) = (alice_rng.get_seed().into(), alice_rng.get_word_pos());
+
         let bob_rng = ChaCha20Rng::from_seed(*seed);
+        let (b_seed, b_offset) = (bob_rng.get_seed().into(), bob_rng.get_word_pos());
 
         state
             .keys
             .pre_keys
-            .store_csprng_for(alice.id(), device_id, &alice_rng)
+            .store_csprng_for(alice.id(), device_id, a_seed, a_offset)
             .await
             .expect("Can store csprng");
 
         state
             .keys
             .pre_keys
-            .store_csprng_for(bob.id(), device_id, &bob_rng)
+            .store_csprng_for(bob.id(), device_id, b_seed, b_offset)
             .await
             .expect("Can store csprng");
 
