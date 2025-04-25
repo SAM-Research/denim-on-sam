@@ -6,7 +6,11 @@ use sam_server::managers::in_memory::{
     account::InMemoryAccountManager, device::InMemoryDeviceManager,
 };
 
-use crate::managers::{default::ChaChaCryptoProvider, in_mem::{InMemoryDenimKeyManager, InMemoryKeyRequestManager}, InMemoryMessageIdProvider};
+use crate::managers::{
+    default::ChaChaCryptoProvider,
+    in_mem::{InMemoryDenimKeyManager, InMemoryKeyRequestManager},
+    InMemoryMessageIdProvider,
+};
 
 use super::{BufferManagerType, StateType};
 
@@ -34,6 +38,6 @@ impl StateType for InMemoryStateType {
     type DeviceManger = InMemoryDeviceManager;
 
     type CryptoProvider = ChaChaCryptoProvider;
-    
+
     type KeyRequestManager = InMemoryKeyRequestManager;
 }

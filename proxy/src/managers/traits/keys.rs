@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
 
-
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 
 use crate::managers::error::DenimKeyManagerError;

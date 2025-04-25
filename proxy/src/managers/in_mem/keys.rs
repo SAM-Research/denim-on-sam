@@ -11,7 +11,8 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::managers::{
-    default::generate_ec_pre_keys, error::DenimKeyManagerError, traits::CryptoProvider, DenimEcPreKeyManager, DenimKeyManagerType
+    default::generate_ec_pre_keys, error::DenimKeyManagerError, traits::CryptoProvider,
+    DenimEcPreKeyManager, DenimKeyManagerType,
 };
 
 #[derive(Clone)]

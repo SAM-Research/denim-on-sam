@@ -88,7 +88,10 @@ impl<T: StateType> DenimState<T> {
             keys::InMemorySignedPreKeyManager,
         };
 
-        use crate::managers::{in_mem::{InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager}, InMemoryMessageIdProvider};
+        use crate::managers::{
+            in_mem::{InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager},
+            InMemoryMessageIdProvider,
+        };
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::builder().q(1.0).build();
         let id_provider = InMemoryMessageIdProvider::default();
