@@ -12,7 +12,7 @@ use sam_server::managers::in_memory::account::InMemoryAccountManager;
 use sam_server::managers::in_memory::device::InMemoryDeviceManager;
 use sam_server::managers::in_memory::keys::InMemorySignedPreKeyManager;
 
-use crate::managers::in_mem::InMemoryDenimEcPreKeyManager;
+use crate::managers::in_mem::{InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager};
 use crate::managers::{BufferManager, DenimKeyManager, InMemoryMessageIdProvider};
 use crate::routes::websocket_endpoint;
 use crate::state::{DenimState, InMemoryBufferManagerType, InMemoryStateType, StateType};
@@ -59,6 +59,7 @@ impl DenimConfig<InMemoryStateType> {
                 // TODO: When adding postgres manager, connect for device manager should not take these
                 // params as they are already set by SAM.
                 InMemoryDeviceManager::new("Test".to_owned(), 120),
+                InMemoryKeyRequestManager::new(),
             ),
         }
     }

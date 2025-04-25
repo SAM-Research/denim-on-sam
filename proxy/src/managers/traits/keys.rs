@@ -1,19 +1,12 @@
 use async_trait::async_trait;
 use denim_sam_common::Seed;
-use derive_more::{Display, Error, From};
+
 
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
-use sam_server::managers::error::KeyManagerError;
 
-use super::CryptoProvider;
+use crate::managers::error::DenimKeyManagerError;
 
-#[derive(Debug, Display, Error, From)]
-pub enum DenimKeyManagerError {
-    Sam(KeyManagerError),
-    NoSeed,
-    NoKeyInStore,
-    CouldNotGenerateKeyId,
-}
+use super::crypto_provider::CryptoProvider;
 
 #[async_trait]
 pub trait DenimEcPreKeyManager: Clone + Send + Sync {

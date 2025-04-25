@@ -170,7 +170,9 @@ async fn denim_client_receiver<T: StateType>(
             Ok(results) => {
                 for res in results {
                     let response = match res {
-                        Ok(Some(request)) => denim_router(state.clone(), request, account_id).await,
+                        Ok(Some(request)) => {
+                            denim_router(&mut state.clone(), request, account_id).await
+                        }
                         Ok(None) => continue,
                         Err(e) => {
                             error!("failed to process deniable message: '{e}'");
@@ -178,17 +180,13 @@ async fn denim_client_receiver<T: StateType>(
                         }
                     };
 
-                    let enqueue_res = match response {
-                        Ok(msg) => state.buffer_manager.enqueue_message(account_id, msg).await,
+                    match response {
+                        Ok(_) => continue,
                         Err(e) => {
                             error!("Denim routing failed '{e}'");
                             continue;
                         }
                     };
-                    if let Err(e) = enqueue_res {
-                        error!("enqueue_message failed '{e}'");
-                        continue;
-                    }
                 }
                 continue;
             }

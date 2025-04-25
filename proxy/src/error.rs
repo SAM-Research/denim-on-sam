@@ -4,8 +4,9 @@ use derive_more::{Display, Error, From};
 use log::error;
 use sam_server::managers::error::{AccountManagerError, DeviceManagerError};
 
-use crate::managers::DenimKeyManagerError;
 use sam_net::error::{ClientTlsError, ServerTlsError};
+
+use crate::managers::error::{BufferManagerError, DenimKeyManagerError};
 
 #[derive(Debug, Display, Error, From)]
 pub enum ServerError {
@@ -48,5 +49,10 @@ pub enum TlsError {
 
 #[derive(Debug, Display, Error, From)]
 pub enum DenimRouterError {
-    Error, // TODO: fill out this
+    Error,
+    FailedToConvertSeed,
+    KeyRequestMalformed,
+    Logic(LogicError),
+    AccountManager(AccountManagerError),
+    BufferManager(BufferManagerError),
 }
