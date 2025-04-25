@@ -7,15 +7,16 @@ use denim_sam_common::{
     buffers::{ReceivingBuffer, SendingBuffer},
     denim_message::{deniable_message::MessageKind, DeniableMessage},
 };
-use log::error;
+use log::{debug, error};
 
+use prost::Message as PMessage;
 use sam_client::net::protocol::{decode::ServerStatus, MessageStatus};
 use sam_common::{
     address::MessageId,
     sam_message::{ClientEnvelope, ClientMessage, ClientMessageType},
 };
 use sam_net::{error::WebSocketError, websocket::WebSocketClient};
-use tokio::sync::mpsc::channel;
+use tokio::sync::{mpsc::channel, oneshot::Receiver as OneshotReceiver};
 use tokio::sync::{mpsc::Receiver, Mutex};
 use tokio_tungstenite::tungstenite::{
     protocol::{frame::coding::CloseCode, CloseFrame},
@@ -25,7 +26,7 @@ use tokio_tungstenite::tungstenite::{
 use crate::{
     error::DenimProtocolError,
     message::create_message,
-    receiver::{DenimReceiver, SamDenimMessage},
+    protocol::{DenimReceiver, SamDenimMessage},
 };
 
 #[async_trait::async_trait]
@@ -47,6 +48,7 @@ pub struct DenimProtocolClient<T: SendingBuffer, U: ReceivingBuffer> {
     sending_buffer: T,
     receiving_buffer: U,
     denim_id: AtomicU32,
+    qstatus_received: Option<OneshotReceiver<()>>,
 }
 
 impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClient<T, U> {
@@ -63,6 +65,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimProtocolClient<T, U> {
             sending_buffer,
             receiving_buffer,
             denim_id: AtomicU32::new(0),
+            qstatus_received: None,
         }
     }
 }
@@ -73,13 +76,15 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         let (status_tx, status_rx) = channel(self.channel_buffer_size);
         self.status_messages = Some(status_rx);
         let (tx, rx) = channel(self.channel_buffer_size);
-        let handler = DenimReceiver::new(
+        let mut handler = DenimReceiver::new(
             self.client.clone(),
             status_tx,
             tx,
             self.sending_buffer.clone(),
             self.receiving_buffer.clone(),
         );
+        self.qstatus_received = handler.take_qstatus_receiver();
+
         self.client
             .lock()
             .await
@@ -122,6 +127,14 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         &mut self,
         message: ClientEnvelope,
     ) -> Result<MessageStatus, DenimProtocolError> {
+        let res = match self.qstatus_received.take() {
+            Some(receiver) => receiver.await,
+            None => Ok(()),
+        };
+        match res.inspect_err(|e| debug!("{}", e)) {
+            Ok(_) => (),
+            Err(_) => Err(DenimProtocolError::FailedToReceiveQStatus)?,
+        }
         let id = MessageId::generate();
         // Implement the logic to send a message here
         let message = ClientMessage::builder()
@@ -133,7 +146,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
         self.client
             .lock()
             .await
-            .send(Message::Binary(msg.encode()?.into()))
+            .send(Message::Binary(msg.encode_to_vec().into()))
             .await
             .map_err(DenimProtocolError::WebSocketError)?;
 
@@ -178,16 +191,17 @@ mod test {
 
     use crate::{
         protocol::denim_client::{DenimProtocolClient, DenimSamClient},
-        receiver::{
-            test::{get_payload, make_user_message},
+        protocol::{
+            receiver::test::{get_payload, make_user_message},
             SamDenimMessage,
         },
     };
     use denim_sam_common::{
         buffers::{
             types::DenimMessage, InMemoryReceivingBuffer, InMemorySendingBuffer, ReceivingBuffer,
+            SendingBuffer,
         },
-        denim_message::DeniableMessage,
+        denim_message::{denim_envelope::MessageKind, DeniableMessage, DenimEnvelope, QStatus},
     };
     use futures_util::{SinkExt, StreamExt};
     use prost::{bytes::Bytes, Message as PMessage};
@@ -214,25 +228,27 @@ mod test {
         WebSocketStream,
     };
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     enum ServerAction {
+        SendQStatus,
         SendDenim,
         SendRegular,
         RecvDenim,
         RecvRegular,
     }
+
     #[rstest]
-    #[case(vec![ServerAction::SendDenim], get_next_port())]
-    #[case(vec![ServerAction::SendRegular], get_next_port())]
-    #[case(vec![ServerAction::RecvDenim], get_next_port())]
-    #[case(vec![ServerAction::RecvRegular], get_next_port())]
-    #[case(vec![ServerAction::RecvRegular, ServerAction::RecvRegular], get_next_port())]
-    #[case(vec![ServerAction::SendRegular, ServerAction::SendRegular], get_next_port())]
-    #[case(vec![ServerAction::SendDenim, ServerAction::SendDenim], get_next_port())]
-    #[case(vec![ServerAction::RecvDenim, ServerAction::RecvDenim], get_next_port())]
-    #[case(vec![ServerAction::SendDenim, ServerAction::RecvDenim], get_next_port())]
-    #[case(vec![ServerAction::SendRegular, ServerAction::RecvRegular], get_next_port())]
-    #[case(vec![ServerAction::RecvRegular, ServerAction::SendRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendDenim], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::RecvRegular, ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendRegular, ServerAction::SendRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendDenim, ServerAction::SendDenim], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::RecvDenim, ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendDenim, ServerAction::RecvDenim], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::SendRegular, ServerAction::RecvRegular], get_next_port())]
+    #[case(vec![ServerAction::SendQStatus, ServerAction::RecvRegular, ServerAction::SendRegular], get_next_port())]
     #[tokio::test]
     async fn deniable_communication(#[case] actions: Vec<ServerAction>, #[case] port: u16) {
         let addr = format!("127.0.0.1:{port}");
@@ -261,10 +277,12 @@ mod test {
 
         // allow client to update state
         tokio::time::sleep(Duration::from_millis(200)).await;
-
         assert!(!client.is_connected().await);
         for (action, env, den, status_ok) in actual {
             match action {
+                ServerAction::SendQStatus => {
+                    continue;
+                }
                 ServerAction::SendDenim => {
                     // client receives denim
                     if let Some(vec) = env {
@@ -305,16 +323,23 @@ mod test {
         sending: &mut InMemorySendingBuffer,
         denim: bool,
         msg: Vec<u8>,
-    ) -> Result<DenimMessage, String> {
+    ) -> Result<DenimEnvelope, String> {
         let payload = get_payload(
             sending,
             denim,
             msg.len().try_into().map_err(|_| "Message fits")?,
         )
         .await?;
-        Ok(DenimMessage::builder()
-            .regular_payload(msg)
-            .deniable_payload(payload)
+        Ok(DenimEnvelope::builder()
+            .message_kind(MessageKind::DenimMessage(
+                DenimMessage::builder()
+                    .regular_payload(msg)
+                    .deniable_payload(payload)
+                    .q(sending.get_q().await)
+                    .build()
+                    .encode()
+                    .map_err(|_| "Failed to encode DenimMessage")?,
+            ))
             .build())
     }
 
@@ -343,11 +368,17 @@ mod test {
     fn unpack_client_msg(
         msg: Result<Option<Result<Message, Error>>, String>,
     ) -> Result<DenimMessage, String> {
-        Ok(match msg? {
-            Some(Ok(Message::Binary(x))) => DenimMessage::decode(x.to_vec()),
+        let envelope = match msg? {
+            Some(Ok(Message::Binary(x))) => DenimEnvelope::decode(x),
             _ => Err("Failed to receive message from client")?,
         }
-        .map_err(|_| "Failed to decode client message")?)
+        .map_err(|_| "Failed to decode client message")?;
+        match envelope.message_kind {
+            Some(MessageKind::DenimMessage(bytes)) => {
+                Ok(DenimMessage::decode(bytes).map_err(|_| "Failed to decode DenimMessage")?)
+            }
+            _ => Err("Client sent wrong message type".to_string()),
+        }
     }
 
     async fn create_server_ack(
@@ -355,7 +386,7 @@ mod test {
         receiving: &mut InMemoryReceivingBuffer,
         denim: bool,
         msg: Result<Option<Result<Message, Error>>, String>,
-    ) -> Result<DenimMessage, String> {
+    ) -> Result<DenimEnvelope, String> {
         let msg = unpack_client_msg(msg)?;
         let chunks = msg.deniable_payload.denim_chunks().to_owned();
         let sam =
@@ -384,7 +415,7 @@ mod test {
     async fn prepare_server_message(
         sending: &mut InMemorySendingBuffer,
         action: ServerAction,
-    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+    ) -> Result<(DenimEnvelope, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::SendDenim);
         let (id, msg) = server_envelope(vec![1, 3, 3, 7, 4, 20]);
         create_server_msg(sending, denim, msg)
@@ -397,7 +428,7 @@ mod test {
         sending: &mut InMemorySendingBuffer,
         receiving: &mut InMemoryReceivingBuffer,
         action: ServerAction,
-    ) -> Result<(DenimMessage, Option<MessageId>), String> {
+    ) -> Result<(DenimEnvelope, Option<MessageId>), String> {
         let denim = matches!(action, ServerAction::RecvDenim);
         let res = tokio::time::timeout(Duration::from_secs(5), ws_stream.next())
             .await
@@ -441,6 +472,12 @@ mod test {
                         prepare_server_ack(&mut ws_stream, &mut sending, &mut receiving, action)
                             .await
                     }
+                    ServerAction::SendQStatus => Ok((
+                        DenimEnvelope::builder()
+                            .message_kind(MessageKind::Status(QStatus { q: 1.0 }))
+                            .build(),
+                        None,
+                    )),
                 };
 
                 let (msg, id) = match res {
@@ -451,16 +488,8 @@ mod test {
                     }
                 };
 
-                let encoded_msg = match msg.encode() {
-                    Ok(bytes) => bytes,
-                    Err(_) => {
-                        error = Err("Failed to encode DenimMessage".to_string());
-                        break;
-                    }
-                };
-
                 if ws_stream
-                    .send(Message::Binary(Bytes::from(encoded_msg)))
+                    .send(Message::Binary(msg.encode_to_vec().into()))
                     .await
                     .is_err()
                 {
@@ -534,6 +563,9 @@ mod test {
         let mut actual = Vec::new();
         for action in actions {
             match action {
+                ServerAction::SendQStatus => {
+                    continue;
+                }
                 ServerAction::SendDenim | ServerAction::SendRegular => {
                     let denim = matches!(action, ServerAction::SendDenim);
                     let msg_1 = tokio::time::timeout(Duration::from_millis(300), receiver.recv())

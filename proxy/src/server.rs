@@ -36,12 +36,10 @@ impl DenimConfig<InMemoryStateType> {
         #[builder(default = 1.0)] deniable_ratio: f32,
     ) -> Self {
         let rcfg = InMemoryReceivingBufferConfig;
-        let scfg = InMemorySendingBufferConfig::builder()
-            .q(deniable_ratio)
-            .build();
+        let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(rcfg, scfg, id_provider);
+            BufferManager::new(rcfg, scfg, id_provider, deniable_ratio);
 
         Self {
             addr,

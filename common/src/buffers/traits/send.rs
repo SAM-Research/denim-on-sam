@@ -6,6 +6,8 @@ use crate::error::DenimBufferError;
 
 #[async_trait]
 pub trait SendingBuffer: Clone + Send + Sync + 'static {
+    async fn set_q(&mut self, q: f32);
+    async fn get_q(&self) -> f32;
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
@@ -17,5 +19,5 @@ pub trait SendingBuffer: Clone + Send + Sync + 'static {
 #[async_trait]
 pub trait SendingBufferConfig: Send + Sync + Clone + 'static {
     type Buffer: SendingBuffer;
-    async fn create(&self) -> Result<Self::Buffer, DenimBufferError>;
+    async fn create(&self, q: f32) -> Result<Self::Buffer, DenimBufferError>;
 }

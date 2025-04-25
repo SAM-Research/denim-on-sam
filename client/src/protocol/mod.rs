@@ -9,6 +9,9 @@ use sam_net::websocket::WebSocketClientConfig;
 use tokio_tungstenite::tungstenite::http;
 
 pub mod denim_client;
+pub mod receiver;
+
+pub use receiver::{DenimReceiver, SamDenimMessage};
 
 pub struct DenimProtocolClientConfig<T, U> {
     base_url: String,
