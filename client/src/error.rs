@@ -22,6 +22,7 @@ pub enum DenimProtocolError {
     Protocol(ProtocolError),
     ReceivedWrongResponseId,
     InvalidCredentials,
+    FailedToReceiveQStatus,
 }
 
 #[derive(From, Debug)]

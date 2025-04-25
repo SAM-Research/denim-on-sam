@@ -18,7 +18,11 @@ use sam_net::{
     error::WebSocketError,
     websocket::{WebSocket, WebSocketClient, WebSocketReceiver},
 };
-use tokio::sync::{mpsc::Sender, Mutex};
+use tokio::sync::{
+    mpsc::Sender,
+    oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender},
+    Mutex,
+};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::{error::DenimProtocolError, message::create_message};
@@ -33,6 +37,8 @@ pub struct DenimReceiver<T: SendingBuffer, U: ReceivingBuffer> {
     client: Arc<Mutex<WebSocketClient>>,
     enqueue_sam_status: Sender<ServerStatus>,
     enqueue_message: Sender<SamDenimMessage>,
+    first_qstatus_sender: Option<OneshotSender<()>>,
+    first_qstatus_receiver: Option<OneshotReceiver<()>>,
     sending_buffer: T,
     receiving_buffer: U,
 }
@@ -45,12 +51,29 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimReceiver<T, U> {
         sending_buffer: T,
         receiving_buffer: U,
     ) -> Self {
+        let (tx, rx) = oneshot::channel();
         Self {
             client,
             enqueue_sam_status,
             enqueue_message,
+            first_qstatus_sender: Some(tx),
+            first_qstatus_receiver: Some(rx),
             sending_buffer,
             receiving_buffer,
+        }
+    }
+
+    pub fn take_qstatus_receiver(&mut self) -> Option<OneshotReceiver<()>> {
+        self.first_qstatus_receiver.take()
+    }
+
+    fn notify_qstatus_received(&mut self) {
+        let res = match self.first_qstatus_sender.take() {
+            Some(sender) => sender.send(()),
+            None => Ok(()),
+        };
+        if res.is_err() {
+            error!("QStatus Receiver dropped prematurely");
         }
     }
 
@@ -159,6 +182,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
             let denim_bytes = match envelope.message_kind {
                 Some(MessageKind::DenimMessage(bytes)) => bytes,
                 Some(MessageKind::Status(q_status)) => {
+                    self.notify_qstatus_received();
                     // Narrowing f64 into f32
                     self.sending_buffer.set_q(q_status.q as f32).await;
                     continue;
