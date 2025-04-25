@@ -182,9 +182,9 @@ impl<T: SendingBuffer, U: ReceivingBuffer> WebSocketReceiver for DenimReceiver<T
             let denim_bytes = match envelope.message_kind {
                 Some(MessageKind::DenimMessage(bytes)) => bytes,
                 Some(MessageKind::Status(q_status)) => {
-                    self.notify_qstatus_received();
                     // Narrowing f64 into f32
                     self.sending_buffer.set_q(q_status.q as f32).await;
+                    self.notify_qstatus_received();
                     continue;
                 }
                 None => {
