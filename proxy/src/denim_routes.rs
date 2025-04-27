@@ -1,5 +1,7 @@
 use denim_sam_common::{
-    denim_message::{deniable_message::MessageKind, DeniableMessage, KeyResponse},
+    denim_message::{
+        deniable_message::MessageKind, DeniableMessage, KeyRequest, KeyResponse, SeedUpdate,
+    },
     Seed,
 };
 
@@ -21,92 +23,117 @@ pub async fn denim_router<T: StateType>(
     match request {
         ClientRequest::BlockRequest(_, _block_request) => todo!(),
         ClientRequest::KeyRequest(msg_id, key_request) => {
-            let requested_account_id = AccountId::try_from(key_request.account_id)
-                .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
-
-            let key_bundle = match get_keys_for(
-                state,
-                requested_account_id,
-                key_request.specific_device_ids[0].into(),
-            )
-            .await
-            {
-                Ok(key_bundle) => key_bundle,
-                Err(LogicError::KeyManager(DenimKeyManagerError::NoSeed)) => {
-                    state
-                        .key_request_manager
-                        .store_request(requested_account_id, account_id);
-                    return Ok(());
-                }
-                Err(err) => return Err(DenimRouterError::Logic(err)),
-            };
-            let identity_key = state
-                .accounts
-                .get_account(requested_account_id)
-                .await?
-                .identity()
-                .to_owned();
-
-            let key_response = KeyResponse::builder()
-                .account_id(requested_account_id.into())
-                .identity_key(identity_key.public_key().public_key_bytes().to_owned())
-                .key_bundle(key_bundle)
-                .build();
-
-            state
-                .buffer_manager
-                .enqueue_message(
-                    account_id,
-                    DeniableMessage::builder()
-                        .message_kind(MessageKind::KeyResponse(key_response))
-                        .message_id(msg_id)
-                        .build(),
-                )
-                .await?;
-
+            handle_key_request(state, msg_id, key_request, account_id).await?;
             Ok(())
         }
         ClientRequest::KeyRefillRequest(_, _key_update) => todo!(),
         ClientRequest::SeedUpdateRequest(msg_id, seed_update) => {
-            let seed: [u8; 32] = seed_update
-                .pre_key_seed
-                .try_into()
-                .map_err(|_| DenimRouterError::FailedToConvertSeed)?;
-
-            update_seed(state, account_id, 1.into(), Seed::new(seed)).await?;
-
-            if let Some(receivers) = state.key_request_manager.get_requests(account_id) {
-                for receiver in receivers {
-                    let key_bundle = get_keys_for(state, account_id, 1.into()).await?;
-                    let identity_key = state
-                        .accounts
-                        .get_account(account_id)
-                        .await?
-                        .identity()
-                        .to_owned();
-
-                    state
-                        .buffer_manager
-                        .enqueue_message(
-                            receiver,
-                            DeniableMessage::builder()
-                                .message_kind(MessageKind::KeyResponse(
-                                    KeyResponse::builder()
-                                        .account_id(account_id.into())
-                                        .identity_key(
-                                            identity_key.public_key().public_key_bytes().to_owned(),
-                                        )
-                                        .key_bundle(key_bundle)
-                                        .build(),
-                                ))
-                                .message_id(msg_id)
-                                .build(),
-                        )
-                        .await?;
-                }
-            }
-
+            handle_seed_update(state, msg_id, seed_update, account_id).await?;
             Ok(())
         }
     }
+}
+
+pub async fn handle_key_request<T: StateType>(
+    state: &mut DenimState<T>,
+    msg_id: u32,
+    request: KeyRequest,
+    sender_account_id: AccountId,
+) -> Result<(), DenimRouterError> {
+    let requested_account_id = AccountId::try_from(request.account_id)
+        .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
+
+    let requested_device_id = request
+        .specific_device_ids
+        .first()
+        .ok_or(DenimRouterError::NoDeviceIdInRequest)?;
+
+    let key_bundle = match get_keys_for(
+        state,
+        requested_account_id,
+        requested_device_id.to_owned().into(),
+    )
+    .await
+    {
+        Ok(key_bundle) => key_bundle,
+        Err(LogicError::KeyManager(DenimKeyManagerError::NoSeed)) => {
+            state
+                .key_request_manager
+                .store_receiver(requested_account_id, sender_account_id);
+            return Ok(());
+        }
+        Err(err) => return Err(DenimRouterError::Logic(err)),
+    };
+    let identity_key = state
+        .accounts
+        .get_account(requested_account_id)
+        .await?
+        .identity()
+        .to_owned();
+
+    let key_response = MessageKind::KeyResponse(
+        KeyResponse::builder()
+            .account_id(requested_account_id.into())
+            .identity_key(identity_key.public_key().public_key_bytes().to_owned())
+            .key_bundle(key_bundle)
+            .build(),
+    );
+
+    enqueue_message(state, msg_id, key_response, sender_account_id).await?;
+
+    Ok(())
+}
+
+pub async fn handle_seed_update<T: StateType>(
+    state: &mut DenimState<T>,
+    msg_id: u32,
+    request: SeedUpdate,
+    sender_account_id: AccountId,
+) -> Result<(), DenimRouterError> {
+    let seed = Seed::try_from(request.pre_key_seed)?;
+
+    update_seed(state, sender_account_id, 1.into(), seed).await?;
+
+    if let Some(receivers) = state.key_request_manager.get_receivers(sender_account_id) {
+        for receiver in receivers {
+            let key_bundle = get_keys_for(state, sender_account_id, 1.into()).await?;
+            let identity_key = state
+                .accounts
+                .get_account(sender_account_id)
+                .await?
+                .identity()
+                .to_owned();
+
+            let key_response = MessageKind::KeyResponse(
+                KeyResponse::builder()
+                    .account_id(sender_account_id.into())
+                    .identity_key(identity_key.public_key().public_key_bytes().to_owned())
+                    .key_bundle(key_bundle)
+                    .build(),
+            );
+
+            enqueue_message(state, msg_id, key_response, receiver).await?;
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn enqueue_message<T: StateType>(
+    state: &mut DenimState<T>,
+    msg_id: u32,
+    message: MessageKind,
+    receiver: AccountId,
+) -> Result<(), DenimRouterError> {
+    state
+        .buffer_manager
+        .enqueue_message(
+            receiver,
+            DeniableMessage::builder()
+                .message_kind(message)
+                .message_id(msg_id)
+                .build(),
+        )
+        .await?;
+    Ok(())
 }

@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
 
+use denim_sam_common::ConversionError;
 use derive_more::{Display, Error, From};
 use log::error;
 use sam_server::managers::error::{AccountManagerError, DeviceManagerError};
@@ -49,10 +50,11 @@ pub enum TlsError {
 
 #[derive(Debug, Display, Error, From)]
 pub enum DenimRouterError {
-    Error,
     FailedToConvertSeed,
     KeyRequestMalformed,
+    Conversion(ConversionError),
     Logic(LogicError),
     AccountManager(AccountManagerError),
     BufferManager(BufferManagerError),
+    NoDeviceIdInRequest,
 }

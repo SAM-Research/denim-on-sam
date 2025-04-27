@@ -10,13 +10,15 @@ pub struct InMemoryKeyRequestManager {
 }
 
 impl KeyRequestManager for InMemoryKeyRequestManager {
-    fn store_request(&mut self, sender: AccountId, receiver: AccountId) {
+    fn store_receiver(&mut self, sender: AccountId, receiver: AccountId) {
         if let Some(vec) = self.requests.get_mut(&sender) {
             vec.push(receiver);
+        } else {
+            self.requests.insert(sender, vec![receiver]);
         }
     }
 
-    fn get_requests(&mut self, receiver: AccountId) -> Option<Vec<AccountId>> {
+    fn get_receivers(&mut self, receiver: AccountId) -> Option<Vec<AccountId>> {
         self.requests.remove(&receiver)
     }
 }
