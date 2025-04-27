@@ -335,7 +335,7 @@ mod test {
                 DeniableMessage {
                     message_id: 1u32,
                     message_kind: Some(MessageKind::BlockRequest(BlockRequest {
-                        account_id: account.to_string(),
+                        account_id: account.into(),
                     })),
                 },
             )

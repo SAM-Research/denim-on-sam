@@ -13,7 +13,7 @@ message UserMessage {
   required bytes content = 4;
 }
 
-message BlockRequest { required string account_id = 1; }
+message BlockRequest { required bytes account_id = 1; }
 
 message KeyRequest {
   required bytes account_id = 1;
@@ -22,7 +22,7 @@ message KeyRequest {
 
 message KeyResponse {
   required bytes account_id = 1;
-  required bytes identity_key = 2;  
+  required bytes identity_key = 2;
   required KeyBundle key_bundle = 3;
 }
 
@@ -55,13 +55,11 @@ message KeyBundle {
   required bytes signed_pre_key = 5; // SAM SignedEcPreKey
 }
 
-message QStatus {
-  required double q = 1;
-}
+message QStatus { required double q = 1; }
 
 message DenimEnvelope {
   oneof message_kind {
     bytes denim_message = 1; // DenIM-on-SAM DenimMessage
-    QStatus status = 2; // only server is allowed to send this
+    QStatus status = 2;      // only server is allowed to send this
   }
 }

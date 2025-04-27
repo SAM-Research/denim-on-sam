@@ -1,6 +1,7 @@
 use denim_sam_common::{
     denim_message::{
-        deniable_message::MessageKind, DeniableMessage, KeyRequest, KeyResponse, SeedUpdate,
+        deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
+        SeedUpdate,
     },
     Seed,
 };
@@ -11,7 +12,11 @@ use sam_server::managers::traits::account_manager::AccountManager;
 use crate::{
     error::{DenimRouterError, LogicError},
     logic::keys::{get_keys_for, update_seed},
-    managers::{default::ClientRequest, error::DenimKeyManagerError, traits::KeyRequestManager},
+    managers::{
+        default::ClientRequest,
+        error::DenimKeyManagerError,
+        traits::{BlockListManager, KeyRequestManager},
+    },
     state::{DenimState, StateType},
 };
 
@@ -21,7 +26,10 @@ pub async fn denim_router<T: StateType>(
     account_id: AccountId,
 ) -> Result<(), DenimRouterError> {
     match request {
-        ClientRequest::BlockRequest(_, _block_request) => todo!(),
+        ClientRequest::BlockRequest(_, block_request) => {
+            handle_block_request(state, block_request, account_id).await?;
+            Ok(())
+        }
         ClientRequest::KeyRequest(msg_id, key_request) => {
             handle_key_request(state, msg_id, key_request, account_id).await?;
             Ok(())
@@ -32,6 +40,19 @@ pub async fn denim_router<T: StateType>(
             Ok(())
         }
     }
+}
+
+pub async fn handle_block_request<T: StateType>(
+    state: &mut DenimState<T>,
+    request: BlockRequest,
+    sender_account_id: AccountId,
+) -> Result<(), DenimRouterError> {
+    let blocked_account_id = AccountId::try_from(request.account_id)
+        .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
+    state
+        .block_list_manager
+        .add_to_block_list(sender_account_id, blocked_account_id);
+    Ok(())
 }
 
 pub async fn handle_key_request<T: StateType>(
