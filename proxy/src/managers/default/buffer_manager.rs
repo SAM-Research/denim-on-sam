@@ -16,7 +16,10 @@ use sam_common::AccountId;
 use tokio::sync::Mutex;
 
 use crate::{
-    managers::{error::BufferManagerError, traits::MessageIdProvider},
+    managers::{
+        error::BufferManagerError,
+        traits::{BlockList, MessageIdProvider},
+    },
     state::BufferManagerType,
 };
 
@@ -29,6 +32,7 @@ pub enum ClientRequest {
 
 #[derive(Clone)]
 pub struct BufferManager<T: BufferManagerType> {
+    block_list: T::BlockList,
     receiving_buffers:
         Arc<Mutex<HashMap<AccountId, <T::ReceivingBufferConfig as ReceivingBufferConfig>::Buffer>>>,
     sending_buffers:
@@ -41,12 +45,14 @@ pub struct BufferManager<T: BufferManagerType> {
 
 impl<T: BufferManagerType> BufferManager<T> {
     pub fn new(
+        block_list: T::BlockList,
         receiving_config: T::ReceivingBufferConfig,
         sending_config: T::SendingBufferConfig,
         id_provider: T::MessageIdProvider,
         q: f32,
     ) -> Self {
         Self {
+            block_list,
             receiving_buffers: Arc::new(Mutex::new(HashMap::new())),
             sending_buffers: Arc::new(Mutex::new(HashMap::new())),
             id_provider,
@@ -180,6 +186,9 @@ impl<T: BufferManagerType> BufferManager<T> {
         let id = self.id_provider.get_message_id(account_id).await;
         let receiver_id = AccountId::try_from(message.account_id)
             .map_err(|_| BufferManagerError::InvalidAccountId)?;
+        if self.check_account_id_in_block_list(&receiver_id, account_id) {
+            return Ok(());
+        }
         let sender_id = account_id;
         message.account_id = sender_id.into();
         self.enqueue_message(
@@ -190,6 +199,24 @@ impl<T: BufferManagerType> BufferManager<T> {
             },
         )
         .await
+    }
+
+    pub fn block_user(&mut self, user_account_id: AccountId, blocked_account_id: AccountId) {
+        self.block_list
+            .add_to_block_list(user_account_id, blocked_account_id);
+    }
+
+    fn check_account_id_in_block_list(
+        &mut self,
+        user_account_id: &AccountId,
+        blocked_account_id: AccountId,
+    ) -> bool {
+        if let Some(list) = self.block_list.get_list_for_user(user_account_id) {
+            if list.contains(&blocked_account_id) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -210,7 +237,10 @@ mod test {
     use sam_common::AccountId;
 
     use crate::{
-        managers::{default::ClientRequest, BufferManager, InMemoryMessageIdProvider},
+        managers::{
+            default::ClientRequest, in_mem::InMemoryBlockList, BufferManager,
+            InMemoryMessageIdProvider,
+        },
         state::InMemoryBufferManagerType,
     };
 
@@ -220,8 +250,13 @@ mod test {
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let q = 1.0;
-        let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider, q);
+        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
+            InMemoryBlockList::default(),
+            receiver,
+            sender,
+            id_provider,
+            q,
+        );
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -257,8 +292,13 @@ mod test {
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
         let q = 1.0;
-        let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider, q);
+        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
+            InMemoryBlockList::default(),
+            receiver,
+            sender,
+            id_provider,
+            q,
+        );
 
         let account_id = AccountId::generate();
         let kind = if is_request {
@@ -324,8 +364,13 @@ mod test {
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
-        let mut mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(receiver, sender, id_provider, init_q);
+        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
+            InMemoryBlockList::default(),
+            receiver,
+            sender,
+            id_provider,
+            init_q,
+        );
 
         let accounts = vec![AccountId::generate(); 32];
 

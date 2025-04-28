@@ -8,7 +8,7 @@ use sam_server::managers::in_memory::{
 
 use crate::managers::{
     default::ChaChaCryptoProvider,
-    in_mem::{InMemoryBlockListManager, InMemoryDenimKeyManager, InMemoryKeyRequestManager},
+    in_mem::{InMemoryBlockList, InMemoryDenimKeyManager, InMemoryKeyRequestManager},
     InMemoryMessageIdProvider,
 };
 
@@ -23,6 +23,8 @@ impl BufferManagerType for InMemoryBufferManagerType {
     type SendingBufferConfig = InMemorySendingBufferConfig;
 
     type MessageIdProvider = InMemoryMessageIdProvider;
+
+    type BlockList = InMemoryBlockList;
 }
 
 #[derive(Clone)]
@@ -40,6 +42,4 @@ impl StateType for InMemoryStateType {
     type CryptoProvider = ChaChaCryptoProvider;
 
     type KeyRequestManager = InMemoryKeyRequestManager;
-
-    type BlockListManager = InMemoryBlockListManager;
 }

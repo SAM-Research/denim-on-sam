@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use sam_common::AccountId;
 
-use crate::managers::traits::BlockListManager;
+use crate::managers::traits::BlockList;
 
 #[derive(Clone, Default)]
-pub struct InMemoryBlockListManager {
+pub struct InMemoryBlockList {
     block_list: HashMap<AccountId, Vec<AccountId>>,
 }
 
-impl BlockListManager for InMemoryBlockListManager {
+impl BlockList for InMemoryBlockList {
     fn add_to_block_list(&mut self, users_account_id: AccountId, blocked_account_id: AccountId) {
         if let Some(vec) = self.block_list.get_mut(&users_account_id) {
             vec.push(blocked_account_id);

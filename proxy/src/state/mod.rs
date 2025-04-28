@@ -1,4 +1,4 @@
-use crate::managers::traits::BlockListManager;
+use crate::managers::traits::BlockList;
 use crate::managers::traits::CryptoProvider;
 use crate::managers::traits::KeyRequestManager;
 use crate::managers::{
@@ -18,13 +18,13 @@ pub use in_mem::InMemoryBufferManagerType;
 pub use in_mem::InMemoryStateType;
 
 pub trait BufferManagerType: 'static + Clone {
+    type BlockList: BlockList;
     type ReceivingBufferConfig: ReceivingBufferConfig;
     type SendingBufferConfig: SendingBufferConfig;
     type MessageIdProvider: MessageIdProvider;
 }
 
 pub trait StateType: 'static + Clone {
-    type BlockListManager: BlockListManager;
     type KeyRequestManager: KeyRequestManager;
     type BufferManager: BufferManagerType;
     type DenimKeyManagerType: DenimKeyManagerType;
@@ -35,7 +35,6 @@ pub trait StateType: 'static + Clone {
 
 #[derive(Clone)]
 pub struct DenimState<T: StateType> {
-    pub block_list_manager: T::BlockListManager,
     pub key_request_manager: T::KeyRequestManager,
     pub buffer_manager: BufferManager<T::BufferManager>,
     pub keys: DenimKeyManager<T::DenimKeyManagerType>,
@@ -59,10 +58,8 @@ impl<T: StateType> DenimState<T> {
         accounts: T::AccountManager,
         devices: T::DeviceManger,
         key_request_manager: T::KeyRequestManager,
-        block_list_manager: T::BlockListManager,
     ) -> Self {
         Self {
-            block_list_manager,
             key_request_manager,
             sam_addr,
             channel_buffer_size,
@@ -97,15 +94,14 @@ impl<T: StateType> DenimState<T> {
         };
 
         use crate::managers::{
-            in_mem::{
-                InMemoryBlockListManager, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager,
-            },
+            in_mem::{InMemoryBlockList, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager},
             InMemoryMessageIdProvider,
         };
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr = BufferManager::new(rcfg, scfg, id_provider, 1.0);
+        let buffer_mgr =
+            BufferManager::new(InMemoryBlockList::default(), rcfg, scfg, id_provider, 1.0);
 
         DenimState::builder()
             .sam_addr(sam_addr.to_string())
@@ -118,7 +114,6 @@ impl<T: StateType> DenimState<T> {
             .accounts(InMemoryAccountManager::default())
             .devices(InMemoryDeviceManager::new("Test".to_owned(), 120))
             .key_request_manager(InMemoryKeyRequestManager::default())
-            .block_list_manager(InMemoryBlockListManager::default())
             .build()
     }
 }

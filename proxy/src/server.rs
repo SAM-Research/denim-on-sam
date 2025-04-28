@@ -13,7 +13,7 @@ use sam_server::managers::in_memory::device::InMemoryDeviceManager;
 use sam_server::managers::in_memory::keys::InMemorySignedPreKeyManager;
 
 use crate::managers::in_mem::{
-    InMemoryBlockListManager, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager,
+    InMemoryBlockList, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager,
 };
 use crate::managers::{BufferManager, DenimKeyManager, InMemoryMessageIdProvider};
 use crate::routes::websocket_endpoint;
@@ -40,8 +40,13 @@ impl DenimConfig<InMemoryStateType> {
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(rcfg, scfg, id_provider, deniable_ratio);
+        let buffer_mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
+            InMemoryBlockList::default(),
+            rcfg,
+            scfg,
+            id_provider,
+            deniable_ratio,
+        );
 
         Self {
             addr,
@@ -58,7 +63,6 @@ impl DenimConfig<InMemoryStateType> {
                 .accounts(InMemoryAccountManager::default()) // TODO: When adding postgres manager, connect for device manager should not take these
                 .devices(InMemoryDeviceManager::new("Test".to_owned(), 120)) // params as they are already set by SAM.
                 .key_request_manager(InMemoryKeyRequestManager::default())
-                .block_list_manager(InMemoryBlockListManager::default())
                 .build(),
         }
     }

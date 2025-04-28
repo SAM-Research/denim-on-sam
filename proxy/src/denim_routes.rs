@@ -12,11 +12,7 @@ use sam_server::managers::traits::account_manager::AccountManager;
 use crate::{
     error::{DenimRouterError, LogicError},
     logic::keys::{get_keys_for, update_seed},
-    managers::{
-        default::ClientRequest,
-        error::DenimKeyManagerError,
-        traits::{BlockListManager, KeyRequestManager},
-    },
+    managers::{default::ClientRequest, error::DenimKeyManagerError, traits::KeyRequestManager},
     state::{DenimState, StateType},
 };
 
@@ -50,8 +46,8 @@ pub async fn handle_block_request<T: StateType>(
     let blocked_account_id = AccountId::try_from(request.account_id)
         .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
     state
-        .block_list_manager
-        .add_to_block_list(sender_account_id, blocked_account_id);
+        .buffer_manager
+        .block_user(sender_account_id, blocked_account_id);
     Ok(())
 }
 
