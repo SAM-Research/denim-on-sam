@@ -1,9 +1,10 @@
 pub mod buffers;
+pub mod crypto;
 mod error;
 mod seed;
 
 pub use error::{ConversionError, DenimBufferError, DenimEncodeDecodeError};
-pub use seed::Seed;
+pub use seed::{ChaChaRngState, KeyIdSeed, KeySeed, RngState};
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 

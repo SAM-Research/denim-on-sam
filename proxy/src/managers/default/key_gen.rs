@@ -1,7 +1,8 @@
+use denim_sam_common::{crypto::CryptoProvider, RngState};
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 
-use crate::managers::{error::DenimKeyManagerError, traits::CryptoProvider, DenimEcPreKeyManager};
+use crate::managers::{error::DenimKeyManagerError, DenimEcPreKeyManager};
 
 pub async fn generate_ec_pre_keys<C: CryptoProvider>(
     key_manager: &mut impl DenimEcPreKeyManager,
@@ -9,23 +10,37 @@ pub async fn generate_ec_pre_keys<C: CryptoProvider>(
     device_id: DeviceId,
     amount: usize,
 ) -> Result<(), DenimKeyManagerError> {
-    let (seed, offset) = key_manager.get_csprng_for(account_id, device_id).await?;
-    let mut csprng = C::get_seeded_with_offset(seed, offset);
+    let mut id_rng = key_manager
+        .get_key_id_seed_for(account_id, device_id)
+        .await?
+        .into_rng();
+
+    let mut key_rng = key_manager
+        .get_key_seed_for(account_id, device_id)
+        .await?
+        .into_rng();
 
     for _ in 0..amount {
         let pk: EcPreKey = generate_ec_pre_key(
-            key_manager.next_key_id(account_id, device_id).await?.into(),
-            &mut csprng,
+            key_manager
+                .next_key_id(account_id, device_id, &mut id_rng)
+                .await?
+                .into(),
+            &mut key_rng,
         )
         .await
         .into();
+
         key_manager
             .add_ec_pre_key(account_id, device_id, pk.clone())
             .await?;
 
-        let (seed, offset) = C::extract_seed_offset(&csprng);
         key_manager
-            .store_csprng_for(account_id, device_id, seed, offset)
+            .store_key_id_seed_for(account_id, device_id, id_rng.clone().into())
+            .await?;
+
+        key_manager
+            .store_key_seed_for(account_id, device_id, key_rng.clone().into())
             .await?;
     }
     Ok(())

@@ -159,6 +159,7 @@ mod test {
             .message_id(0)
             .message_kind(MessageKind::SeedUpdate(crate::denim_message::SeedUpdate {
                 pre_key_seed: vec![1],
+                pre_key_id_seed: vec![1],
             }))
             .build()
     }

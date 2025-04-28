@@ -1,12 +1,9 @@
-use crate::managers::traits::BlockList;
-use crate::managers::traits::CryptoProvider;
-use crate::managers::traits::KeyRequestManager;
-use crate::managers::{
-    traits::MessageIdProvider, BufferManager, DenimKeyManager, DenimKeyManagerType,
-};
+use crate::managers::traits::{BlockList, KeyRequestManager, MessageIdProvider};
+use crate::managers::{BufferManager, DenimKeyManager, DenimKeyManagerType};
 use bon::bon;
 use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 
+use denim_sam_common::crypto::CryptoProvider;
 use sam_server::managers::traits::{
     account_manager::AccountManager, device_manager::DeviceManager,
 };
