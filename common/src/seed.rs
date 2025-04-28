@@ -97,6 +97,7 @@ pub trait RngState: Into<Self::Rng> + Send + Sync + Clone + Default {
 }
 
 #[derive(Debug, Clone, From)]
+#[derive(Default)]
 pub struct ChaChaRngState(<ChaCha20Rng as SeedableRng>::Seed, u128);
 
 impl ChaChaRngState {
@@ -115,11 +116,6 @@ impl ChaChaRngState {
     }
 }
 
-impl Default for ChaChaRngState {
-    fn default() -> Self {
-        Self(<ChaCha20Rng as SeedableRng>::Seed::default(), 0)
-    }
-}
 
 impl RngState for ChaChaRngState {
     type Rng = ChaCha20Rng;

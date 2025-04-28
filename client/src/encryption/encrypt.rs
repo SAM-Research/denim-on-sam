@@ -69,14 +69,11 @@ pub async fn decrypt<R: Rng + CryptoRng>(
     let addr = ProtocolAddress::new(source.to_string(), 1.into());
 
     // A deniable message must contain a PreKey.
-    match cipher {
-        CiphertextMessage::PreKeySignalMessage(ref prekey_message) => {
-            let key_id = prekey_message
-                .pre_key_id()
-                .ok_or(EncryptionError::NoPreKeyInMessage)?;
-            generate_key(key_id, deniable_store).await?;
-        }
-        _ => {}
+    if let CiphertextMessage::PreKeySignalMessage(ref prekey_message) = cipher {
+        let key_id = prekey_message
+            .pre_key_id()
+            .ok_or(EncryptionError::NoPreKeyInMessage)?;
+        generate_key(key_id, deniable_store).await?;
     }
 
     let bytes = message_decrypt(
