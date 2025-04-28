@@ -3,7 +3,6 @@ use crate::managers::{BufferManager, DenimKeyManager, DenimKeyManagerType};
 use bon::bon;
 use denim_sam_common::buffers::{ReceivingBufferConfig, SendingBufferConfig};
 
-use denim_sam_common::crypto::CryptoProvider;
 use sam_server::managers::traits::{
     account_manager::AccountManager, device_manager::DeviceManager,
 };
@@ -29,7 +28,6 @@ pub trait StateType: 'static + Clone {
     type DenimKeyManagerType: DenimKeyManagerType;
     type AccountManager: AccountManager;
     type DeviceManger: DeviceManager;
-    type CryptoProvider: CryptoProvider;
 }
 
 #[derive(Clone)]

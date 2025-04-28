@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use denim_sam_common::{crypto::CryptoProvider, ChaChaRngState};
+use denim_sam_common::RngState;
 
 use rand::Rng;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
@@ -7,8 +7,8 @@ use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use crate::managers::error::DenimKeyManagerError;
 
 #[async_trait]
-pub trait DenimEcPreKeyManager: Clone + Send + Sync {
-    async fn get_ec_pre_key<C: CryptoProvider>(
+pub trait DenimEcPreKeyManager<T: RngState>: Clone + Send + Sync {
+    async fn get_ec_pre_key(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -45,25 +45,25 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaChaRngState, DenimKeyManagerError>;
+    ) -> Result<T, DenimKeyManagerError>;
 
     async fn store_key_seed_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: ChaChaRngState,
+        seed: T,
     ) -> Result<(), DenimKeyManagerError>;
 
     async fn get_key_id_seed_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaChaRngState, DenimKeyManagerError>;
+    ) -> Result<T, DenimKeyManagerError>;
 
     async fn store_key_id_seed_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: ChaChaRngState,
+        seed: T,
     ) -> Result<(), DenimKeyManagerError>;
 }

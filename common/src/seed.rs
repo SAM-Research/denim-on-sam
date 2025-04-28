@@ -90,8 +90,8 @@ impl From<KeySeed> for ChaChaRngState {
     }
 }
 
-pub trait RngState: Into<Self::Rng> + Send + Sync + Clone + Default {
-    type Rng: Rng + CryptoRng + SeedableRng;
+pub trait RngState: Into<Self::Rng> + From<Self::Rng> + Send + Sync + Clone + Default {
+    type Rng: Rng + CryptoRng + SeedableRng + Send + Clone;
 
     fn into_rng(self) -> Self::Rng;
 }

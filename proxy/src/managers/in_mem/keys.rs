@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use denim_sam_common::{crypto::CryptoProvider, ChaChaRngState};
+use denim_sam_common::{ChaChaRngState, RngState};
 use futures_util::TryFutureExt;
 use log::debug;
 use rand::Rng;
@@ -17,15 +17,15 @@ use crate::managers::{
 };
 
 #[derive(Clone)]
-pub struct InMemoryDenimEcPreKeyManager {
+pub struct InMemoryDenimEcPreKeyManager<T: RngState> {
     key_generate_amount: usize,
     manager: InMemoryEcPreKeyManager,
-    id_seeds: Arc<Mutex<HashMap<DeviceAddress, ChaChaRngState>>>,
-    key_seeds: Arc<Mutex<HashMap<DeviceAddress, ChaChaRngState>>>,
+    id_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
+    key_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
     used_keys: Arc<Mutex<HashMap<DeviceAddress, Vec<u32>>>>,
 }
 
-impl InMemoryDenimEcPreKeyManager {
+impl<T: RngState> InMemoryDenimEcPreKeyManager<T> {
     pub fn new(key_generate_amount: usize) -> Self {
         Self {
             key_generate_amount,
@@ -34,7 +34,7 @@ impl InMemoryDenimEcPreKeyManager {
     }
 }
 
-impl Default for InMemoryDenimEcPreKeyManager {
+impl<T: RngState> Default for InMemoryDenimEcPreKeyManager<T> {
     fn default() -> Self {
         Self {
             key_generate_amount: 10,
@@ -47,8 +47,8 @@ impl Default for InMemoryDenimEcPreKeyManager {
 }
 
 #[async_trait]
-impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
-    async fn get_ec_pre_key<C: CryptoProvider>(
+impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
+    async fn get_ec_pre_key(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -56,8 +56,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys::<C>(self, account_id, device_id, self.key_generate_amount)
-                .await?;
+            generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
             self.manager
                 .get_pre_key(account_id, device_id)
                 .await?
@@ -136,7 +135,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaChaRngState, DenimKeyManagerError> {
+    ) -> Result<T, DenimKeyManagerError> {
         self.key_seeds
             .lock()
             .await
@@ -150,7 +149,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: ChaChaRngState,
+        seed: T,
     ) -> Result<(), DenimKeyManagerError> {
         self.key_seeds
             .lock()
@@ -163,7 +162,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-    ) -> Result<ChaChaRngState, DenimKeyManagerError> {
+    ) -> Result<T, DenimKeyManagerError> {
         self.id_seeds
             .lock()
             .await
@@ -177,7 +176,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: ChaChaRngState,
+        seed: T,
     ) -> Result<(), DenimKeyManagerError> {
         self.id_seeds
             .lock()
@@ -191,7 +190,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
 pub struct InMemoryDenimKeyManager;
 
 impl DenimKeyManagerType for InMemoryDenimKeyManager {
-    type EcPreKeyManager = InMemoryDenimEcPreKeyManager;
+    type EcPreKeyManager = InMemoryDenimEcPreKeyManager<ChaChaRngState>;
 
     type SignedPreKeyManager = InMemorySignedPreKeyManager;
 }

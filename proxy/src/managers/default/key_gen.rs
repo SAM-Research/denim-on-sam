@@ -1,11 +1,11 @@
-use denim_sam_common::{crypto::CryptoProvider, RngState};
+use denim_sam_common::RngState;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 
 use crate::managers::{error::DenimKeyManagerError, DenimEcPreKeyManager};
 
-pub async fn generate_ec_pre_keys<C: CryptoProvider>(
-    key_manager: &mut impl DenimEcPreKeyManager,
+pub async fn generate_ec_pre_keys<R: RngState>(
+    key_manager: &mut impl DenimEcPreKeyManager<R>,
     account_id: AccountId,
     device_id: DeviceId,
     amount: usize,

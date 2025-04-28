@@ -1,6 +1,5 @@
-use denim_sam_common::{
-    buffers::in_mem::{InMemoryReceivingBufferConfig, InMemorySendingBufferConfig},
-    crypto::ChaChaCryptoProvider,
+use denim_sam_common::buffers::in_mem::{
+    InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
 };
 
 use sam_server::managers::in_memory::{
@@ -36,8 +35,6 @@ impl StateType for InMemoryStateType {
     type AccountManager = InMemoryAccountManager;
 
     type DeviceManger = InMemoryDeviceManager;
-
-    type CryptoProvider = ChaChaCryptoProvider;
 
     type KeyRequestManager = InMemoryKeyRequestManager;
 }
