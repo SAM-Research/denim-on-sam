@@ -1,9 +1,9 @@
 pub mod buffers;
 mod error;
-mod seed;
+mod rng;
 
 pub use error::{ConversionError, DenimBufferError, DenimEncodeDecodeError};
-pub use seed::{ChaChaRngState, KeyIdSeed, KeySeed, RngState};
+pub use rng::seed::{ChaChaRngState, KeyIdSeed, KeySeed, RngState};
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 
