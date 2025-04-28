@@ -52,6 +52,14 @@ fn welcome(config: &DenimCliConfig) {
 async fn cli() -> Result<(), CliError> {
     let matches = Command::new("sam_server")
         .arg(
+            Arg::new("database_url")
+                .short('d')
+                .long("database-url")
+                .required(true)
+                .help("PostgreSQL connection url")
+                .conflicts_with("config"),
+        )
+        .arg(
             Arg::new("sam_address")
                 .short('s')
                 .long("sam-address")
@@ -101,41 +109,34 @@ async fn cli() -> Result<(), CliError> {
         let reader = BufReader::new(file);
         DenimCliConfig::load(reader)?
     } else {
-        let proxy_addr =
-            matches
-                .get_one::<String>("proxy_address")
-                .ok_or(CliError::ArgumentError(
-                    "Expected Proxy Address".to_string(),
-                ))?;
-        let sam_addr = matches
-            .get_one::<String>("sam_address")
-            .ok_or(CliError::ArgumentError("Expected SAM Address".to_string()))?;
-        let deniable_ratio = matches
-            .get_one::<String>("deniable_ratio")
-            .ok_or(CliError::ArgumentError(
-                "Expected Deniable Ratio".to_string(),
-            ))?
-            .parse()
-            .map_err(|_| {
-                CliError::ArgumentError("Expected float for deniable ratio".to_string())
-            })?;
-        let buffer_size = matches
-            .get_one::<String>("buffer_size")
-            .ok_or(CliError::ArgumentError("Expected buffer size".to_string()))?
-            .parse()
-            .map_err(|_| {
-                CliError::ArgumentError("Expected usize for deniable ratio. On 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes".to_string())
-            })?;
+        let url = matches
+            .get_one::<String>("database_url")
+            .ok_or(CliError::ArgumentError("Expected Database url".to_string()))?;
+        let proxy_addr = matches.get_one::<String>("proxy_address");
 
-        DenimCliConfig::new(
-            Some(sam_addr.to_string()),
-            Some(proxy_addr.to_string()),
-            Some(deniable_ratio),
-            None,
-            Some(buffer_size),
-            None,
-            None,
-        )
+        let sam_addr = matches.get_one::<String>("sam_address");
+        let deniable_ratio = if let Some(ratio) = matches.get_one::<String>("deniable_ratio") {
+            Some(ratio.parse().map_err(|_| {
+                CliError::ArgumentError("Expected float for deniable ratio".to_string())
+            })?)
+        } else {
+            None
+        };
+        let buffer_size = if let Some(size) = matches.get_one::<String>("buffer_size") {
+            Some(size.parse().map_err(|_| {
+                CliError::ArgumentError("Expected usize for buffer size. On 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes".to_string())
+            })?)
+        } else {
+            None
+        };
+
+        DenimCliConfig::builder()
+            .database_url(url.to_string())
+            .maybe_denim_proxy_address(proxy_addr.cloned())
+            .maybe_sam_address(sam_addr.cloned())
+            .maybe_deniable_ratio(deniable_ratio)
+            .maybe_channel_buffer_size(buffer_size)
+            .build()
     };
 
     if let Some(filter) = &config.logging {
@@ -164,7 +165,8 @@ async fn cli() -> Result<(), CliError> {
         None => (None, None),
     };
 
-    let denim_cfg = DenimConfig::in_memory()
+    let denim_cfg = DenimConfig::postgres()
+        .url(config.database_url)
         .addr(addr)
         .sam_address(config.sam_address.unwrap_or(DEFAULT_SAM_ADDR.to_string()))
         .maybe_tls_config(tls_config)
@@ -180,7 +182,9 @@ async fn cli() -> Result<(), CliError> {
                 .key_generate_amount
                 .unwrap_or(DEFAULT_KEY_GENERATE_AMOUNT),
         )
-        .call();
+        .call()
+        .await?;
+    info!("Database: OK");
 
     start_proxy(denim_cfg)
         .await

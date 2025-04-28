@@ -1,4 +1,5 @@
 use axum::http;
+use bon::bon;
 use log::debug;
 
 use sam_net::{
@@ -17,6 +18,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DenimCliConfig {
+    pub database_url: String,
     pub sam_address: Option<String>,
     pub denim_proxy_address: Option<String>,
     pub deniable_ratio: Option<f32>, // q
@@ -43,8 +45,11 @@ pub struct ProxyMtlsConfig {
     pub key_path: String,
 }
 
+#[bon]
 impl DenimCliConfig {
+    #[builder]
     pub fn new(
+        database_url: String,
         sam_address: Option<String>,
         denim_proxy_address: Option<String>,
         deniable_ratio: Option<f32>,
@@ -54,6 +59,7 @@ impl DenimCliConfig {
         logging: Option<String>,
     ) -> Self {
         Self {
+            database_url,
             sam_address,
             denim_proxy_address,
             deniable_ratio,
