@@ -189,6 +189,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         if self
             .block_list
             .check_for_blocked_user(&receiver_id, &account_id)
+            .await
         {
             return Ok(());
         }
@@ -204,9 +205,10 @@ impl<T: BufferManagerType> BufferManager<T> {
         .await
     }
 
-    pub fn block_user(&mut self, user_account_id: AccountId, blocked_account_id: AccountId) {
+    pub async fn block_user(&mut self, user_account_id: AccountId, blocked_account_id: AccountId) {
         self.block_list
-            .block_user(user_account_id, blocked_account_id);
+            .block_user(user_account_id, blocked_account_id)
+            .await;
     }
 }
 

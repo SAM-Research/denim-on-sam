@@ -44,7 +44,8 @@ pub async fn handle_block_request<T: StateType>(
         .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
     state
         .buffer_manager
-        .block_user(sender_account_id, blocked_account_id);
+        .block_user(sender_account_id, blocked_account_id)
+        .await;
     Ok(())
 }
 
