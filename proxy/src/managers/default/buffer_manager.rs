@@ -186,7 +186,10 @@ impl<T: BufferManagerType> BufferManager<T> {
         let id = self.id_provider.get_message_id(account_id).await;
         let receiver_id = AccountId::try_from(message.account_id)
             .map_err(|_| BufferManagerError::InvalidAccountId)?;
-        if self.check_account_id_in_block_list(&receiver_id, account_id) {
+        if self
+            .block_list
+            .check_for_blocked_user(&receiver_id, &account_id)
+        {
             return Ok(());
         }
         let sender_id = account_id;
@@ -203,20 +206,7 @@ impl<T: BufferManagerType> BufferManager<T> {
 
     pub fn block_user(&mut self, user_account_id: AccountId, blocked_account_id: AccountId) {
         self.block_list
-            .add_to_block_list(user_account_id, blocked_account_id);
-    }
-
-    fn check_account_id_in_block_list(
-        &mut self,
-        user_account_id: &AccountId,
-        blocked_account_id: AccountId,
-    ) -> bool {
-        if let Some(list) = self.block_list.get_list_for_user(user_account_id) {
-            if list.contains(&blocked_account_id) {
-                return true;
-            }
-        }
-        false
+            .block_user(user_account_id, blocked_account_id);
     }
 }
 

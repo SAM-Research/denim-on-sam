@@ -23,17 +23,14 @@ pub async fn denim_router<T: StateType>(
 ) -> Result<(), DenimRouterError> {
     match request {
         ClientRequest::BlockRequest(_, block_request) => {
-            handle_block_request(state, block_request, account_id).await?;
-            Ok(())
+            handle_block_request(state, block_request, account_id).await
         }
         ClientRequest::KeyRequest(msg_id, key_request) => {
-            handle_key_request(state, msg_id, key_request, account_id).await?;
-            Ok(())
+            handle_key_request(state, msg_id, key_request, account_id).await
         }
         ClientRequest::KeyRefillRequest(_, _key_update) => todo!(),
         ClientRequest::SeedUpdateRequest(msg_id, seed_update) => {
-            handle_seed_update(state, msg_id, seed_update, account_id).await?;
-            Ok(())
+            handle_seed_update(state, msg_id, seed_update, account_id).await
         }
     }
 }

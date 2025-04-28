@@ -10,7 +10,7 @@ pub struct InMemoryBlockList {
 }
 
 impl BlockList for InMemoryBlockList {
-    fn add_to_block_list(&mut self, users_account_id: AccountId, blocked_account_id: AccountId) {
+    fn block_user(&mut self, users_account_id: AccountId, blocked_account_id: AccountId) {
         if let Some(vec) = self.block_list.get_mut(&users_account_id) {
             vec.push(blocked_account_id);
         } else {
@@ -19,7 +19,16 @@ impl BlockList for InMemoryBlockList {
         }
     }
 
-    fn get_list_for_user(&mut self, account_id: &AccountId) -> Option<&Vec<AccountId>> {
-        self.block_list.get(account_id)
+    fn check_for_blocked_user(
+        &mut self,
+        user_account_id: &AccountId,
+        blocked_account_id: &AccountId,
+    ) -> bool {
+        if let Some(list) = self.block_list.get(user_account_id) {
+            if list.contains(blocked_account_id) {
+                return true;
+            }
+        }
+        false
     }
 }
