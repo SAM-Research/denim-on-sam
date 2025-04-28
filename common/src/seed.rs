@@ -96,8 +96,7 @@ pub trait RngState: Into<Self::Rng> + Send + Sync + Clone + Default {
     fn into_rng(self) -> Self::Rng;
 }
 
-#[derive(Debug, Clone, From)]
-#[derive(Default)]
+#[derive(Debug, Clone, From, Default)]
 pub struct ChaChaRngState(<ChaCha20Rng as SeedableRng>::Seed, u128);
 
 impl ChaChaRngState {
@@ -115,7 +114,6 @@ impl ChaChaRngState {
         Self(bytes, 0)
     }
 }
-
 
 impl RngState for ChaChaRngState {
     type Rng = ChaCha20Rng;
