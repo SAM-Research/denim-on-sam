@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use denim_sam_common::RngState;
+use denim_sam_common::rng::RngState;
 use derive_more::{Display, Error};
 
 #[derive(Debug, Display, Error)]

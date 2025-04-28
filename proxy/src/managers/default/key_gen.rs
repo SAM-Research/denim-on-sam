@@ -1,4 +1,4 @@
-use denim_sam_common::RngState;
+use denim_sam_common::rng::RngState;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 

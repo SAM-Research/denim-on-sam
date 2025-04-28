@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use denim_sam_common::ChaChaRngState;
+use denim_sam_common::rng::chacha::ChaChaRngState;
 use libsignal_protocol::{InMemPreKeyStore, InMemSessionStore};
 use sam_client::storage::{InMemoryContactStore, InMemoryMessageStore};
 

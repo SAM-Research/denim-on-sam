@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use denim_sam_common::{ChaChaRngState, RngState};
+use denim_sam_common::rng::{chacha::ChaChaRngState, RngState};
 use futures_util::TryFutureExt;
 use log::debug;
 use rand::Rng;

@@ -5,7 +5,7 @@ pub mod postgres;
 pub mod traits;
 
 pub use default::BufferManager;
-use denim_sam_common::ChaChaRngState;
+use denim_sam_common::rng::chacha::ChaChaRngState;
 pub use in_mem::InMemoryMessageIdProvider;
 use sam_server::managers::traits::key_manager::SignedPreKeyManager;
 pub use traits::DenimEcPreKeyManager;

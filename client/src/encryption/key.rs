@@ -1,4 +1,4 @@
-use denim_sam_common::{denim_message::KeyBundle, RngState};
+use denim_sam_common::{denim_message::KeyBundle, rng::RngState as _};
 use libsignal_protocol::{IdentityKey, PreKeyBundle, PreKeyId, PreKeyStore, PublicKey};
 use log::debug;
 use rand::{CryptoRng, Rng};

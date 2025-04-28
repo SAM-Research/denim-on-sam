@@ -1,4 +1,4 @@
-use denim_sam_common::ChaChaRngState;
+use denim_sam_common::rng::chacha::ChaChaRngState;
 use sam_server::managers::postgres::keys::PostgresSignedPreKeyManager;
 
 use super::{in_mem::InMemoryDenimEcPreKeyManager, DenimKeyManagerType};

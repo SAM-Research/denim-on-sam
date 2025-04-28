@@ -3,7 +3,7 @@ use denim_sam_common::{
         deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
         SeedUpdate,
     },
-    KeyIdSeed, KeySeed,
+    rng::seed::{KeyIdSeed, KeySeed},
 };
 
 use sam_common::AccountId;

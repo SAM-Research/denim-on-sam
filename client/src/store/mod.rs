@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use bon::Builder;
-use denim_sam_common::ChaChaRngState;
+use denim_sam_common::rng::chacha::ChaChaRngState;
 use libsignal_protocol::{PreKeyId, PreKeyStore, SessionStore};
 use sam_client::storage::{ContactStore, MessageStore, ProvidesKeyId};
 

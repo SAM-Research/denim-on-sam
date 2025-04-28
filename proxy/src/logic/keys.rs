@@ -1,4 +1,7 @@
-use denim_sam_common::{denim_message::KeyBundle, KeyIdSeed, KeySeed};
+use denim_sam_common::{
+    denim_message::KeyBundle,
+    rng::seed::{KeyIdSeed, KeySeed},
+};
 use log::error;
 
 use sam_common::{
@@ -96,7 +99,7 @@ pub async fn update_seed<T: StateType>(
 
 #[cfg(test)]
 mod test {
-    use denim_sam_common::KeySeed;
+    use denim_sam_common::rng::seed::KeySeed;
     use libsignal_protocol::IdentityKeyPair;
     use rand::{rngs::OsRng, SeedableRng};
     use rand_chacha::ChaCha20Rng;

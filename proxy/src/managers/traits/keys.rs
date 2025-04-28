@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use denim_sam_common::RngState;
 
+use denim_sam_common::rng::RngState;
 use rand::Rng;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 
