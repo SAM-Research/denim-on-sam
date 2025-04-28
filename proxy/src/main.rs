@@ -115,31 +115,28 @@ async fn cli() -> Result<(), CliError> {
         let proxy_addr = matches.get_one::<String>("proxy_address");
 
         let sam_addr = matches.get_one::<String>("sam_address");
-        let deniable_ratio = if let Some(x) = matches.get_one::<String>("deniable_ratio") {
-            Some(x.parse().map_err(|_| {
+        let deniable_ratio = if let Some(ratio) = matches.get_one::<String>("deniable_ratio") {
+            Some(ratio.parse().map_err(|_| {
                 CliError::ArgumentError("Expected float for deniable ratio".to_string())
             })?)
         } else {
             None
         };
-        let buffer_size = matches
-            .get_one::<String>("buffer_size")
-            .ok_or(CliError::ArgumentError("Expected buffer size".to_string()))?
-            .parse()
-            .map_err(|_| {
-                CliError::ArgumentError("Expected usize for deniable ratio. On 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes".to_string())
-            })?;
+        let buffer_size = if let Some(size) = matches.get_one::<String>("buffer_size") {
+            Some(size.parse().map_err(|_| {
+                CliError::ArgumentError("Expected usize for buffer size. On 32 bit target, this is 4 bytes and on a 64 bit target, this is 8 bytes".to_string())
+            })?)
+        } else {
+            None
+        };
 
-        DenimCliConfig::new(
-            url.clone(),
-            sam_addr.cloned(),
-            proxy_addr.cloned(),
-            deniable_ratio,
-            None,
-            Some(buffer_size),
-            None,
-            None,
-        )
+        DenimCliConfig::builder()
+            .database_url(url.to_string())
+            .maybe_denim_proxy_address(proxy_addr.cloned())
+            .maybe_sam_address(sam_addr.cloned())
+            .maybe_deniable_ratio(deniable_ratio)
+            .maybe_channel_buffer_size(buffer_size)
+            .build()
     };
 
     if let Some(filter) = &config.logging {

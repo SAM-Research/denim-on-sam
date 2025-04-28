@@ -1,4 +1,5 @@
 use axum::http;
+use bon::bon;
 use log::debug;
 
 use sam_net::{
@@ -44,7 +45,9 @@ pub struct ProxyMtlsConfig {
     pub key_path: String,
 }
 
+#[bon]
 impl DenimCliConfig {
+    #[builder]
     pub fn new(
         database_url: String,
         sam_address: Option<String>,
