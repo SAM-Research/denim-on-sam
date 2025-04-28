@@ -1,5 +1,4 @@
 pub mod buffers;
-pub mod crypto;
 mod error;
 mod seed;
 
