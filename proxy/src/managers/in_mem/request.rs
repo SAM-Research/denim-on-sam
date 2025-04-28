@@ -27,6 +27,7 @@ impl KeyRequestManager for InMemoryKeyRequestManager {
     }
 }
 
+#[cfg(test)]
 mod test {
     use sam_common::AccountId;
 

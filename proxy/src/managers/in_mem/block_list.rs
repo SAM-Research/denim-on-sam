@@ -34,6 +34,7 @@ impl BlockList for InMemoryBlockList {
     }
 }
 
+#[cfg(test)]
 mod test {
     use sam_common::AccountId;
 
