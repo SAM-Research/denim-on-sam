@@ -108,8 +108,6 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         let entry = DeviceAddress::new(account_id, device_id);
 
         for _ in 0..32 {
-            // TODO: This should use an rng that the user has specified so that client and server
-            // get same key ids.
             let key_id = rng.next_u32();
             let reserved = self
                 .used_keys
