@@ -14,3 +14,8 @@ pub enum DenimEncodeDecodeError {
     ChunkEncode,
     DeniableMessageDecode,
 }
+
+#[derive(Debug, Display, Error, From)]
+pub enum ConversionError {
+    SeedConversionError,
+}

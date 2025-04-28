@@ -3,6 +3,8 @@ use std::ops::Deref;
 use derive_more::From;
 use rand::Rng;
 
+use crate::error::ConversionError;
+
 const RNG_SEED_SIZE: usize = 32;
 
 #[derive(Debug, Clone, From)]
@@ -46,5 +48,17 @@ impl Deref for Seed {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl TryFrom<Vec<u8>> for Seed {
+    type Error = ConversionError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let seed: [u8; 32] = value
+            .try_into()
+            .map_err(|_| ConversionError::SeedConversionError)?;
+
+        Ok(Seed::new(seed))
     }
 }

@@ -12,7 +12,7 @@ use sam_server::managers::traits::{
 
 use crate::{
     error::LogicError,
-    managers::{DenimEcPreKeyManager, DenimKeyManagerError},
+    managers::{error::DenimKeyManagerError, DenimEcPreKeyManager},
     state::{DenimState, StateType},
 };
 
@@ -114,7 +114,9 @@ mod test {
     use crate::{
         error::LogicError,
         logic::keys::get_keys_for,
-        managers::{default::ChaChaCryptoProvider, DenimEcPreKeyManager, DenimKeyManagerError},
+        managers::{
+            default::ChaChaCryptoProvider, error::DenimKeyManagerError, DenimEcPreKeyManager,
+        },
         state::{DenimState, InMemoryStateType},
     };
 

@@ -1,7 +1,7 @@
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 
-use crate::managers::{traits::CryptoProvider, DenimEcPreKeyManager, DenimKeyManagerError};
+use crate::managers::{error::DenimKeyManagerError, traits::CryptoProvider, DenimEcPreKeyManager};
 
 pub async fn generate_ec_pre_keys<C: CryptoProvider>(
     key_manager: &mut impl DenimEcPreKeyManager,

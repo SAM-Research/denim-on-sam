@@ -12,7 +12,9 @@ use sam_server::managers::in_memory::account::InMemoryAccountManager;
 use sam_server::managers::in_memory::device::InMemoryDeviceManager;
 use sam_server::managers::in_memory::keys::InMemorySignedPreKeyManager;
 
-use crate::managers::in_mem::InMemoryDenimEcPreKeyManager;
+use crate::managers::in_mem::{
+    InMemoryBlockList, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager,
+};
 use crate::managers::{BufferManager, DenimKeyManager, InMemoryMessageIdProvider};
 use crate::routes::websocket_endpoint;
 use crate::state::{DenimState, InMemoryBufferManagerType, InMemoryStateType, StateType};
@@ -38,26 +40,30 @@ impl DenimConfig<InMemoryStateType> {
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
-            BufferManager::new(rcfg, scfg, id_provider, deniable_ratio);
+        let buffer_mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
+            InMemoryBlockList::default(),
+            rcfg,
+            scfg,
+            id_provider,
+            deniable_ratio,
+        );
 
         Self {
             addr,
             tls_config,
-            state: DenimState::<InMemoryStateType>::new(
-                sam_address,
-                channel_buffer_size,
-                ws_proxy_tls_config,
-                buffer_mgr,
-                DenimKeyManager::new(
+            state: DenimState::<InMemoryStateType>::builder()
+                .sam_addr(sam_address)
+                .channel_buffer_size(channel_buffer_size)
+                .maybe_ws_proxy_tls_config(ws_proxy_tls_config)
+                .buffer_manager(buffer_mgr)
+                .keys(DenimKeyManager::new(
                     InMemoryDenimEcPreKeyManager::new(key_generate_amount),
                     InMemorySignedPreKeyManager::default(),
-                ),
-                InMemoryAccountManager::default(),
-                // TODO: When adding postgres manager, connect for device manager should not take these
-                // params as they are already set by SAM.
-                InMemoryDeviceManager::new("Test".to_owned(), 120),
-            ),
+                ))
+                .accounts(InMemoryAccountManager::default()) // TODO: When adding postgres manager, connect for device manager should not take these
+                .devices(InMemoryDeviceManager::new("Test".to_owned(), 120)) // params as they are already set by SAM.
+                .key_request_manager(InMemoryKeyRequestManager::default())
+                .build(),
         }
     }
 }

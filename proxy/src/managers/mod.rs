@@ -6,7 +6,7 @@ pub mod traits;
 pub use default::BufferManager;
 pub use in_mem::InMemoryMessageIdProvider;
 use sam_server::managers::traits::key_manager::SignedPreKeyManager;
-pub use traits::{DenimEcPreKeyManager, DenimKeyManagerError};
+pub use traits::DenimEcPreKeyManager;
 
 pub trait DenimKeyManagerType: Clone + Send + Sync {
     type EcPreKeyManager: DenimEcPreKeyManager;
