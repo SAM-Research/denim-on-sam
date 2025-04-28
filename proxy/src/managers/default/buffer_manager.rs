@@ -6,8 +6,8 @@ use denim_sam_common::{
         SendingBuffer, SendingBufferConfig,
     },
     denim_message::{
-        deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyUpdate,
-        SeedUpdate, UserMessage,
+        deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, SeedUpdate,
+        UserMessage,
     },
 };
 use log::debug;
@@ -26,7 +26,6 @@ use crate::{
 pub enum ClientRequest {
     BlockRequest(MessageId, BlockRequest),
     KeyRequest(MessageId, KeyRequest),
-    KeyRefillRequest(MessageId, KeyUpdate),
     SeedUpdateRequest(MessageId, SeedUpdate),
 }
 
@@ -167,7 +166,6 @@ impl<T: BufferManagerType> BufferManager<T> {
             }
             MessageKind::BlockRequest(x) => ClientRequest::BlockRequest(message_id, x),
             MessageKind::KeyRequest(x) => ClientRequest::KeyRequest(message_id, x),
-            MessageKind::KeyRefill(x) => ClientRequest::KeyRefillRequest(message_id, x),
             MessageKind::SeedUpdate(x) => ClientRequest::SeedUpdateRequest(message_id, x),
             // Client is not allowed to send these
             MessageKind::Error(_) => Err(BufferManagerError::ClientSendError(message_id))?,

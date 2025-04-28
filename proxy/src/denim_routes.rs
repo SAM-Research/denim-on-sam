@@ -28,7 +28,6 @@ pub async fn denim_router<T: StateType>(
         ClientRequest::KeyRequest(msg_id, key_request) => {
             handle_key_request(state, msg_id, key_request, account_id).await
         }
-        ClientRequest::KeyRefillRequest(_, _key_update) => todo!(),
         ClientRequest::SeedUpdateRequest(msg_id, seed_update) => {
             handle_seed_update(state, msg_id, seed_update, account_id).await
         }
@@ -74,7 +73,8 @@ pub async fn handle_key_request<T: StateType>(
         Err(LogicError::KeyManager(DenimKeyManagerError::NoSeed)) => {
             state
                 .key_request_manager
-                .store_receiver(requested_account_id, sender_account_id);
+                .store_receiver(requested_account_id, sender_account_id)
+                .await;
             return Ok(());
         }
         Err(err) => return Err(DenimRouterError::Logic(err)),
@@ -109,7 +109,11 @@ pub async fn handle_seed_update<T: StateType>(
 
     update_seed(state, sender_account_id, 1.into(), seed).await?;
 
-    if let Some(receivers) = state.key_request_manager.get_receivers(sender_account_id) {
+    if let Some(receivers) = state
+        .key_request_manager
+        .get_receivers(sender_account_id)
+        .await
+    {
         for receiver in receivers {
             let key_bundle = get_keys_for(state, sender_account_id, 1.into()).await?;
             let identity_key = state

@@ -26,8 +26,6 @@ message KeyResponse {
   required KeyBundle key_bundle = 3;
 }
 
-message KeyUpdate { required bytes signed_pre_key = 1; }
-
 message SeedUpdate { required bytes pre_key_seed = 1; }
 
 message Error {
@@ -42,7 +40,6 @@ message DeniableMessage {
     UserMessage deniable_message = 3;
     KeyRequest key_request = 4;
     KeyResponse key_response = 5;
-    KeyUpdate key_refill = 6;
     SeedUpdate seed_update = 7;
     Error error = 8;
   }
