@@ -1,6 +1,7 @@
 pub mod default;
 pub mod error;
 pub mod in_mem;
+pub mod postgres;
 pub mod traits;
 
 pub use default::BufferManager;

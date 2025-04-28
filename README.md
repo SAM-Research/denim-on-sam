@@ -10,6 +10,8 @@ $ denim-sam-proxy --help
 Usage: denim-sam-proxy [OPTIONS]
 
 Options:
+  -d, --database-url <database_url>
+          PostgreSQL connection url
   -s, --sam-address <sam_address>
           Address to run sam server on [default: 127.0.0.1:8080]
   -p, --proxy-address <proxy_address>
@@ -36,6 +38,7 @@ where the looks like this:
 
 ```jsonc
 {
+  "databaseUrl": "postgres://admin:admin@127.0.0.1:5432/samdb", // Address to postgres db
   "samAddress": "127.0.0.1:8080", // Address to sam (optional)
   "denimProxyAddress": "127.0.0.1:8081", // Address to run DenIM Proxy on (optional)
   "deniableRatio": 1.0, // Deniable ratio (q) (optional)

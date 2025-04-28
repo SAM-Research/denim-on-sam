@@ -6,6 +6,7 @@ use log::error;
 use sam_server::managers::error::{AccountManagerError, DeviceManagerError};
 
 use sam_net::error::{ClientTlsError, ServerTlsError};
+use sqlx::Error;
 
 use crate::managers::error::{BufferManagerError, DenimKeyManagerError};
 
@@ -40,6 +41,7 @@ pub enum CliError {
     TLSError(TlsError),
     SerdeError(serde_json::Error),
     IoError(std::io::Error),
+    Database(Error),
 }
 
 #[derive(Debug, Display, Error, From)]

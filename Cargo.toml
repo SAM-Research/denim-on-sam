@@ -44,6 +44,7 @@ prost = "0.13.5"
 rand = "0.8.5"
 bincode = "2.0.1"
 rand_chacha = "0.3.1"
+sqlx = "0.8.3"
 
 
 # Dev dependencies

@@ -13,9 +13,11 @@ use sam_server::managers::traits::{
 use std::sync::Arc;
 
 mod in_mem;
+mod postgres;
 
 pub use in_mem::InMemoryBufferManagerType;
 pub use in_mem::InMemoryStateType;
+pub use postgres::PostgresStateType;
 
 pub trait BufferManagerType: 'static + Clone {
     type BlockList: BlockList;
