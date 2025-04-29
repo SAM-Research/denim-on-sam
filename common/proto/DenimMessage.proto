@@ -26,7 +26,10 @@ message KeyResponse {
   required KeyBundle key_bundle = 3;
 }
 
-message SeedUpdate { required bytes pre_key_seed = 1; }
+message SeedUpdate { 
+  required bytes pre_key_seed = 1;    // DenIM-on-SAM KeySeed
+  required bytes pre_key_id_seed = 2; // DenIM-on-SAM KeyIdSeed
+}
 
 message Error {
   required string error = 1;

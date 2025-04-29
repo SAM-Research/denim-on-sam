@@ -16,7 +16,7 @@ use sam_common::AccountId;
 
 use crate::store::{DeniableStore, DeniableStoreType};
 
-use super::error::EncryptionError;
+use super::{error::EncryptionError, key::generate_key};
 
 pub async fn encrypt(
     message: Vec<u8>,
@@ -67,6 +67,15 @@ pub async fn decrypt<R: Rng + CryptoRng>(
         .map_err(|_| EncryptionError::InvalidAccountId)?;
 
     let addr = ProtocolAddress::new(source.to_string(), 1.into());
+
+    // A deniable message must contain a PreKey.
+    if let CiphertextMessage::PreKeySignalMessage(ref prekey_message) = cipher {
+        let key_id = prekey_message
+            .pre_key_id()
+            .ok_or(EncryptionError::NoPreKeyInMessage)?;
+        generate_key(key_id, deniable_store).await?;
+    }
+
     let bytes = message_decrypt(
         &cipher,
         &addr,

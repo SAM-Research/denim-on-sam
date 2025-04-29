@@ -1,7 +1,8 @@
 use async_trait::async_trait;
-use denim_sam_common::Seed;
+use denim_sam_common::rng::{chacha::ChaChaRngState, RngState};
 use futures_util::TryFutureExt;
-use rand::{rngs::OsRng, RngCore};
+use log::debug;
+use rand::Rng;
 use sam_common::{address::DeviceAddress, api::EcPreKey, AccountId, DeviceId};
 use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
@@ -11,19 +12,20 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::managers::{
-    default::generate_ec_pre_keys, error::DenimKeyManagerError, traits::CryptoProvider,
-    DenimEcPreKeyManager, DenimKeyManagerType,
+    default::generate_ec_pre_keys, error::DenimKeyManagerError, DenimEcPreKeyManager,
+    DenimKeyManagerType,
 };
 
 #[derive(Clone)]
-pub struct InMemoryDenimEcPreKeyManager {
+pub struct InMemoryDenimEcPreKeyManager<T: RngState> {
     key_generate_amount: usize,
     manager: InMemoryEcPreKeyManager,
-    seeds: Arc<Mutex<HashMap<DeviceAddress, (Seed, u128)>>>,
+    id_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
+    key_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
     used_keys: Arc<Mutex<HashMap<DeviceAddress, Vec<u32>>>>,
 }
 
-impl InMemoryDenimEcPreKeyManager {
+impl<T: RngState> InMemoryDenimEcPreKeyManager<T> {
     pub fn new(key_generate_amount: usize) -> Self {
         Self {
             key_generate_amount,
@@ -32,20 +34,21 @@ impl InMemoryDenimEcPreKeyManager {
     }
 }
 
-impl Default for InMemoryDenimEcPreKeyManager {
+impl<T: RngState> Default for InMemoryDenimEcPreKeyManager<T> {
     fn default() -> Self {
         Self {
             key_generate_amount: 10,
             manager: InMemoryEcPreKeyManager::default(),
-            seeds: Arc::new(Mutex::new(HashMap::new())),
-            used_keys: Arc::new(Mutex::new(HashMap::new())),
+            id_seeds: Arc::default(),
+            key_seeds: Arc::default(),
+            used_keys: Arc::default(),
         }
     }
 }
 
 #[async_trait]
-impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
-    async fn get_ec_pre_key<C: CryptoProvider>(
+impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
+    async fn get_ec_pre_key(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -53,8 +56,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
             Ok(pk)
         } else {
-            generate_ec_pre_keys::<C>(self, account_id, device_id, self.key_generate_amount)
-                .await?;
+            generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
             self.manager
                 .get_pre_key(account_id, device_id)
                 .await?
@@ -97,17 +99,16 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         Ok(())
     }
 
-    async fn next_key_id(
+    async fn next_key_id<R: Rng + Send>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
+        rng: &mut R,
     ) -> Result<u32, DenimKeyManagerError> {
         let entry = DeviceAddress::new(account_id, device_id);
 
         for _ in 0..32 {
-            // TODO: This should use an rng that the user has specified so that client and server
-            // get same key ids.
-            let key_id = OsRng.next_u32();
+            let key_id = rng.next_u32();
             let reserved = self
                 .used_keys
                 .lock()
@@ -128,34 +129,57 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
         Err(DenimKeyManagerError::CouldNotGenerateKeyId)
     }
 
-    async fn get_csprng_for(
-        &self,
-        account_id: AccountId,
-        device_id: DeviceId,
-    ) -> Result<(Seed, u128), DenimKeyManagerError> {
-        let res = self
-            .seeds
-            .lock()
-            .await
-            .get(&DeviceAddress::new(account_id, device_id))
-            .cloned()
-            .ok_or(DenimKeyManagerError::NoSeed)?;
-
-        Ok(res)
-    }
-
-    async fn store_csprng_for(
+    async fn get_key_seed_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: Seed,
-        offset: u128,
-    ) -> Result<(), DenimKeyManagerError> {
-        self.seeds
+    ) -> Result<T, DenimKeyManagerError> {
+        self.key_seeds
             .lock()
             .await
-            .insert(DeviceAddress::new(account_id, device_id), (seed, offset));
+            .get(&DeviceAddress::new(account_id, device_id))
+            .ok_or(DenimKeyManagerError::NoSeed)
+            .inspect_err(|_| debug!("No key seed found for {account_id}.{device_id}"))
+            .cloned()
+    }
 
+    async fn store_key_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        seed: T,
+    ) -> Result<(), DenimKeyManagerError> {
+        self.key_seeds
+            .lock()
+            .await
+            .insert(DeviceAddress::new(account_id, device_id), seed);
+        Ok(())
+    }
+
+    async fn get_key_id_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<T, DenimKeyManagerError> {
+        self.id_seeds
+            .lock()
+            .await
+            .get(&DeviceAddress::new(account_id, device_id))
+            .ok_or(DenimKeyManagerError::NoSeed)
+            .inspect_err(|_| debug!("No key id seed found for {account_id}.{device_id}"))
+            .cloned()
+    }
+
+    async fn store_key_id_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        seed: T,
+    ) -> Result<(), DenimKeyManagerError> {
+        self.id_seeds
+            .lock()
+            .await
+            .insert(DeviceAddress::new(account_id, device_id), seed);
         Ok(())
     }
 }
@@ -164,7 +188,7 @@ impl DenimEcPreKeyManager for InMemoryDenimEcPreKeyManager {
 pub struct InMemoryDenimKeyManager;
 
 impl DenimKeyManagerType for InMemoryDenimKeyManager {
-    type EcPreKeyManager = InMemoryDenimEcPreKeyManager;
+    type EcPreKeyManager = InMemoryDenimEcPreKeyManager<ChaChaRngState>;
 
     type SignedPreKeyManager = InMemorySignedPreKeyManager;
 }

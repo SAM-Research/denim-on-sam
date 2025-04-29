@@ -1,9 +1,6 @@
 use sam_server::managers::postgres::{PostgresAccountManager, PostgresDeviceManager};
 
-use crate::managers::{
-    default::ChaChaCryptoProvider, in_mem::InMemoryKeyRequestManager,
-    postgres::PostgresDenimKeyManager,
-};
+use crate::managers::{in_mem::InMemoryKeyRequestManager, postgres::PostgresDenimKeyManager};
 
 use super::{InMemoryBufferManagerType, StateType};
 
@@ -18,8 +15,6 @@ impl StateType for PostgresStateType {
     type AccountManager = PostgresAccountManager;
 
     type DeviceManger = PostgresDeviceManager;
-
-    type CryptoProvider = ChaChaCryptoProvider;
 
     type KeyRequestManager = InMemoryKeyRequestManager;
 }

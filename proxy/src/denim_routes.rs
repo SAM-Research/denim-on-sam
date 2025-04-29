@@ -3,7 +3,7 @@ use denim_sam_common::{
         deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
         SeedUpdate,
     },
-    Seed,
+    rng::seed::{KeyIdSeed, KeySeed},
 };
 
 use sam_common::AccountId;
@@ -105,9 +105,10 @@ pub async fn handle_seed_update<T: StateType>(
     request: SeedUpdate,
     sender_account_id: AccountId,
 ) -> Result<(), DenimRouterError> {
-    let seed = Seed::try_from(request.pre_key_seed)?;
+    let key_seed = KeySeed::try_from(request.pre_key_seed)?;
+    let key_id_seed = KeyIdSeed::try_from(request.pre_key_id_seed)?;
 
-    update_seed(state, sender_account_id, 1.into(), seed).await?;
+    update_seed(state, sender_account_id, 1.into(), key_seed, key_id_seed).await?;
 
     if let Some(receivers) = state
         .key_request_manager

@@ -1,15 +1,14 @@
 use async_trait::async_trait;
-use denim_sam_common::Seed;
 
+use denim_sam_common::rng::RngState;
+use rand::Rng;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 
 use crate::managers::error::DenimKeyManagerError;
 
-use super::crypto_provider::CryptoProvider;
-
 #[async_trait]
-pub trait DenimEcPreKeyManager: Clone + Send + Sync {
-    async fn get_ec_pre_key<C: CryptoProvider>(
+pub trait DenimEcPreKeyManager<T: RngState>: Clone + Send + Sync {
+    async fn get_ec_pre_key(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
@@ -35,23 +34,36 @@ pub trait DenimEcPreKeyManager: Clone + Send + Sync {
         id: u32,
     ) -> Result<(), DenimKeyManagerError>;
 
-    async fn next_key_id(
+    async fn next_key_id<R: Rng + Send>(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
+        rng: &mut R,
     ) -> Result<u32, DenimKeyManagerError>;
 
-    async fn get_csprng_for(
-        &self,
-        account_id: AccountId,
-        device_id: DeviceId,
-    ) -> Result<(Seed, u128), DenimKeyManagerError>;
-
-    async fn store_csprng_for(
+    async fn get_key_seed_for(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
-        seed: Seed,
-        offset: u128,
+    ) -> Result<T, DenimKeyManagerError>;
+
+    async fn store_key_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        seed: T,
+    ) -> Result<(), DenimKeyManagerError>;
+
+    async fn get_key_id_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<T, DenimKeyManagerError>;
+
+    async fn store_key_id_seed_for(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        seed: T,
     ) -> Result<(), DenimKeyManagerError>;
 }
