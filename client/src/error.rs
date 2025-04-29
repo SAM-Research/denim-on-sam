@@ -12,6 +12,7 @@ use sam_net::error::WebSocketError;
 
 use crate::encryption::error::EncryptionError;
 use crate::message::error::{MessageError, MessageProcessingError};
+use crate::store::SeedStoreError;
 
 #[derive(Debug, Error, Display, From)]
 pub enum DenimProtocolError {
@@ -31,6 +32,7 @@ pub enum DenimClientError {
     Logic(LogicError),
     AccountStore(AccountStoreError),
     ContactStore(ContactStoreError),
+    SeedStore(SeedStoreError),
     Api(ApiClientError),
     MessageProcessingError(MessageProcessingError),
     EncryptionError(EncryptionError),

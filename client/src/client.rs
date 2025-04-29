@@ -2,7 +2,8 @@ use bon::bon;
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 
 use denim_sam_common::denim_message::deniable_message::MessageKind;
-use denim_sam_common::denim_message::KeyRequest;
+use denim_sam_common::denim_message::{BlockRequest, KeyRequest, SeedUpdate};
+use denim_sam_common::rng::seed::{KeyIdSeed, KeySeed};
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
@@ -36,7 +37,7 @@ use crate::protocol::{
     DenimProtocolConfig,
 };
 use crate::store::inmem::InMemoryDeniableStoreType;
-use crate::store::{DeniableStore, DeniableStoreConfig, DeniableStoreType};
+use crate::store::{DeniableStore, DeniableStoreConfig, DeniableStoreType, DenimPreKeySeedStore};
 use tokio::sync::mpsc::Receiver as MpscReceiver;
 
 pub trait DenimClientType {
@@ -196,7 +197,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let queue = protocol_client.connect().await?;
 
-        Ok(Self {
+        let mut client = Self {
             store,
             deniable_store,
             api_client,
@@ -204,7 +205,11 @@ impl<T: DenimClientType> DenimClient<T> {
             protocol_client,
             waiting_messages: message_queue_config.create().await,
             envelope_queue: queue,
-        })
+        };
+
+        client.update_key_seed().await?;
+
+        Ok(client)
     }
 
     /// Instantiate a client from valid stores.
@@ -518,5 +523,41 @@ impl<T: DenimClientType> DenimClient<T> {
                     .build(),
             ))
             .await
+    }
+
+    pub async fn block_user(&mut self, account_id: AccountId) {
+        self.protocol_client
+            .enqueue_deniable(MessageKind::BlockRequest(
+                BlockRequest::builder()
+                    .account_id(account_id.into())
+                    .build(),
+            ))
+            .await;
+    }
+
+    pub async fn update_key_seed(&mut self) -> Result<(), DenimClientError> {
+        let id_seed = KeyIdSeed::random(&mut self.rng);
+        let key_seed = KeySeed::random(&mut self.rng);
+
+        self.deniable_store
+            .seed_store
+            .set_key_seed(key_seed.clone().into())
+            .await?;
+
+        self.deniable_store
+            .seed_store
+            .set_key_id_seed(id_seed.clone().into())
+            .await?;
+
+        self.protocol_client
+            .enqueue_deniable(MessageKind::SeedUpdate(
+                SeedUpdate::builder()
+                    .pre_key_id_seed(id_seed.into())
+                    .pre_key_seed(key_seed.into())
+                    .build(),
+            ))
+            .await;
+
+        Ok(())
     }
 }
