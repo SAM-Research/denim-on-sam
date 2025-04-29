@@ -20,8 +20,8 @@ use crate::managers::{
 pub struct InMemoryDenimEcPreKeyManager<T: RngState> {
     key_generate_amount: usize,
     manager: InMemoryEcPreKeyManager,
-    id_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
-    key_seeds: Arc<Mutex<HashMap<DeviceAddress, T>>>,
+    id_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
+    key_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
     used_keys: Arc<Mutex<HashMap<DeviceAddress, Vec<u32>>>>,
 }
 
@@ -138,9 +138,10 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
             .lock()
             .await
             .get(&DeviceAddress::new(account_id, device_id))
+            .cloned()
+            .flatten()
             .ok_or(DenimKeyManagerError::NoSeed)
             .inspect_err(|_| debug!("No key seed found for {account_id}.{device_id}"))
-            .cloned()
     }
 
     async fn store_key_seed_for(
@@ -152,7 +153,7 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         self.key_seeds
             .lock()
             .await
-            .insert(DeviceAddress::new(account_id, device_id), seed);
+            .insert(DeviceAddress::new(account_id, device_id), Some(seed));
         Ok(())
     }
 
@@ -165,9 +166,10 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
             .lock()
             .await
             .get(&DeviceAddress::new(account_id, device_id))
+            .cloned()
+            .flatten()
             .ok_or(DenimKeyManagerError::NoSeed)
             .inspect_err(|_| debug!("No key id seed found for {account_id}.{device_id}"))
-            .cloned()
     }
 
     async fn store_key_id_seed_for(
@@ -179,7 +181,7 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         self.id_seeds
             .lock()
             .await
-            .insert(DeviceAddress::new(account_id, device_id), seed);
+            .insert(DeviceAddress::new(account_id, device_id), Some(seed));
         Ok(())
     }
 }

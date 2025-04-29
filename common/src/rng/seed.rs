@@ -57,6 +57,12 @@ macro_rules! define_seed_type {
             }
         }
 
+        impl From<$name> for Vec<u8> {
+            fn from(value: $name) -> Vec<u8> {
+                (*value).to_vec()
+            }
+        }
+
         impl TryFrom<Vec<u8>> for $name {
             type Error = ConversionError;
 
