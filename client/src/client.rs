@@ -197,7 +197,7 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let queue = protocol_client.connect().await?;
 
-        Ok(Self {
+        let mut client = Self {
             store,
             deniable_store,
             api_client,
@@ -205,7 +205,11 @@ impl<T: DenimClientType> DenimClient<T> {
             protocol_client,
             waiting_messages: message_queue_config.create().await,
             envelope_queue: queue,
-        })
+        };
+
+        client.update_key_seed().await?;
+
+        Ok(client)
     }
 
     /// Instantiate a client from valid stores.
