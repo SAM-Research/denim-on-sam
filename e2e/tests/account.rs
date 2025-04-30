@@ -28,30 +28,22 @@ const TIMEOUT_SECS: u64 = 120;
 
 #[rstest]
 #[case::in_memory_tls(
-    true,
     in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
     client_config(true)
 )]
-#[case::in_memory(false, in_memory_configs(get_next_port(), get_next_port(), None), None)]
+#[case::in_memory(in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[ignore = "requires a postgres test database"]
 #[case::postgres(
-    false,
     postgres_configs(get_next_port(), get_next_port(), None, connection_str()),
     None
 )]
 #[tokio::test]
 pub async fn one_client_can_register(
-    #[case] install_tls: bool,
     #[future(awt)]
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
     #[case] client_tls: Option<ClientConfig>,
 ) {
-    use uuid::Uuid;
-
-    if install_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
         let mut server = server_configs.sam.start().await;
         let mut proxy = server_configs.denim.start().await;

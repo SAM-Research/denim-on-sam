@@ -23,28 +23,22 @@ const TIMEOUT_SECS: u64 = 20;
 
 #[rstest]
 #[case(
-    true,
     in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
     client_config(true)
 )]
 #[ignore = "requires a postgres test database"]
 #[case(
-    true,
     postgres_configs(get_next_port(), get_next_port(), tls_configs(true), connection_str()),
     client_config(true)
 )]
-#[case(false, in_memory_configs(get_next_port(), get_next_port(), None), None)]
+#[case(in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[tokio::test]
 async fn can_connect(
-    #[case] install_tls: bool,
     #[future(awt)]
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
     #[case] client_tls: Option<ClientConfig>,
 ) {
-    if install_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
         let mut server = server_configs.sam.start().await;
         let mut proxy = server_configs.denim.start().await;
@@ -77,22 +71,17 @@ async fn can_connect(
 
 #[rstest]
 #[case(
-    false,
     in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
     client_config(true)
 )]
-#[case(true, in_memory_configs(get_next_port(), get_next_port(), None), None)]
+#[case(in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[tokio::test]
 async fn can_send_message(
-    #[case] install_tls: bool,
     #[future(awt)]
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
     #[case] client_tls: Option<ClientConfig>,
 ) {
-    if install_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
         let mut server = server_configs.sam.start().await;
         let mut proxy = server_configs.denim.start().await;
