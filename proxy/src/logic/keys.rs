@@ -264,7 +264,6 @@ mod test {
         // Can't build a bundle without a seed
         assert!(get_keys_for(&mut state, account_id, device_id)
             .await
-            .inspect_err(|err| println!("{err}"))
             .is_err_and(|err| matches!(err, LogicError::KeyManager(DenimKeyManagerError::NoSeed))));
 
         let alice_key_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
@@ -422,7 +421,7 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_key_seed_for(alice.id(), device_id, bob_key_rng.into())
+            .store_key_seed_for(bob.id(), device_id, bob_key_rng.into())
             .await
             .expect("Can store key csprng");
 
@@ -431,7 +430,7 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_key_id_seed_for(alice.id(), device_id, bob_id_rng.into())
+            .store_key_id_seed_for(bob.id(), device_id, bob_id_rng.into())
             .await
             .expect("Can store id csprng");
 
@@ -446,7 +445,7 @@ mod test {
             .expect("Can decode Alice's pre key");
 
             let bob_key = EcPreKey::decode(
-                get_keys_for(&mut state, alice.id(), device_id)
+                get_keys_for(&mut state, bob.id(), device_id)
                     .await
                     .expect("Can get Bob's keys")
                     .pre_key

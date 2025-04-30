@@ -51,5 +51,6 @@ pub fn client_config(#[default(false)] mtls: bool) -> Option<ClientConfig> {
         None
     };
 
+    let _ = rustls::crypto::ring::default_provider().install_default();
     Some(create_tls_client_config("./cert/rootCA.crt", mutual).expect("Can create client tls"))
 }

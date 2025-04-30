@@ -23,17 +23,17 @@ const TIMEOUT_SECS: u64 = 20;
 
 #[rstest]
 #[case(
-    false,
+    true,
     in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
     client_config(true)
 )]
 #[ignore = "requires a postgres test database"]
 #[case(
-    false,
+    true,
     postgres_configs(get_next_port(), get_next_port(), tls_configs(true), connection_str()),
     client_config(true)
 )]
-#[case(true, in_memory_configs(get_next_port(), get_next_port(), None), None)]
+#[case(false, in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[tokio::test]
 async fn can_connect(
     #[case] install_tls: bool,

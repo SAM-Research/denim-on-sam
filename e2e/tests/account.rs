@@ -28,14 +28,14 @@ const TIMEOUT_SECS: u64 = 120;
 
 #[rstest]
 #[case::in_memory_tls(
-    false,
+    true,
     in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
     client_config(true)
 )]
-#[case::in_memory(true, in_memory_configs(get_next_port(), get_next_port(), None), None)]
+#[case::in_memory(false, in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[ignore = "requires a postgres test database"]
 #[case::postgres(
-    true,
+    false,
     postgres_configs(get_next_port(), get_next_port(), None, connection_str()),
     None
 )]

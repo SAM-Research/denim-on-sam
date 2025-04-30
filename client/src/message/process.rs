@@ -31,7 +31,6 @@ pub async fn process_deniable_message<R: Rng + CryptoRng>(
         .message_kind
         .ok_or(MessageProcessingError::MessageKindWasNone)?;
 
-    debug!("Recieved deniable message of kind {:?}", kind);
     let envelope = match kind {
         MessageKind::DeniableMessage(message) => {
             decrypt(message, store, deniable_store, rng).await?

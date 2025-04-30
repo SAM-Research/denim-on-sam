@@ -147,7 +147,6 @@ pub async fn enqueue_message<T: DenimStateType>(
     message: MessageKind,
     receiver: AccountId,
 ) -> Result<(), DenimRouterError> {
-    debug!("Enqueuing {:?} for {receiver}", message);
     state
         .buffer_manager
         .enqueue_message(

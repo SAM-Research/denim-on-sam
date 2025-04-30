@@ -81,10 +81,6 @@ async fn alice_send_to_charlie(
         .await
         .expect("Can get charlie account_id");
 
-    println!("Alice: {alice_id}");
-    println!("Bob: {bob_id}");
-    println!("Charlie: {charlie_id}");
-
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
     let _bob_deniable_messages = bob.deniable_subscribe();
@@ -244,10 +240,6 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         .await
         .expect("Can get charlie account_id");
 
-    println!("Alice: {alice_id}");
-    println!("Bob: {bob_id}");
-    println!("Charlie: {charlie_id}");
-
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
     let _bob_deniable_messages = bob.deniable_subscribe();
@@ -400,10 +392,6 @@ async fn key_request_waits_for_seed_update(
         .await
         .expect("Can get charlie account_id");
 
-    println!("Alice: {alice_id}");
-    println!("Bob: {bob_id}");
-    println!("Charlie: {charlie_id}");
-
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
     let _bob_deniable_messages = bob.deniable_subscribe();
@@ -488,7 +476,6 @@ async fn conversation(
         .expect("Can send pasta recipe");
 
     sleep(Duration::from_secs(1)).await;
-    println!("1");
 
     bob.send_message(
         alice_id,
@@ -497,7 +484,6 @@ async fn conversation(
     .await
     .expect("Can make fun of Alice's recipe");
 
-    println!("2");
     alice
         .process_messages_blocking()
         .await
@@ -505,13 +491,11 @@ async fn conversation(
 
     sleep(Duration::from_secs(1)).await;
 
-    println!("3");
     alice
         .send_message(bob_id, recipe)
         .await
         .expect("Alice can send the recipe again");
 
-    println!("4");
     bob.send_message(
         charlie_id,
         format!("Alice just sent a weird recipe: {recipe}"),
@@ -519,13 +503,10 @@ async fn conversation(
     .await
     .expect("Can send message from bob to charlie");
 
-    println!("5");
     charlie
         .process_messages_blocking()
         .await
         .expect("Charlie can process messages");
-
-    println!("6");
 }
 
 #[rstest]
@@ -593,10 +574,6 @@ async fn update_seed(
         .await
         .expect("Can get charlie account_id");
 
-    println!("Alice: {alice_id}");
-    println!("Bob: {bob_id}");
-    println!("Charlie: {charlie_id}");
-
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
     let _bob_deniable_messages = bob.deniable_subscribe();
@@ -646,7 +623,6 @@ async fn update_seed(
     alice.update_key_seed().await.expect("Can update Seed");
 
     assert_eq!(received_message, secret_message);
-    println!("First stop");
 
     alice
         .send_message(bob_id, "Hello, mr Bob.")
@@ -678,10 +654,8 @@ async fn update_seed(
         .await
         .expect("Can enqueue deniable message");
 
-    println!("Beginning second conversation");
     conversation(&mut alice, &mut bob, &mut charlie).await;
 
-    println!("Receiving deniable message");
     let envelope = charlie_deniable_messages
         .recv()
         .await
