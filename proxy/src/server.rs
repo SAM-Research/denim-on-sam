@@ -135,7 +135,7 @@ async fn log_request(req: Request, next: Next) -> impl IntoResponse {
 
 pub async fn start_proxy<T: StateType>(config: DenimConfig<T>) -> Result<(), std::io::Error> {
     let app = Router::new()
-        .route("/hello", get(|| async { "Hello From DenIM SAM Proxy" }))
+        .route("/health", get(|| async { "OK" }))
         .route("/api/v1/websocket", get(websocket_endpoint))
         .layer(from_fn(log_request))
         .with_state(config.state);
