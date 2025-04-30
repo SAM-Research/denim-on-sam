@@ -185,6 +185,7 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
 ) {
+    _ = env_logger::try_init();
     let mut server = server_configs.sam.start().await;
     let mut proxy = server_configs.denim.start().await;
     server
@@ -229,9 +230,24 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     )
     .await;
 
+    let mut dorothy = client_with_proxy(
+        proxy.address(),
+        server.address(),
+        &Uuid::new_v4().to_string(),
+        "dorothy device",
+        None,
+        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemoryReceivingBuffer::default(),
+    )
+    .await;
+
     let alice_id = alice.account_id().await.expect("Can get alice account_id");
     let bob_id = bob.account_id().await.expect("Can get bob account_id");
     let charlie_id = charlie
+        .account_id()
+        .await
+        .expect("Can get charlie account_id");
+    let dorothy_id = dorothy
         .account_id()
         .await
         .expect("Can get charlie account_id");
@@ -242,6 +258,8 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     let _bob_regular = bob.regular_subscribe();
     let mut charlie_deniable_messages = charlie.deniable_subscribe();
     let _charlie_regular = charlie.regular_subscribe();
+    let _dorothy_regular = dorothy.regular_subscribe();
+    let _dorothy_deniable_messages = dorothy.deniable_subscribe();
 
     alice
         .send_message(bob_id, "Hello, mr Bob.")
@@ -262,6 +280,32 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         .send_message(bob_id, "Hello my very good friend")
         .await
         .expect("Charlie can greet bob");
+
+    dorothy
+        .send_message(alice_id, "Hi Alice.")
+        .await
+        .expect("dorothy can send a message to publish her key seeds");
+
+    let dorothy_secret = "Here is a secret";
+
+    dorothy
+        .enqueue_message(charlie_id, dorothy_secret)
+        .await
+        .expect("dorothy can enqueue a deniable message");
+
+    dorothy
+        .send_message(bob_id, "Hi Bob!")
+        .await
+        .expect("Dorothy can send message to alice");
+
+    bob.send_message(dorothy_id, "Hi Dorothy")
+        .await
+        .expect("Bob can send message to Dorothy");
+
+    dorothy
+        .process_messages_blocking()
+        .await
+        .expect("Dorothy can get message from Bob");
 
     alice
         .process_messages_blocking()
@@ -287,6 +331,11 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         .await
         .expect("Can send pasta recipe");
 
+    dorothy
+        .send_message(bob_id, recipe)
+        .await
+        .expect("Dorothy can send the recipe");
+
     sleep(Duration::from_secs(1)).await;
 
     bob.send_message(
@@ -295,6 +344,10 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     )
     .await
     .expect("Can make fun of Alice's recipe");
+
+    bob.send_message(dorothy_id, format!("I just got this from Alice: {recipe}"))
+        .await
+        .expect("Can make fun of Alice's recipe");
 
     alice
         .process_messages_blocking()
@@ -320,9 +373,14 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         .await
         .expect("Charlie can process messages blocking because there is a regular message for him");
 
-    let result = timeout(Duration::from_secs(2), charlie_deniable_messages.recv()).await;
+    let envelope = charlie_deniable_messages
+        .recv()
+        .await
+        .expect("can receive message");
 
-    assert!(result.is_err());
+    let received_message = String::from_utf8_lossy(envelope.content_bytes()).to_string();
+
+    assert_eq!(received_message, dorothy_secret)
 }
 
 #[rstest]
