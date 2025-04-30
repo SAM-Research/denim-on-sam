@@ -1,14 +1,14 @@
 use denim_sam_proxy::config::{ProxyMtlsConfig, TlsConfig};
-use rstest::fixture;
 use rustls::ClientConfig;
 use sam_net::tls::{create_tls_client_config, MutualTlsConfig};
 use sam_server::config::TlsConfig as SamTlsConfig;
 
-#[fixture]
-pub fn tls_configs(#[default(false)] mtls: bool) -> Option<(SamTlsConfig, TlsConfig)> {
+#[allow(unused)]
+pub fn tls_configs(mtls: bool) -> Option<(SamTlsConfig, TlsConfig)> {
     Some((sam_config(mtls), proxy_config(mtls)))
 }
 
+#[allow(unused)]
 pub fn sam_config(mtls: bool) -> SamTlsConfig {
     let ca = if mtls {
         Some("./cert/rootCA.crt".to_string())
@@ -22,6 +22,7 @@ pub fn sam_config(mtls: bool) -> SamTlsConfig {
     }
 }
 
+#[allow(unused)]
 pub fn proxy_config(mtls: bool) -> TlsConfig {
     let proxy_client = if mtls {
         Some(ProxyMtlsConfig {
@@ -40,8 +41,8 @@ pub fn proxy_config(mtls: bool) -> TlsConfig {
     }
 }
 
-#[fixture]
-pub fn client_config(#[default(false)] mtls: bool) -> Option<ClientConfig> {
+#[allow(unused)]
+pub fn client_config(mtls: bool) -> Option<ClientConfig> {
     let mutual = if mtls {
         Some(MutualTlsConfig::new(
             "./cert/client.key".to_string(),

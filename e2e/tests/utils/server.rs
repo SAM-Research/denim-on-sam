@@ -1,39 +1,26 @@
-use crate::utils::tls::tls_configs;
 use async_trait::async_trait;
 use denim_sam_proxy::{
     config::TlsConfig,
     server::{start_proxy, DenimConfig},
     state::{DenimStateType, InMemoryDenimStateType, PostgresDenimStateType},
 };
-use rstest::fixture;
 use sam_server::{
     config::TlsConfig as SamTlsConfig,
     managers::{in_memory::InMemStateType, postgres::PostgresStateType},
     start_server, ServerConfig, StateType,
 };
 use sam_test_utils::e2e::{in_memory_server_state, postgres_server_state};
-use sam_test_utils::get_next_port;
 use tokio::{
     sync::oneshot::{self, Receiver},
     task::JoinHandle,
 };
-
-#[fixture]
-pub fn next_sam_port() -> u16 {
-    get_next_port()
-}
-
-#[fixture]
-pub fn next_denim_port() -> u16 {
-    get_next_port()
-}
 
 pub struct TestServerConfigs<S: StateType, D: DenimStateType> {
     pub sam: SamTestServerConfig<S>,
     pub denim: DenimTestServerConfig<D>,
 }
 
-#[fixture]
+#[allow(unused)]
 pub async fn in_memory_configs(
     next_sam_port: u16,
     next_denim_port: u16,
@@ -73,12 +60,12 @@ pub async fn in_memory_configs(
     TestServerConfigs { sam, denim }
 }
 
-#[fixture]
+#[allow(unused)]
 pub fn connection_str() -> String {
     "postgres://test:test@127.0.0.1:5432/sam_test_db".to_string()
 }
 
-#[fixture]
+#[allow(unused)]
 pub async fn postgres_configs(
     next_sam_port: u16,
     next_denim_port: u16,
