@@ -185,7 +185,6 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
 ) {
-    _ = env_logger::try_init();
     let mut server = server_configs.sam.start().await;
     let mut proxy = server_configs.denim.start().await;
     server
