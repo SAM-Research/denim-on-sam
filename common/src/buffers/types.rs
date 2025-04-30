@@ -15,7 +15,12 @@ pub type SequenceNumber = u32;
 pub type MessageId = u32;
 
 impl DenimChunk {
-    pub fn new(chunk: Vec<u8>, message_id: MessageId, sequence_number: SequenceNumber, flag: Flag) -> Self {
+    pub fn new(
+        chunk: Vec<u8>,
+        message_id: MessageId,
+        sequence_number: SequenceNumber,
+        flag: Flag,
+    ) -> Self {
         Self {
             chunk,
             message_id,
