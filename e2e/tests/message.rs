@@ -42,8 +42,8 @@ async fn alice_send_to_charlie(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
@@ -53,8 +53,8 @@ async fn alice_send_to_charlie(
     .await;
 
     let mut bob = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
@@ -64,8 +64,8 @@ async fn alice_send_to_charlie(
     .await;
 
     let mut charlie = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
@@ -205,8 +205,8 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
@@ -216,8 +216,8 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     .await;
 
     let mut bob = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
@@ -227,8 +227,8 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     .await;
 
     let mut charlie = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
@@ -361,8 +361,8 @@ async fn key_request_waits_for_seed_update(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
@@ -372,8 +372,8 @@ async fn key_request_waits_for_seed_update(
     .await;
 
     let mut bob = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
@@ -383,8 +383,8 @@ async fn key_request_waits_for_seed_update(
     .await;
 
     let mut charlie = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
@@ -554,8 +554,8 @@ async fn update_seed(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
@@ -565,8 +565,8 @@ async fn update_seed(
     .await;
 
     let mut bob = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
@@ -576,8 +576,8 @@ async fn update_seed(
     .await;
 
     let mut charlie = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,

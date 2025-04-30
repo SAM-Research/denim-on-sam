@@ -40,8 +40,8 @@ async fn can_link_device(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -104,8 +104,8 @@ async fn can_unlink_device(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -172,8 +172,8 @@ async fn can_delete_device(
         .expect("Should be able to start server");
 
     let mut alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -236,8 +236,8 @@ async fn can_delete_account(
         .expect("Should be able to start server");
 
     let alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,

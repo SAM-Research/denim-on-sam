@@ -36,8 +36,8 @@ pub async fn alice_can_upload_keys(
         .expect("Should be able to start server");
 
     let alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,

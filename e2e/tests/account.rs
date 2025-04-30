@@ -104,8 +104,8 @@ pub async fn can_delete_account(
         .expect("Should be able to start server");
 
     let client = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -140,8 +140,8 @@ pub async fn can_delete_a_device(
         .expect("Should be able to start server");
 
     let client = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -181,8 +181,8 @@ pub async fn alice_can_find_bobs_account_id(
         .expect("Should be able to start server");
 
     let alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
@@ -193,8 +193,8 @@ pub async fn alice_can_find_bobs_account_id(
 
     let bob_username = Uuid::new_v4().to_string();
     let bob = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &bob_username,
         "Bob's device",
         None,
@@ -234,8 +234,8 @@ pub async fn two_clients_cannot_have_the_same_username(
     let username = Uuid::new_v4().to_string();
 
     let _alice = client_with_proxy(
-        &proxy.address(),
-        &server.address(),
+        proxy.address(),
+        server.address(),
         &username,
         "Alice's device",
         None,
@@ -249,7 +249,7 @@ pub async fn two_clients_cannot_have_the_same_username(
         .device_name("Alice's device")
         .store_config(InMemoryStoreConfig::default())
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
-        .api_client_config(http_config(&server.address(), None))
+        .api_client_config(http_config(server.address(), None))
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
             proxy.address().to_string(),

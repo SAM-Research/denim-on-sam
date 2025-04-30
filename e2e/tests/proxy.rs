@@ -59,8 +59,8 @@ async fn can_connect(
             .expect("Should be able to start server");
 
         let client = client_with_proxy(
-            &proxy.address(),
-            &server.address(),
+            proxy.address(),
+            server.address(),
             &Uuid::new_v4().to_string(),
             "alice device",
             client_tls,
@@ -107,8 +107,8 @@ async fn can_send_message(
             .expect("Should be able to start server");
 
         let mut alice = client_with_proxy(
-            &proxy.address(),
-            &server.address(),
+            proxy.address(),
+            server.address(),
             &Uuid::new_v4().to_string(),
             "alice device",
             client_tls.clone(),
@@ -117,8 +117,8 @@ async fn can_send_message(
         )
         .await;
         let mut bob = client_with_proxy(
-            &proxy.address(),
-            &server.address(),
+            proxy.address(),
+            server.address(),
             &Uuid::new_v4().to_string(),
             "bob device",
             client_tls,
