@@ -33,28 +33,6 @@ jobs:
           wget https://github.com/protocolbuffers/protobuf/releases/download/v21.3/protoc-21.3-linux-x86_64.zip
           unzip -o protoc-21.3-linux-x86_64.zip -d ~/.local
 
-      - name: Cache Cargo bin (for sqlx-cli)
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/sqlx
-          key: sqlx-cli-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            sqlx-cli-${{ runner.os }}-
-
-      - name: Install SQLx CLI if not cached
-        run: |
-          if ! command -v sqlx &> /dev/null; then
-            cargo install sqlx-cli
-          else
-            echo "sqlx-cli found in cache, skipping installation"
-          fi
-
-      - name: Verify SQLx installation
-        run: sqlx --version
-
-      #- name: Setup sqlx
-      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
-
       - name: Run fmt
         run: cargo fmt --all -- --check
 
@@ -83,28 +61,6 @@ jobs:
           # Install Protoc.
           wget https://github.com/protocolbuffers/protobuf/releases/download/v21.3/protoc-21.3-linux-x86_64.zip
           unzip -o protoc-21.3-linux-x86_64.zip -d ~/.local
-
-      - name: Cache Cargo bin (for sqlx-cli)
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/sqlx
-          key: sqlx-cli-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            sqlx-cli-${{ runner.os }}-
-
-      - name: Install SQLx CLI if not cached
-        run: |
-          if ! command -v sqlx &> /dev/null; then
-            cargo install sqlx-cli
-          else
-            echo "sqlx-cli found in cache, skipping installation"
-          fi
-
-      - name: Verify SQLx installation
-        run: sqlx --version
-
-      #- name: Setup sqlx
-      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
 
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -151,19 +107,13 @@ jobs:
           restore-keys: |
             sqlx-cli-${{ runner.os }}-
 
-      - name: Install SQLx CLI if not cached
-        run: |
-          if ! command -v sqlx &> /dev/null; then
-            cargo install sqlx-cli
-          else
-            echo "sqlx-cli found in cache, skipping installation"
-          fi
+      - name: Setup Postgres
+        run: curl -o ./proxy/database/init.sql https://raw.githubusercontent.com/SAM-Research/sam-instant-messenger/refs/heads/main/server/database/init.sql
 
-      - name: Verify SQLx installation
-        run: sqlx --version
-
-      #- name: Setup sqlx
-      #  run: cd client/database/ && sqlx db create -D sqlite://dev.db && sqlx migrate run -D sqlite://dev.db && cd ../..
+      - name: Init Postgres
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: "./proxy/database/test-database.yml"
 
       - name: Cache Cargo bin (for llvm-cov)
         uses: actions/cache@v4
@@ -185,7 +135,7 @@ jobs:
         run: cd ./scripts && ./generate_cert.sh ../e2e/cert
 
       - name: Test & Coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info -- --include-ignored
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

@@ -33,8 +33,7 @@ pub async fn client_with_proxy(
     sam_addr: &str,
     username: &str,
     device_name: &str,
-    https: Option<ClientConfig>,
-    wss: Option<ClientConfig>,
+    tls: Option<ClientConfig>,
     sending_buffer: InMemorySendingBuffer,
     receiving_buffer: InMemoryReceivingBuffer,
 ) -> DenimClient<InMemoryDenimClientType> {
@@ -43,11 +42,11 @@ pub async fn client_with_proxy(
         .device_name(device_name)
         .store_config(InMemoryStoreConfig::default())
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
-        .api_client_config(http_config(sam_addr, https))
+        .api_client_config(http_config(sam_addr, tls.clone()))
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
             proxy_addr.to_owned(),
-            wss,
+            tls,
             10,
             sending_buffer,
             receiving_buffer,

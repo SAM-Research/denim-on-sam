@@ -4,6 +4,11 @@ use sam_net::tls::{create_tls_client_config, MutualTlsConfig};
 use sam_server::config::TlsConfig as SamTlsConfig;
 
 #[allow(unused)]
+pub fn tls_configs(mtls: bool) -> Option<(SamTlsConfig, TlsConfig)> {
+    Some((sam_config(mtls), proxy_config(mtls)))
+}
+
+#[allow(unused)]
 pub fn sam_config(mtls: bool) -> SamTlsConfig {
     let ca = if mtls {
         Some("./cert/rootCA.crt".to_string())
@@ -37,7 +42,7 @@ pub fn proxy_config(mtls: bool) -> TlsConfig {
 }
 
 #[allow(unused)]
-pub fn client_config(mtls: bool) -> ClientConfig {
+pub fn client_config(mtls: bool) -> Option<ClientConfig> {
     let mutual = if mtls {
         Some(MutualTlsConfig::new(
             "./cert/client.key".to_string(),
@@ -47,5 +52,6 @@ pub fn client_config(mtls: bool) -> ClientConfig {
         None
     };
 
-    create_tls_client_config("./cert/rootCA.crt", mutual).expect("Can create client tls")
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    Some(create_tls_client_config("./cert/rootCA.crt", mutual).expect("Can create client tls"))
 }

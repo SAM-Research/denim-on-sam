@@ -166,7 +166,7 @@ async fn cli() -> Result<(), CliError> {
     };
 
     let denim_cfg = DenimConfig::postgres()
-        .url(config.database_url)
+        .db_url(config.database_url)
         .addr(addr)
         .sam_address(config.sam_address.unwrap_or(DEFAULT_SAM_ADDR.to_string()))
         .maybe_tls_config(tls_config)

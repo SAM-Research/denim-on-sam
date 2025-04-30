@@ -40,6 +40,7 @@ pub async fn generate_key<T: DeniableStoreType>(
     prekey_id: PreKeyId,
     store: &mut DeniableStore<T>,
 ) -> Result<(), KeyError> {
+    debug!("Searching for prekey {prekey_id}");
     while matches!(
         store.pre_key_store.get_pre_key(prekey_id).await,
         Err(SignalProtocolError::InvalidPreKeyId),
@@ -52,7 +53,7 @@ pub async fn generate_key<T: DeniableStoreType>(
         let pre_key = generate_ec_pre_key(key_id, &mut key_rng).await;
         store.pre_key_store.save_pre_key(key_id, &pre_key).await?;
         store.seed_store.set_key_seed(key_rng.into()).await?;
-        debug!("Successfully stored new prekey.");
+        debug!("Successfully stored new prekey '{key_id}'.");
     }
     Ok(())
 }

@@ -1,54 +1,48 @@
-use std::time::Duration;
-
-use rstest::rstest;
-use sam_test_utils::get_next_port;
-use utils::tls::{client_config, proxy_config, sam_config};
-
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_proxy::state::DenimStateType;
+use rstest::rstest;
+use rustls::ClientConfig;
+use sam_server::StateType;
+use sam_test_utils::get_next_port;
+use std::time::Duration;
 use tokio::time::{sleep, timeout};
-use utils::{
-    client::client_with_proxy,
-    server::{TestDenimProxy, TestSamServer},
-};
+use utils::client::client_with_proxy;
+use utils::server::in_memory_configs;
+use utils::server::TestServerConfig as _;
+use utils::server::TestServerConfigs;
+use utils::tls::client_config;
+use utils::tls::tls_configs;
+use uuid::Uuid;
+
+use crate::utils::server::connection_str;
+use crate::utils::server::postgres_configs;
 
 mod utils;
 
-const TIMEOUT_SECS: u64 = 120;
+const TIMEOUT_SECS: u64 = 20;
 
 #[rstest]
-#[case(false, None, None, None, None, get_next_port(), get_next_port())]
 #[case(
-    true,
-    Some(true),
-    Some(true),
-    Some(true),
-    Some(false),
-    get_next_port(),
-    get_next_port()
+    in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
+    client_config(true)
 )]
+#[ignore = "requires a postgres test database"]
+#[case(
+    postgres_configs(get_next_port(), get_next_port(), tls_configs(true), connection_str()),
+    client_config(true)
+)]
+#[case(in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[tokio::test]
 async fn can_connect(
-    #[case] install_tls: bool,
-    #[case] sam_tls: Option<bool>,
-    #[case] proxy_tls: Option<bool>,
-    #[case] client_https: Option<bool>,
-    #[case] client_wss: Option<bool>,
-    #[case] port: u16,
-    #[case] proxy_port: u16,
+    #[future(awt)]
+    #[case]
+    server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
+    #[case] client_tls: Option<ClientConfig>,
 ) {
-    if install_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = format!("127.0.0.1:{port}");
-        let proxy_addr = format!("127.0.0.1:{proxy_port}");
-        let mut server = TestSamServer::start(
-            &sam_addr,
-            sam_tls.map(|x| sam_config(x).try_into().expect("can create sam tls")),
-        )
-        .await;
-        let mut proxy =
-            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(proxy_config)).await;
+        let mut server = server_configs.sam.start().await;
+        let mut proxy = server_configs.denim.start().await;
+
         server
             .started_rx()
             .await
@@ -59,12 +53,11 @@ async fn can_connect(
             .expect("Should be able to start server");
 
         let client = client_with_proxy(
-            &proxy_addr,
-            &sam_addr,
-            "alice",
+            proxy.address(),
+            server.address(),
+            &Uuid::new_v4().to_string(),
             "alice device",
-            client_https.map(client_config),
-            client_wss.map(client_config),
+            client_tls,
             InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
@@ -77,39 +70,22 @@ async fn can_connect(
 }
 
 #[rstest]
-#[case(false, None, None, None, None, get_next_port(), get_next_port())]
 #[case(
-    true,
-    Some(true),
-    Some(true),
-    Some(true),
-    Some(false),
-    get_next_port(),
-    get_next_port()
+    in_memory_configs(get_next_port(), get_next_port(), tls_configs(true)),
+    client_config(true)
 )]
+#[case(in_memory_configs(get_next_port(), get_next_port(), None), None)]
 #[tokio::test]
 async fn can_send_message(
-    #[case] install_tls: bool,
-    #[case] sam_tls: Option<bool>,
-    #[case] proxy_tls: Option<bool>,
-    #[case] client_https: Option<bool>,
-    #[case] client_wss: Option<bool>,
-    #[case] port: u16,
-    #[case] proxy_port: u16,
+    #[future(awt)]
+    #[case]
+    server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
+    #[case] client_tls: Option<ClientConfig>,
 ) {
-    if install_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
     timeout(Duration::from_secs(TIMEOUT_SECS), async {
-        let sam_addr = format!("127.0.0.1:{port}");
-        let proxy_addr = format!("127.0.0.1:{proxy_port}");
-        let mut server = TestSamServer::start(
-            &sam_addr,
-            sam_tls.map(|x| sam_config(x).try_into().expect("can create sam tls")),
-        )
-        .await;
-        let mut proxy =
-            TestDenimProxy::start(&sam_addr, &proxy_addr, proxy_tls.map(proxy_config)).await;
+        let mut server = server_configs.sam.start().await;
+        let mut proxy = server_configs.denim.start().await;
+
         server
             .started_rx()
             .await
@@ -120,24 +96,22 @@ async fn can_send_message(
             .expect("Should be able to start server");
 
         let mut alice = client_with_proxy(
-            &proxy_addr,
-            &sam_addr,
-            "Alice",
-            "Alice's device",
-            client_https.map(client_config),
-            client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            proxy.address(),
+            server.address(),
+            &Uuid::new_v4().to_string(),
+            "alice device",
+            client_tls.clone(),
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
         let mut bob = client_with_proxy(
-            &proxy_addr,
-            &sam_addr,
-            "Bob",
-            "Bob's device",
-            client_https.map(client_config),
-            client_wss.map(client_config),
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            proxy.address(),
+            server.address(),
+            &Uuid::new_v4().to_string(),
+            "bob device",
+            client_tls,
+            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;

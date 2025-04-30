@@ -1,5 +1,5 @@
 [package]
-name = "e2e"
+name = "denim-sam-e2e"
 version = "0.1.0"
 edition = "2021"
 repository.workspace = true
@@ -18,9 +18,11 @@ denim-sam-proxy = { workspace = true }
 libsignal-protocol = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 env_logger = { workspace = true }
+log = { workspace = true }
 rustls = { workspace = true }
 rustls-pemfile = { workspace = true }
 rstest = { workspace = true }
 rand = { workspace = true }
 bon = { workspace = true }
 async-trait = { workspace = true }
+uuid = { workspace = true }

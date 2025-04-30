@@ -12,8 +12,8 @@ mod in_mem;
 mod postgres;
 
 pub use in_mem::InMemoryBufferManagerType;
-pub use in_mem::InMemoryStateType;
-pub use postgres::PostgresStateType;
+pub use in_mem::InMemoryDenimStateType;
+pub use postgres::PostgresDenimStateType;
 
 pub trait BufferManagerType: 'static + Clone {
     type BlockList: BlockList;
@@ -22,7 +22,7 @@ pub trait BufferManagerType: 'static + Clone {
     type MessageIdProvider: MessageIdProvider;
 }
 
-pub trait StateType: 'static + Clone {
+pub trait DenimStateType: 'static + Clone {
     type KeyRequestManager: KeyRequestManager;
     type BufferManager: BufferManagerType;
     type DenimKeyManagerType: DenimKeyManagerType;
@@ -31,7 +31,7 @@ pub trait StateType: 'static + Clone {
 }
 
 #[derive(Clone)]
-pub struct DenimState<T: StateType> {
+pub struct DenimState<T: DenimStateType> {
     pub key_request_manager: T::KeyRequestManager,
     pub buffer_manager: BufferManager<T::BufferManager>,
     pub keys: DenimKeyManager<T::DenimKeyManagerType>,
@@ -44,7 +44,7 @@ pub struct DenimState<T: StateType> {
 }
 
 #[bon]
-impl<T: StateType> DenimState<T> {
+impl<T: DenimStateType> DenimState<T> {
     #[builder]
     pub fn new(
         sam_addr: String,
@@ -81,7 +81,7 @@ impl<T: StateType> DenimState<T> {
     }
 
     #[cfg(test)]
-    pub fn in_memory_test(sam_addr: String) -> DenimState<InMemoryStateType> {
+    pub fn in_memory_test(sam_addr: String) -> DenimState<InMemoryDenimStateType> {
         use denim_sam_common::buffers::in_mem::{
             InMemoryReceivingBufferConfig, InMemorySendingBufferConfig,
         };

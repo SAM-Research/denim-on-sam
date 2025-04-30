@@ -12,7 +12,7 @@ use tokio_tungstenite::Connector;
 
 use crate::{
     error::{ServerError, TlsError},
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -94,7 +94,7 @@ impl TlsConfig {
     }
 }
 
-pub fn websocket_config<T: StateType>(
+pub fn websocket_config<T: DenimStateType>(
     basic: String,
     state: &DenimState<T>,
 ) -> Result<WebSocketClientConfig, ServerError> {

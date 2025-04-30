@@ -2,12 +2,12 @@ use sam_server::managers::postgres::{PostgresAccountManager, PostgresDeviceManag
 
 use crate::managers::{in_mem::InMemoryKeyRequestManager, postgres::PostgresDenimKeyManager};
 
-use super::{InMemoryBufferManagerType, StateType};
+use super::{DenimStateType, InMemoryBufferManagerType};
 
 #[derive(Clone)]
-pub struct PostgresStateType;
+pub struct PostgresDenimStateType;
 
-impl StateType for PostgresStateType {
+impl DenimStateType for PostgresDenimStateType {
     type BufferManager = InMemoryBufferManagerType;
 
     type DenimKeyManagerType = PostgresDenimKeyManager;

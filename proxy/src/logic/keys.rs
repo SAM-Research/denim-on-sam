@@ -16,10 +16,10 @@ use sam_server::managers::traits::{
 use crate::{
     error::LogicError,
     managers::{error::DenimKeyManagerError, DenimEcPreKeyManager},
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
 };
 
-pub async fn get_keys_for<T: StateType>(
+pub async fn get_keys_for<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -57,7 +57,7 @@ pub async fn get_keys_for<T: StateType>(
         .build())
 }
 
-pub async fn update_signed_pre_key<T: StateType>(
+pub async fn update_signed_pre_key<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -77,7 +77,7 @@ pub async fn update_signed_pre_key<T: StateType>(
     Ok(())
 }
 
-pub async fn update_seed<T: StateType>(
+pub async fn update_seed<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -124,13 +124,13 @@ mod test {
         error::LogicError,
         logic::keys::get_keys_for,
         managers::{error::DenimKeyManagerError, DenimEcPreKeyManager},
-        state::{DenimState, InMemoryStateType},
+        state::{DenimState, InMemoryDenimStateType},
     };
 
     #[tokio::test]
     async fn get_keybundle() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let pair = IdentityKeyPair::generate(&mut rng);
 
@@ -211,7 +211,7 @@ mod test {
     #[tokio::test]
     async fn update_seed() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let pair = IdentityKeyPair::generate(&mut rng);
 
@@ -264,7 +264,6 @@ mod test {
         // Can't build a bundle without a seed
         assert!(get_keys_for(&mut state, account_id, device_id)
             .await
-            .inspect_err(|err| println!("{err}"))
             .is_err_and(|err| matches!(err, LogicError::KeyManager(DenimKeyManagerError::NoSeed))));
 
         let alice_key_rng = ChaCha20Rng::from_rng(rng).expect("Can create RNG");
@@ -305,7 +304,7 @@ mod test {
     #[tokio::test]
     async fn key_generation_is_reproducible() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let alice_pair = IdentityKeyPair::generate(&mut rng);
         let bob_pair = IdentityKeyPair::generate(&mut rng);
@@ -422,7 +421,7 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_key_seed_for(alice.id(), device_id, bob_key_rng.into())
+            .store_key_seed_for(bob.id(), device_id, bob_key_rng.into())
             .await
             .expect("Can store key csprng");
 
@@ -431,7 +430,7 @@ mod test {
         state
             .keys
             .pre_keys
-            .store_key_id_seed_for(alice.id(), device_id, bob_id_rng.into())
+            .store_key_id_seed_for(bob.id(), device_id, bob_id_rng.into())
             .await
             .expect("Can store id csprng");
 
@@ -446,7 +445,7 @@ mod test {
             .expect("Can decode Alice's pre key");
 
             let bob_key = EcPreKey::decode(
-                get_keys_for(&mut state, alice.id(), device_id)
+                get_keys_for(&mut state, bob.id(), device_id)
                     .await
                     .expect("Can get Bob's keys")
                     .pre_key

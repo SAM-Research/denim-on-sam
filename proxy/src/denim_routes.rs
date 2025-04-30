@@ -6,6 +6,7 @@ use denim_sam_common::{
     rng::seed::{KeyIdSeed, KeySeed},
 };
 
+use log::debug;
 use sam_common::AccountId;
 use sam_server::managers::traits::account_manager::AccountManager;
 
@@ -13,10 +14,10 @@ use crate::{
     error::{DenimRouterError, LogicError},
     logic::keys::{get_keys_for, update_seed},
     managers::{default::ClientRequest, error::DenimKeyManagerError, traits::KeyRequestManager},
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
 };
 
-pub async fn denim_router<T: StateType>(
+pub async fn denim_router<T: DenimStateType>(
     state: &mut DenimState<T>,
     request: ClientRequest,
     account_id: AccountId,
@@ -34,7 +35,7 @@ pub async fn denim_router<T: StateType>(
     }
 }
 
-pub async fn handle_block_request<T: StateType>(
+pub async fn handle_block_request<T: DenimStateType>(
     state: &mut DenimState<T>,
     request: BlockRequest,
     sender_account_id: AccountId,
@@ -48,7 +49,7 @@ pub async fn handle_block_request<T: StateType>(
     Ok(())
 }
 
-pub async fn handle_key_request<T: StateType>(
+pub async fn handle_key_request<T: DenimStateType>(
     state: &mut DenimState<T>,
     msg_id: u32,
     request: KeyRequest,
@@ -71,6 +72,7 @@ pub async fn handle_key_request<T: StateType>(
     {
         Ok(key_bundle) => key_bundle,
         Err(LogicError::KeyManager(DenimKeyManagerError::NoSeed)) => {
+            debug!("{requested_account_id}.{requested_device_id} has not uploaded a key seed yet. Request will be defered.");
             state
                 .key_request_manager
                 .store_receiver(requested_account_id, sender_account_id)
@@ -89,7 +91,7 @@ pub async fn handle_key_request<T: StateType>(
     let key_response = MessageKind::KeyResponse(
         KeyResponse::builder()
             .account_id(requested_account_id.into())
-            .identity_key(identity_key.public_key().public_key_bytes().to_owned())
+            .identity_key(identity_key.serialize().to_vec())
             .key_bundle(key_bundle)
             .build(),
     );
@@ -99,7 +101,7 @@ pub async fn handle_key_request<T: StateType>(
     Ok(())
 }
 
-pub async fn handle_seed_update<T: StateType>(
+pub async fn handle_seed_update<T: DenimStateType>(
     state: &mut DenimState<T>,
     msg_id: u32,
     request: SeedUpdate,
@@ -127,7 +129,7 @@ pub async fn handle_seed_update<T: StateType>(
             let key_response = MessageKind::KeyResponse(
                 KeyResponse::builder()
                     .account_id(sender_account_id.into())
-                    .identity_key(identity_key.public_key().public_key_bytes().to_owned())
+                    .identity_key(identity_key.serialize().to_vec())
                     .key_bundle(key_bundle)
                     .build(),
             );
@@ -139,7 +141,7 @@ pub async fn handle_seed_update<T: StateType>(
     Ok(())
 }
 
-pub async fn enqueue_message<T: StateType>(
+pub async fn enqueue_message<T: DenimStateType>(
     state: &mut DenimState<T>,
     msg_id: u32,
     message: MessageKind,
