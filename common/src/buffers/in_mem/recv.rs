@@ -3,6 +3,7 @@ use crate::buffers::Flag;
 use crate::buffers::MessageId;
 use crate::buffers::ReceivingBuffer;
 use crate::buffers::ReceivingBufferConfig;
+use crate::buffers::SequenceNumber;
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use crate::error::DenimEncodeDecodeError;
@@ -19,8 +20,8 @@ use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct ChunkBuffer {
-    chunks: Arc<Mutex<HashMap<u32, Vec<u8>>>>,
-    waiting_for: Arc<Mutex<HashSet<u32>>>,
+    chunks: Arc<Mutex<HashMap<SequenceNumber, Vec<u8>>>>,
+    waiting_for: Arc<Mutex<HashSet<SequenceNumber>>>,
 }
 
 impl Default for ChunkBuffer {
