@@ -16,10 +16,10 @@ use sam_server::managers::traits::{
 use crate::{
     error::LogicError,
     managers::{error::DenimKeyManagerError, DenimEcPreKeyManager},
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
 };
 
-pub async fn get_keys_for<T: StateType>(
+pub async fn get_keys_for<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -57,7 +57,7 @@ pub async fn get_keys_for<T: StateType>(
         .build())
 }
 
-pub async fn update_signed_pre_key<T: StateType>(
+pub async fn update_signed_pre_key<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -77,7 +77,7 @@ pub async fn update_signed_pre_key<T: StateType>(
     Ok(())
 }
 
-pub async fn update_seed<T: StateType>(
+pub async fn update_seed<T: DenimStateType>(
     state: &mut DenimState<T>,
     account_id: AccountId,
     device_id: DeviceId,
@@ -124,13 +124,13 @@ mod test {
         error::LogicError,
         logic::keys::get_keys_for,
         managers::{error::DenimKeyManagerError, DenimEcPreKeyManager},
-        state::{DenimState, InMemoryStateType},
+        state::{DenimState, InMemoryDenimStateType},
     };
 
     #[tokio::test]
     async fn get_keybundle() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let pair = IdentityKeyPair::generate(&mut rng);
 
@@ -211,7 +211,7 @@ mod test {
     #[tokio::test]
     async fn update_seed() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let pair = IdentityKeyPair::generate(&mut rng);
 
@@ -305,7 +305,7 @@ mod test {
     #[tokio::test]
     async fn key_generation_is_reproducible() {
         let mut state =
-            DenimState::<InMemoryStateType>::in_memory_test("127.0.0.1:8000".to_owned());
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8000".to_owned());
         let mut rng = OsRng;
         let alice_pair = IdentityKeyPair::generate(&mut rng);
         let bob_pair = IdentityKeyPair::generate(&mut rng);

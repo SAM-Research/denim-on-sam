@@ -17,7 +17,7 @@ use crate::{
     config::websocket_config,
     denim_routes::denim_router,
     error::ServerError,
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
     utils::TungsteniteMessage,
     utils::{into_axum_message, AxumMessage, AxumWebSocket},
 };
@@ -25,7 +25,7 @@ use crate::{
 type ProxyMessage = AxumMessage;
 
 /// Try and establish connection to sam server using clients credentials
-pub async fn connect_to_sam_server<T: StateType>(
+pub async fn connect_to_sam_server<T: DenimStateType>(
     headers: HeaderMap,
     state: &DenimState<T>,
 ) -> Result<(WebSocketClient, Receiver<ProxyMessage>), ServerError> {
@@ -45,7 +45,7 @@ pub async fn connect_to_sam_server<T: StateType>(
     Ok((client, rx))
 }
 
-pub async fn init_proxy_service<T: StateType>(
+pub async fn init_proxy_service<T: DenimStateType>(
     state: DenimState<T>,
     socket: AxumWebSocket,
     server_client: WebSocketClient,
@@ -81,7 +81,7 @@ pub async fn init_proxy_service<T: StateType>(
 
 /// Handles messages from SAM Server and send them to client
 /// This is here we should put piggy back denim messages to the client
-async fn sam_server_handler<T: StateType>(
+async fn sam_server_handler<T: DenimStateType>(
     mut state: DenimState<T>,
     mut server_receiver: Receiver<ProxyMessage>,
     mut client_sender: SplitSink<AxumWebSocket, AxumMessage>,
@@ -147,7 +147,7 @@ async fn sam_server_handler<T: StateType>(
 /// Handles messages from Denim Client and forward them to SAM Server
 /// This is here we should extract SAM Message and send it
 /// We should also build chunks to Denim Messages here
-async fn denim_client_receiver<T: StateType>(
+async fn denim_client_receiver<T: DenimStateType>(
     mut state: DenimState<T>,
     mut server_client: WebSocketClient,
     mut client_receiver: SplitStream<AxumWebSocket>,

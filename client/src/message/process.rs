@@ -5,7 +5,7 @@ use denim_sam_common::denim_message::{
 };
 use libsignal_core::ProtocolAddress;
 use libsignal_protocol::{process_prekey_bundle, IdentityKey};
-use log::debug;
+use log::{debug, error};
 use rand::{CryptoRng, Rng};
 use sam_client::storage::{MessageStore, Store, StoreType};
 use sam_common::AccountId;
@@ -31,6 +31,7 @@ pub async fn process_deniable_message<R: Rng + CryptoRng>(
         .message_kind
         .ok_or(MessageProcessingError::MessageKindWasNone)?;
 
+    debug!("Recieved deniable message of kind {:?}", kind);
     let envelope = match kind {
         MessageKind::DeniableMessage(message) => {
             decrypt(message, store, deniable_store, rng).await?
@@ -64,9 +65,11 @@ async fn handle_key_response<R: Rng + CryptoRng>(
     let account_id = AccountId::try_from(response.account_id)
         .inspect_err(|e| debug!("{e}"))
         .map_err(|_| MessageProcessingError::MalformedMessage)?;
-    let id_key = IdentityKey::decode(&response.identity_key)?;
+    let id_key = IdentityKey::decode(&response.identity_key)
+        .inspect_err(|err| error!("Failed to decode Identity key from keybundle: {err}"))?;
     let device_id = response.key_bundle.device_id;
 
+    debug!("Processing key bundle {:?}", &response.key_bundle);
     let signal_bundle = into_libsignal_bundle(&id_key, response.key_bundle)?;
     let addr = ProtocolAddress::new(account_id.to_string(), device_id.into());
     process_prekey_bundle(

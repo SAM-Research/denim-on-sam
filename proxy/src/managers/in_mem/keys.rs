@@ -3,7 +3,11 @@ use denim_sam_common::rng::{chacha::ChaChaRngState, RngState};
 use futures_util::TryFutureExt;
 use log::debug;
 use rand::Rng;
-use sam_common::{address::DeviceAddress, api::EcPreKey, AccountId, DeviceId};
+use sam_common::{
+    address::DeviceAddress,
+    api::{EcPreKey, Key},
+    AccountId, DeviceId,
+};
 use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
     traits::key_manager::EcPreKeyManager,
@@ -19,10 +23,10 @@ use crate::managers::{
 #[derive(Clone)]
 pub struct InMemoryDenimEcPreKeyManager<T: RngState> {
     key_generate_amount: usize,
-    manager: InMemoryEcPreKeyManager,
+    unused_keys: InMemoryEcPreKeyManager,
     id_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
     key_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
-    used_keys: Arc<Mutex<HashMap<DeviceAddress, Vec<u32>>>>,
+    used_keys: InMemoryEcPreKeyManager,
 }
 
 impl<T: RngState> InMemoryDenimEcPreKeyManager<T> {
@@ -38,10 +42,10 @@ impl<T: RngState> Default for InMemoryDenimEcPreKeyManager<T> {
     fn default() -> Self {
         Self {
             key_generate_amount: 10,
-            manager: InMemoryEcPreKeyManager::default(),
+            unused_keys: InMemoryEcPreKeyManager::default(),
             id_seeds: Arc::default(),
             key_seeds: Arc::default(),
-            used_keys: Arc::default(),
+            used_keys: InMemoryEcPreKeyManager::default(),
         }
     }
 }
@@ -53,14 +57,28 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         account_id: AccountId,
         device_id: DeviceId,
     ) -> Result<EcPreKey, DenimKeyManagerError> {
-        if let Some(pk) = self.manager.get_pre_key(account_id, device_id).await? {
+        if let Some(pk) = self.unused_keys.get_pre_key(account_id, device_id).await? {
+            self.unused_keys
+                .remove_pre_key(account_id, device_id, pk.id())
+                .await?;
+            self.used_keys
+                .add_pre_key(account_id, device_id, pk.clone())
+                .await?;
             Ok(pk)
         } else {
             generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
-            self.manager
+            let pk = self
+                .unused_keys
                 .get_pre_key(account_id, device_id)
                 .await?
-                .ok_or(DenimKeyManagerError::NoKeyInStore)
+                .ok_or(DenimKeyManagerError::NoKeyInStore)?;
+            self.unused_keys
+                .remove_pre_key(account_id, device_id, pk.id())
+                .await?;
+            self.used_keys
+                .add_pre_key(account_id, device_id, pk.clone())
+                .await?;
+            Ok(pk)
         }
     }
 
@@ -70,7 +88,7 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         device_id: DeviceId,
     ) -> Result<Vec<u32>, DenimKeyManagerError> {
         Ok(self
-            .manager
+            .unused_keys
             .get_pre_key_ids(account_id, device_id)
             .map_err(DenimKeyManagerError::from)
             .await?
@@ -83,7 +101,9 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         device_id: DeviceId,
         key: EcPreKey,
     ) -> Result<(), DenimKeyManagerError> {
-        self.manager.add_pre_key(account_id, device_id, key).await?;
+        self.unused_keys
+            .add_pre_key(account_id, device_id, key)
+            .await?;
         Ok(())
     }
 
@@ -93,7 +113,7 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         device_id: DeviceId,
         id: u32,
     ) -> Result<(), DenimKeyManagerError> {
-        self.manager
+        self.unused_keys
             .remove_pre_key(account_id, device_id, id)
             .await?;
         Ok(())
@@ -105,24 +125,18 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         device_id: DeviceId,
         rng: &mut R,
     ) -> Result<u32, DenimKeyManagerError> {
-        let entry = DeviceAddress::new(account_id, device_id);
-
         for _ in 0..32 {
             let key_id = rng.next_u32();
             let reserved = self
                 .used_keys
-                .lock()
+                .get_pre_key_ids(account_id, device_id)
                 .await
-                .get(&entry)
-                .is_some_and(|ids| ids.contains(&key_id));
+                .unwrap_or_default()
+                .unwrap_or_default()
+                .iter()
+                .any(|id| *id == key_id);
 
             if !reserved {
-                self.used_keys
-                    .lock()
-                    .await
-                    .entry(entry)
-                    .or_default()
-                    .push(key_id);
                 return Ok(key_id);
             }
         }

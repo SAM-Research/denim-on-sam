@@ -9,7 +9,7 @@ use sam_server::managers::in_memory::{
 use crate::managers::in_mem::{InMemoryBlockList, InMemoryKeyRequestManager};
 use crate::managers::{in_mem::InMemoryDenimKeyManager, InMemoryMessageIdProvider};
 
-use super::{BufferManagerType, StateType};
+use super::{BufferManagerType, DenimStateType};
 
 #[derive(Debug, Clone)]
 pub struct InMemoryBufferManagerType;
@@ -25,9 +25,9 @@ impl BufferManagerType for InMemoryBufferManagerType {
 }
 
 #[derive(Clone)]
-pub struct InMemoryStateType;
+pub struct InMemoryDenimStateType;
 
-impl StateType for InMemoryStateType {
+impl DenimStateType for InMemoryDenimStateType {
     type BufferManager = InMemoryBufferManagerType;
 
     type DenimKeyManagerType = InMemoryDenimKeyManager;

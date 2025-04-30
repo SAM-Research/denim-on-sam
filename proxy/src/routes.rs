@@ -15,10 +15,10 @@ use sam_server::auth::get_credentials;
 use crate::{
     error::ServerError,
     proxy::{connect_to_sam_server, init_proxy_service},
-    state::{DenimState, StateType},
+    state::{DenimState, DenimStateType},
 };
 
-pub async fn websocket_endpoint<T: StateType>(
+pub async fn websocket_endpoint<T: DenimStateType>(
     State(state): State<DenimState<T>>,
     headers: HeaderMap,
     TypedHeader(Authorization(basic)): TypedHeader<Authorization<Basic>>,

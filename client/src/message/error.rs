@@ -19,6 +19,6 @@ pub enum MessageProcessingError {
     MessageStore(MessageStoreError),
     EncryptionError(EncryptionError),
     KeyError(KeyError),
-    SignalProtocolError(SignalProtocolError),
+    SignalProtocol(SignalProtocolError),
     ServerError(#[error(not(source))] String),
 }

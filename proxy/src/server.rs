@@ -28,20 +28,21 @@ use crate::managers::in_mem::{
 use crate::managers::{BufferManager, DenimKeyManager, InMemoryMessageIdProvider};
 use crate::routes::websocket_endpoint;
 use crate::state::{
-    DenimState, InMemoryBufferManagerType, InMemoryStateType, PostgresStateType, StateType,
+    DenimState, DenimStateType, InMemoryBufferManagerType, InMemoryDenimStateType,
+    PostgresDenimStateType,
 };
 
-pub struct DenimConfig<T: StateType> {
+pub struct DenimConfig<T: DenimStateType> {
     pub state: DenimState<T>,
     pub addr: SocketAddr,
     pub tls_config: Option<rustls::ServerConfig>,
 }
 
 #[bon]
-impl DenimConfig<PostgresStateType> {
+impl DenimConfig<PostgresDenimStateType> {
     #[builder]
     pub async fn postgres(
-        url: String,
+        db_url: String,
         addr: SocketAddr,
         sam_address: String,
         tls_config: Option<ServerConfig>,
@@ -50,7 +51,7 @@ impl DenimConfig<PostgresStateType> {
         #[builder(default = 10)] key_generate_amount: usize,
         #[builder(default = 1.0)] deniable_ratio: f32,
     ) -> Result<Self, Error> {
-        let conn = PostgresConnector::connect(&url).await?;
+        let conn = PostgresConnector::connect(&db_url).await?;
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
         let id_provider = InMemoryMessageIdProvider::default();
@@ -65,7 +66,7 @@ impl DenimConfig<PostgresStateType> {
         Ok(Self {
             addr,
             tls_config,
-            state: DenimState::<PostgresStateType>::builder()
+            state: DenimState::<PostgresDenimStateType>::builder()
                 .sam_addr(sam_address)
                 .channel_buffer_size(channel_buffer_size)
                 .maybe_ws_proxy_tls_config(ws_proxy_tls_config)
@@ -83,7 +84,7 @@ impl DenimConfig<PostgresStateType> {
 }
 
 #[bon]
-impl DenimConfig<InMemoryStateType> {
+impl DenimConfig<InMemoryDenimStateType> {
     #[builder]
     pub fn in_memory(
         addr: SocketAddr,
@@ -108,7 +109,7 @@ impl DenimConfig<InMemoryStateType> {
         Self {
             addr,
             tls_config,
-            state: DenimState::<InMemoryStateType>::builder()
+            state: DenimState::<InMemoryDenimStateType>::builder()
                 .sam_addr(sam_address)
                 .channel_buffer_size(channel_buffer_size)
                 .maybe_ws_proxy_tls_config(ws_proxy_tls_config)
@@ -133,7 +134,7 @@ async fn log_request(req: Request, next: Next) -> impl IntoResponse {
     next.run(req).await
 }
 
-pub async fn start_proxy<T: StateType>(config: DenimConfig<T>) -> Result<(), std::io::Error> {
+pub async fn start_proxy<T: DenimStateType>(config: DenimConfig<T>) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/hello", get(|| async { "Hello From DenIM SAM Proxy" }))
         .route("/api/v1/websocket", get(websocket_endpoint))

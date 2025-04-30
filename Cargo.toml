@@ -12,7 +12,7 @@ members = ["proxy", "common", "client", "e2e"]
 denim-sam-proxy = { path = "proxy" }
 denim-sam-client = { path = "client" }
 denim-sam-common = { path = "common" }
-e2e = { path = "e2e" }
+denim-sam-e2e = { path = "e2e" }
 
 sam-server = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
 sam-common = { git = "https://github.com/SAM-Research/sam-instant-messenger.git", branch = "main" }
@@ -45,6 +45,7 @@ rand = "0.8.5"
 bincode = "2.0.1"
 rand_chacha = "0.3.1"
 sqlx = "0.8.3"
+uuid = "1.16.0"
 
 
 # Dev dependencies

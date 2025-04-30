@@ -20,4 +20,5 @@ pub enum KeyError {
     DecodeError(DecodeError),
     CurveError(CurveError),
     SeedStore(SeedStoreError),
+    CouldNotGenerateKey,
 }

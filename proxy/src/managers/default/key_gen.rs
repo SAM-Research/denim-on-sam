@@ -1,4 +1,5 @@
 use denim_sam_common::rng::RngState;
+use log::debug;
 use sam_common::{api::EcPreKey, AccountId, DeviceId};
 use sam_security::key_gen::generate_ec_pre_key;
 
@@ -21,15 +22,13 @@ pub async fn generate_ec_pre_keys<R: RngState>(
         .into_rng();
 
     for _ in 0..amount {
-        let pk: EcPreKey = generate_ec_pre_key(
-            key_manager
-                .next_key_id(account_id, device_id, &mut id_rng)
-                .await?
-                .into(),
-            &mut key_rng,
-        )
-        .await
-        .into();
+        let key_id = key_manager
+            .next_key_id(account_id, device_id, &mut id_rng)
+            .await?;
+        debug!("Generating EC Pre Key '{key_id}' for {account_id}.{device_id}");
+        let pk: EcPreKey = generate_ec_pre_key(key_id.into(), &mut key_rng)
+            .await
+            .into();
 
         key_manager
             .add_ec_pre_key(account_id, device_id, pk.clone())
