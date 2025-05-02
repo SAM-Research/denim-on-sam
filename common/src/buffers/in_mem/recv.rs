@@ -73,27 +73,22 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
                         chunk_buffer.waiting_for.lock().await.insert(id);
                     }
                 }
-                let next = chunk.sequence_number() + 1;
-                if chunk.flag() != Flag::Final
-                    && !chunk_buffer.chunks.lock().await.contains_key(&next)
-                {
-                    chunk_buffer.waiting_for.lock().await.insert(next);
-                }
+
                 debug!(
                     "Received message chunk {:?} out of order for message {:?}. Waiting for {:?}",
-                    chunk.sequence_number(),
+                    seq,
                     chunk.message_id(),
                     chunk_buffer.waiting_for
-                )
+                );
             } else {
                 chunk_buffer.waiting_for.lock().await.remove(&seq);
-                let next = seq + 1;
-                if chunk.flag() != Flag::Final
-                    && !chunk_buffer.chunks.lock().await.contains_key(&next)
-                {
-                    chunk_buffer.waiting_for.lock().await.insert(next);
-                }
+            };
+            let next = seq + 1;
+            if chunk.flag() != Flag::Final && !chunk_buffer.chunks.lock().await.contains_key(&next)
+            {
+                chunk_buffer.waiting_for.lock().await.insert(next);
             }
+
             chunk_buffer
                 .chunks
                 .lock()
