@@ -11,7 +11,6 @@ sam-server = { workspace = true }
 sam-common = { workspace = true }
 sam-net = { workspace = true }
 sam-security = { workspace = true }
-sam-test-utils = { workspace = true }
 denim-sam-common = { workspace = true }
 libsignal-protocol = { workspace = true }
 async-trait = { workspace = true }
@@ -38,3 +37,4 @@ sqlx = { workspace = true, features = ["postgres", "uuid", "runtime-tokio"] }
 
 [dev-dependencies]
 rstest = { workspace = true }
+sam-test-utils = { workspace = true }
