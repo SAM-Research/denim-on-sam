@@ -73,7 +73,14 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
                         chunk_buffer.waiting_for.lock().await.insert(id);
                     }
                 }
-                chunk.sequence_number() + 1
+
+                debug!(
+                    "Received message chunk {:?} out of order for message {:?}. Waiting for {:?}",
+                    seq,
+                    chunk.message_id(),
+                    chunk_buffer.waiting_for
+                );
+                seq + 1
             } else {
                 chunk_buffer.waiting_for.lock().await.remove(&seq);
                 seq + 1
@@ -82,12 +89,7 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
             {
                 chunk_buffer.waiting_for.lock().await.insert(next);
             }
-            debug!(
-                "Received message chunk {:?} out of order for message {:?}. Waiting for {:?}",
-                chunk.sequence_number(),
-                chunk.message_id(),
-                chunk_buffer.waiting_for
-            );
+
             chunk_buffer
                 .chunks
                 .lock()
