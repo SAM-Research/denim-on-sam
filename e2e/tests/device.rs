@@ -143,10 +143,7 @@ async fn can_unlink_device(
         .await
         .expect("Can link device");
 
-    assert!(alice
-        .unlink_device(other_client.device_id().await.expect("Can get device_id"))
-        .await
-        .is_ok())
+    assert!(alice.unlink_device(other_client.device_id()).await.is_ok())
 }
 
 #[rstest]

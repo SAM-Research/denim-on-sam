@@ -116,8 +116,8 @@ async fn can_send_message(
         )
         .await;
 
-        let alice_id = alice.account_id().await.expect("Can get alice id");
-        let bob_id = bob.account_id().await.expect("Can get bob id");
+        let alice_id = alice.account_id();
+        let bob_id = bob.account_id();
 
         let expected_msg = "Hello bob through denim proxy!";
         alice
