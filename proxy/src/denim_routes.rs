@@ -244,7 +244,6 @@ mod test {
 
     #[tokio::test]
     async fn deletes_keys_when_reply_on_pre_key_message() {
-        let _ = env_logger::try_init();
         let mut state =
             DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8080".to_string());
         let id_pair = IdentityKeyPair::generate(&mut OsRng);

@@ -38,4 +38,5 @@ pub enum DenimClientError {
     EncryptionError(EncryptionError),
     SignalProtocol(SignalProtocolError),
     Protocol(DenimProtocolError),
+    NotSupported,
 }

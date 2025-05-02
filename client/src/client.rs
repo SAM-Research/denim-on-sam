@@ -5,6 +5,7 @@ use denim_sam_common::denim_message::deniable_message::MessageKind;
 use denim_sam_common::denim_message::{BlockRequest, KeyRequest, SeedUpdate};
 use denim_sam_common::rng::seed::{KeyIdSeed, KeySeed};
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
+use log::debug;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use sam_client::encryption::DecryptedEnvelope;
@@ -140,7 +141,6 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let account_id = store.account_store.get_account_id().await?;
         let device_id = store.account_store.get_device_id().await?;
-
         let mut protocol_client = protocol_config.create(
             account_id,
             device_id,
@@ -377,21 +377,19 @@ impl<T: DenimClientType> DenimClient<T> {
         recipient: AccountId,
         msg: impl Into<Vec<u8>>,
     ) -> Result<(), DenimClientError> {
+        if recipient == self.account_id() {
+            debug!("Clients are not allowed to send deniable messages to themselves");
+            return Err(DenimClientError::NotSupported);
+        }
         if !self
             .deniable_store
             .contact_store
             .contains_contact(recipient)
             .await?
+            && self.waiting_messages.len(recipient).await == 0
         {
             self.fetch_denim_prekeys(recipient).await;
-        }
 
-        if !self
-            .deniable_store
-            .contact_store
-            .contains_contact(recipient)
-            .await?
-        {
             self.waiting_messages.enqueue(recipient, msg.into()).await;
             return Ok(());
         }
@@ -514,6 +512,7 @@ impl<T: DenimClientType> DenimClient<T> {
     }
 
     async fn fetch_denim_prekeys(&mut self, account_id: AccountId) {
+        debug!("Fetching denim prekeys for {account_id}");
         self.protocol_client
             .enqueue_deniable(MessageKind::KeyRequest(
                 KeyRequest::builder()
