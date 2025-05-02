@@ -66,4 +66,24 @@ pub trait DenimEcPreKeyManager<T: RngState>: Clone + Send + Sync {
         device_id: DeviceId,
         seed: T,
     ) -> Result<(), DenimKeyManagerError>;
+
+    async fn store_pending_key(
+        &mut self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+        key_id: u32,
+    ) -> Result<(), DenimKeyManagerError>;
+    async fn has_pending_key(
+        &self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> bool;
+    async fn remove_pending_key(
+        &mut self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<u32, DenimKeyManagerError>;
 }

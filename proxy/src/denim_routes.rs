@@ -6,13 +6,14 @@ use denim_sam_common::{
     rng::seed::{KeyIdSeed, KeySeed},
 };
 
-use log::debug;
+use libsignal_protocol::CiphertextMessage;
+use log::{debug, error};
 use sam_common::AccountId;
 use sam_server::managers::traits::account_manager::AccountManager;
 
 use crate::{
     error::{DenimRouterError, LogicError},
-    logic::keys::{get_keys_for, update_seed},
+    logic::keys::{get_keys_for, remove_pending_key, store_pending_key, update_seed},
     managers::{
         default::ClientRequest,
         error::DenimKeyManagerError,
@@ -83,7 +84,7 @@ pub async fn handle_key_request<T: DenimStateType>(
             debug!("{requested_account_id}.{requested_device_id} has not uploaded a key seed yet. Request will be defered.");
             state
                 .key_request_manager
-                .store_receiver(requested_account_id, sender_account_id)
+                .store_requester(requested_account_id, sender_account_id)
                 .await;
             return Ok(());
         }
@@ -120,12 +121,13 @@ pub async fn handle_seed_update<T: DenimStateType>(
 
     update_seed(state, sender_account_id, 1.into(), key_seed, key_id_seed).await?;
 
-    if let Some(receivers) = state
+    // defered key requests can now be processed
+    if let Some(requesters) = state
         .key_request_manager
-        .get_receivers(sender_account_id)
+        .remove_requesters(sender_account_id)
         .await
     {
-        for receiver in receivers {
+        for requester in requesters {
             let key_bundle = get_keys_for(state, sender_account_id, 1.into()).await?;
             let identity_key = state
                 .accounts
@@ -142,7 +144,7 @@ pub async fn handle_seed_update<T: DenimStateType>(
                     .build(),
             );
 
-            enqueue_message(state, msg_id, key_response, receiver).await?;
+            enqueue_message(state, msg_id, key_response, requester).await?;
         }
     }
 
@@ -189,6 +191,19 @@ pub async fn handle_user_message<T: DenimStateType>(
 
     // change message account id to sender
     message.account_id = sender_account_id.into();
+
+    match message.ciphertext() {
+        Ok(CiphertextMessage::PreKeySignalMessage(pre)) => {
+            store_pending_key(state, &pre, sender_account_id, receiver_id).await?
+        }
+        Ok(CiphertextMessage::SignalMessage(_)) => {
+            remove_pending_key(state, sender_account_id, receiver_id).await?
+        }
+        Ok(_) => (),
+        Err(e) => {
+            error!("Failed to decode CiphertextMessage '{e}' from '{sender_account_id}'")
+        }
+    };
 
     Ok(state
         .buffer_manager

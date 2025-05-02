@@ -3,6 +3,9 @@ use sam_common::AccountId;
 
 #[async_trait]
 pub trait KeyRequestManager: Send + Sync + Clone {
-    async fn store_receiver(&mut self, sender: AccountId, receiver: AccountId);
-    async fn get_receivers(&mut self, account_id: AccountId) -> Option<Vec<AccountId>>;
+    // requested is an account that have yet to upload seed
+    // requester is an account that want keys from an account that have not uploaded seed
+
+    async fn store_requester(&mut self, requested: AccountId, requester: AccountId);
+    async fn remove_requesters(&mut self, requested: AccountId) -> Option<Vec<AccountId>>;
 }
