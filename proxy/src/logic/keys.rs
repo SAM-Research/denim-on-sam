@@ -149,7 +149,7 @@ pub async fn remove_pending_key<T: DenimStateType>(
     Ok(state
         .keys
         .pre_keys
-        .remove_ec_pre_key(sender_account_id, device_id, id)
+        .mark_ec_pre_key_as_unused(sender_account_id, device_id, id)
         .await?)
 }
 

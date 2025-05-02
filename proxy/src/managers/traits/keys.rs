@@ -27,7 +27,15 @@ pub trait DenimEcPreKeyManager<T: RngState>: Clone + Send + Sync {
         key: EcPreKey,
     ) -> Result<(), DenimKeyManagerError>;
 
+    #[cfg(test)]
     async fn remove_ec_pre_key(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        id: u32,
+    ) -> Result<(), DenimKeyManagerError>;
+
+    async fn mark_ec_pre_key_as_unused(
         &mut self,
         account_id: AccountId,
         device_id: DeviceId,
