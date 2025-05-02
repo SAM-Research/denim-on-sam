@@ -1,7 +1,7 @@
 use denim_sam_common::{
     denim_message::{
         deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
-        SeedUpdate,
+        SeedUpdate, UserMessage,
     },
     rng::seed::{KeyIdSeed, KeySeed},
 };
@@ -13,7 +13,11 @@ use sam_server::managers::traits::account_manager::AccountManager;
 use crate::{
     error::{DenimRouterError, LogicError},
     logic::keys::{get_keys_for, update_seed},
-    managers::{default::ClientRequest, error::DenimKeyManagerError, traits::KeyRequestManager},
+    managers::{
+        default::ClientRequest,
+        error::DenimKeyManagerError,
+        traits::{BlockList, KeyRequestManager, MessageIdProvider},
+    },
     state::{DenimState, DenimStateType},
 };
 
@@ -32,6 +36,9 @@ pub async fn denim_router<T: DenimStateType>(
         ClientRequest::SeedUpdateRequest(msg_id, seed_update) => {
             handle_seed_update(state, msg_id, seed_update, account_id).await
         }
+        ClientRequest::UserMessage(_, message) => {
+            handle_user_message(state, message, account_id).await
+        }
     }
 }
 
@@ -43,9 +50,10 @@ pub async fn handle_block_request<T: DenimStateType>(
     let blocked_account_id = AccountId::try_from(request.account_id)
         .map_err(|_| DenimRouterError::KeyRequestMalformed)?;
     state
-        .buffer_manager
+        .block_list
         .block_user(sender_account_id, blocked_account_id)
         .await;
+
     Ok(())
 }
 
@@ -158,4 +166,38 @@ pub async fn enqueue_message<T: DenimStateType>(
         )
         .await?;
     Ok(())
+}
+
+pub async fn handle_user_message<T: DenimStateType>(
+    state: &mut DenimState<T>,
+    mut message: UserMessage,
+    sender_account_id: AccountId,
+) -> Result<(), DenimRouterError> {
+    let id = state
+        .message_id_provider
+        .get_message_id(sender_account_id)
+        .await;
+    let receiver_id =
+        AccountId::try_from(message.account_id).map_err(|_| DenimRouterError::InvalidAccountId)?;
+    if state
+        .block_list
+        .is_user_blocked(&receiver_id, &sender_account_id)
+        .await
+    {
+        return Ok(());
+    }
+
+    // change message account id to sender
+    message.account_id = sender_account_id.into();
+
+    Ok(state
+        .buffer_manager
+        .enqueue_message(
+            receiver_id,
+            DeniableMessage {
+                message_id: id,
+                message_kind: Some(MessageKind::DeniableMessage(message)),
+            },
+        )
+        .await?)
 }

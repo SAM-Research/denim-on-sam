@@ -22,7 +22,7 @@ impl BlockList for InMemoryBlockList {
         }
     }
 
-    async fn check_for_blocked_user(
+    async fn is_user_blocked(
         &self,
         user_account_id: &AccountId,
         blocked_account_id: &AccountId,
@@ -59,11 +59,7 @@ mod test {
 
         for user in users {
             for blocked_user in blocked_users.clone() {
-                assert!(
-                    block_list
-                        .check_for_blocked_user(&user, &blocked_user)
-                        .await
-                )
+                assert!(block_list.is_user_blocked(&user, &blocked_user).await)
             }
         }
     }
@@ -81,11 +77,7 @@ mod test {
 
         for user in users {
             for blocked_user in not_blocked_users.clone() {
-                assert!(
-                    !block_list
-                        .check_for_blocked_user(&user, &blocked_user)
-                        .await
-                )
+                assert!(!block_list.is_user_blocked(&user, &blocked_user).await)
             }
         }
     }

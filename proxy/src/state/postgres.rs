@@ -1,6 +1,10 @@
 use sam_server::managers::postgres::{PostgresAccountManager, PostgresDeviceManager};
 
-use crate::managers::{in_mem::InMemoryKeyRequestManager, postgres::PostgresDenimKeyManager};
+use crate::managers::{
+    in_mem::{InMemoryBlockList, InMemoryKeyRequestManager},
+    postgres::PostgresDenimKeyManager,
+    InMemoryMessageIdProvider,
+};
 
 use super::{DenimStateType, InMemoryBufferManagerType};
 
@@ -17,4 +21,6 @@ impl DenimStateType for PostgresDenimStateType {
     type DeviceManger = PostgresDeviceManager;
 
     type KeyRequestManager = InMemoryKeyRequestManager;
+    type MessageIdProvider = InMemoryMessageIdProvider;
+    type BlockList = InMemoryBlockList;
 }

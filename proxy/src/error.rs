@@ -59,4 +59,5 @@ pub enum DenimRouterError {
     AccountManager(AccountManagerError),
     BufferManager(BufferManagerError),
     NoDeviceIdInRequest,
+    InvalidAccountId,
 }
