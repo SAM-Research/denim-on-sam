@@ -139,6 +139,7 @@ pub async fn remove_pending_key<T: DenimStateType>(
     {
         return Ok(());
     }
+
     let id = state
         .keys
         .pre_keys
