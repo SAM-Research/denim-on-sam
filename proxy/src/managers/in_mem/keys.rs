@@ -51,7 +51,7 @@ impl UsedKeysMap {
             .lock()
             .await
             .entry(id)
-            .or_insert_with(|| HashSet::new())
+            .or_insert_with(HashSet::new)
             .insert(key_id);
     }
 
@@ -61,7 +61,7 @@ impl UsedKeysMap {
             .lock()
             .await
             .entry(id)
-            .or_insert_with(|| HashSet::new())
+            .or_insert_with(HashSet::new)
             .remove(&key_id);
     }
 
@@ -76,7 +76,7 @@ impl UsedKeysMap {
             .lock()
             .await
             .entry(id)
-            .or_insert_with(|| HashSet::new())
+            .or_insert_with(HashSet::new)
             .contains(&key_id)
     }
 }
@@ -189,10 +189,10 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         device_id: DeviceId,
         id: u32,
     ) -> Result<(), DenimKeyManagerError> {
-        Ok(self
-            .used_keys
+        self.used_keys
             .remove_pre_key(account_id, device_id, id)
-            .await)
+            .await;
+        Ok(())
     }
 
     async fn next_key_id<R: Rng + Send>(
