@@ -60,4 +60,5 @@ pub enum DenimRouterError {
     BufferManager(BufferManagerError),
     NoDeviceIdInRequest,
     InvalidAccountId,
+    MalformedUserMessage,
 }

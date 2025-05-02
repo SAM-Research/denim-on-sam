@@ -1,10 +1,7 @@
 use std::time::SystemTime;
 
 use denim_sam_common::denim_message::{MessageType, UserMessage};
-use libsignal_protocol::{
-    message_decrypt, message_encrypt, CiphertextMessage, PlaintextContent, PreKeySignalMessage,
-    ProtocolAddress, SenderKeyMessage, SignalMessage,
-};
+use libsignal_protocol::{message_decrypt, message_encrypt, CiphertextMessage, ProtocolAddress};
 
 use log::debug;
 use rand::{CryptoRng, Rng};
@@ -47,20 +44,7 @@ pub async fn decrypt<R: Rng + CryptoRng>(
     deniable_store: &mut DeniableStore<impl DeniableStoreType>,
     rng: &mut R,
 ) -> Result<DecryptedEnvelope, EncryptionError> {
-    let cipher = match message.message_type() {
-        MessageType::SignalMessage => {
-            CiphertextMessage::SignalMessage(SignalMessage::try_from(message.content.as_slice())?)
-        }
-        MessageType::PreKeySignalMessage => CiphertextMessage::PreKeySignalMessage(
-            PreKeySignalMessage::try_from(message.content.as_slice())?,
-        ),
-        MessageType::SenderKeyMessage => CiphertextMessage::SenderKeyMessage(
-            SenderKeyMessage::try_from(message.content.as_slice())?,
-        ),
-        MessageType::PlaintextContent => CiphertextMessage::PlaintextContent(
-            PlaintextContent::try_from(message.content.as_slice())?,
-        ),
-    };
+    let cipher = message.ciphertext()?;
 
     let source = AccountId::try_from(message.account_id)
         .inspect_err(|e| debug!("{e}"))

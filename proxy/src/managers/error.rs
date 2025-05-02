@@ -18,4 +18,6 @@ pub enum DenimKeyManagerError {
     NoSeed,
     NoKeyInStore,
     CouldNotGenerateKeyId,
+    AlreadyPending,
+    NotPending,
 }

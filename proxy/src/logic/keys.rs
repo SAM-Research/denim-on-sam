@@ -2,9 +2,11 @@ use denim_sam_common::{
     denim_message::KeyBundle,
     rng::seed::{KeyIdSeed, KeySeed},
 };
-use log::error;
+use libsignal_protocol::PreKeySignalMessage;
+use log::{debug, error};
 
 use sam_common::{
+    address::DEFAULT_DEVICE_ID,
     api::{Encode, SignedEcPreKey},
     AccountId, DeviceId,
 };
@@ -95,6 +97,60 @@ pub async fn update_seed<T: DenimStateType>(
         .store_key_seed_for(account_id, device_id, key_seed.into())
         .await?;
     Ok(())
+}
+
+pub async fn store_pending_key<T: DenimStateType>(
+    state: &mut DenimState<T>,
+    message: &PreKeySignalMessage,
+    sender_account_id: AccountId,
+    receiver_account_id: AccountId,
+) -> Result<(), LogicError> {
+    let pre_key_id = match message.pre_key_id() {
+        Some(id) => id,
+        None => {
+            debug!("User '{sender_account_id}' failed to provide required prekey");
+            return Ok(());
+        }
+    };
+
+    Ok(state
+        .keys
+        .pre_keys
+        .store_pending_key(
+            sender_account_id,
+            receiver_account_id,
+            DEFAULT_DEVICE_ID.into(),
+            pre_key_id.into(),
+        )
+        .await?)
+}
+
+pub async fn remove_pending_key<T: DenimStateType>(
+    state: &mut DenimState<T>,
+    sender_account_id: AccountId,
+    receiver_account_id: AccountId,
+) -> Result<(), LogicError> {
+    let device_id = DEFAULT_DEVICE_ID.into();
+    if !state
+        .keys
+        .pre_keys
+        .has_pending_key(receiver_account_id, sender_account_id, device_id)
+        .await
+    {
+        return Ok(());
+    }
+
+    let id = state
+        .keys
+        .pre_keys
+        .remove_pending_key(receiver_account_id, sender_account_id, device_id)
+        .await?;
+
+    Ok(state
+        .keys
+        .pre_keys
+        .mark_ec_pre_key_as_unused(sender_account_id, device_id, id)
+        .await?)
 }
 
 #[cfg(test)]

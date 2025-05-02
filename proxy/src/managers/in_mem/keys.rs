@@ -12,7 +12,10 @@ use sam_server::managers::{
     in_memory::keys::{InMemoryEcPreKeyManager, InMemorySignedPreKeyManager},
     traits::key_manager::EcPreKeyManager,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 use crate::managers::{
@@ -20,13 +23,72 @@ use crate::managers::{
     DenimKeyManagerType,
 };
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+
+struct PendingId {
+    pre_key_message_sender: AccountId,
+    address: DeviceAddress,
+}
+
+impl PendingId {
+    fn new(pre_key_message_sender: AccountId, address: DeviceAddress) -> Self {
+        Self {
+            pre_key_message_sender,
+            address,
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+struct UsedKeysMap {
+    keys: Arc<Mutex<HashMap<DeviceAddress, HashSet<u32>>>>,
+}
+
+impl UsedKeysMap {
+    async fn add_pre_key(&mut self, account_id: AccountId, device_id: DeviceId, key_id: u32) {
+        let id = DeviceAddress::new(account_id, device_id);
+        self.keys
+            .lock()
+            .await
+            .entry(id)
+            .or_insert_with(HashSet::new)
+            .insert(key_id);
+    }
+
+    async fn remove_pre_key(&mut self, account_id: AccountId, device_id: DeviceId, key_id: u32) {
+        let id = DeviceAddress::new(account_id, device_id);
+        self.keys
+            .lock()
+            .await
+            .entry(id)
+            .or_insert_with(HashSet::new)
+            .remove(&key_id);
+    }
+
+    async fn contains_key(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        key_id: u32,
+    ) -> bool {
+        let id = DeviceAddress::new(account_id, device_id);
+        self.keys
+            .lock()
+            .await
+            .entry(id)
+            .or_insert_with(HashSet::new)
+            .contains(&key_id)
+    }
+}
+
 #[derive(Clone)]
 pub struct InMemoryDenimEcPreKeyManager<T: RngState> {
     key_generate_amount: usize,
     unused_keys: InMemoryEcPreKeyManager,
     id_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
     key_seeds: Arc<Mutex<HashMap<DeviceAddress, Option<T>>>>,
-    used_keys: InMemoryEcPreKeyManager,
+    pending_keys: Arc<Mutex<HashMap<PendingId, u32>>>,
+    used_keys: UsedKeysMap,
 }
 
 impl<T: RngState> InMemoryDenimEcPreKeyManager<T> {
@@ -45,7 +107,8 @@ impl<T: RngState> Default for InMemoryDenimEcPreKeyManager<T> {
             unused_keys: InMemoryEcPreKeyManager::default(),
             id_seeds: Arc::default(),
             key_seeds: Arc::default(),
-            used_keys: InMemoryEcPreKeyManager::default(),
+            used_keys: UsedKeysMap::default(),
+            pending_keys: Arc::default(),
         }
     }
 }
@@ -62,8 +125,8 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
                 .remove_pre_key(account_id, device_id, pk.id())
                 .await?;
             self.used_keys
-                .add_pre_key(account_id, device_id, pk.clone())
-                .await?;
+                .add_pre_key(account_id, device_id, pk.id())
+                .await;
             Ok(pk)
         } else {
             generate_ec_pre_keys(self, account_id, device_id, self.key_generate_amount).await?;
@@ -76,8 +139,8 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
                 .remove_pre_key(account_id, device_id, pk.id())
                 .await?;
             self.used_keys
-                .add_pre_key(account_id, device_id, pk.clone())
-                .await?;
+                .add_pre_key(account_id, device_id, pk.id())
+                .await;
             Ok(pk)
         }
     }
@@ -107,6 +170,7 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn remove_ec_pre_key(
         &mut self,
         account_id: AccountId,
@@ -116,6 +180,18 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
         self.unused_keys
             .remove_pre_key(account_id, device_id, id)
             .await?;
+        Ok(())
+    }
+
+    async fn mark_ec_pre_key_as_unused(
+        &mut self,
+        account_id: AccountId,
+        device_id: DeviceId,
+        id: u32,
+    ) -> Result<(), DenimKeyManagerError> {
+        self.used_keys
+            .remove_pre_key(account_id, device_id, id)
+            .await;
         Ok(())
     }
 
@@ -129,12 +205,8 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
             let key_id = rng.next_u32();
             let reserved = self
                 .used_keys
-                .get_pre_key_ids(account_id, device_id)
-                .await
-                .unwrap_or_default()
-                .unwrap_or_default()
-                .iter()
-                .any(|id| *id == key_id);
+                .contains_key(account_id, device_id, key_id)
+                .await;
 
             if !reserved {
                 return Ok(key_id);
@@ -197,6 +269,56 @@ impl<T: RngState> DenimEcPreKeyManager<T> for InMemoryDenimEcPreKeyManager<T> {
             .await
             .insert(DeviceAddress::new(account_id, device_id), Some(seed));
         Ok(())
+    }
+
+    async fn store_pending_key(
+        &mut self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+        key_id: u32,
+    ) -> Result<(), DenimKeyManagerError> {
+        let mut pending_guard = self.pending_keys.lock().await;
+        let id = PendingId::new(
+            pre_key_msg_sender,
+            DeviceAddress::new(account_id, device_id),
+        );
+        if pending_guard.contains_key(&id) {
+            return Err(DenimKeyManagerError::AlreadyPending);
+        }
+        pending_guard.insert(id, key_id);
+        Ok(())
+    }
+
+    async fn has_pending_key(
+        &self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> bool {
+        let id = PendingId::new(
+            pre_key_msg_sender,
+            DeviceAddress::new(account_id, device_id),
+        );
+        self.pending_keys.lock().await.contains_key(&id)
+    }
+
+    async fn remove_pending_key(
+        &mut self,
+        pre_key_msg_sender: AccountId,
+        account_id: AccountId,
+        device_id: DeviceId,
+    ) -> Result<u32, DenimKeyManagerError> {
+        let mut pending_guard = self.pending_keys.lock().await;
+        let id = PendingId::new(
+            pre_key_msg_sender,
+            DeviceAddress::new(account_id, device_id),
+        );
+        if let Some(key_id) = pending_guard.remove(&id) {
+            Ok(key_id)
+        } else {
+            Err(DenimKeyManagerError::NotPending)
+        }
     }
 }
 

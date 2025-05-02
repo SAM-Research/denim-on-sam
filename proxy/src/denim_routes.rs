@@ -1,18 +1,19 @@
 use denim_sam_common::{
     denim_message::{
         deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
-        SeedUpdate, UserMessage,
+        MessageType, SeedUpdate, UserMessage,
     },
     rng::seed::{KeyIdSeed, KeySeed},
 };
 
-use log::debug;
+use libsignal_protocol::CiphertextMessage;
+use log::{debug, error};
 use sam_common::AccountId;
 use sam_server::managers::traits::account_manager::AccountManager;
 
 use crate::{
     error::{DenimRouterError, LogicError},
-    logic::keys::{get_keys_for, update_seed},
+    logic::keys::{get_keys_for, remove_pending_key, store_pending_key, update_seed},
     managers::{
         default::ClientRequest,
         error::DenimKeyManagerError,
@@ -83,7 +84,7 @@ pub async fn handle_key_request<T: DenimStateType>(
             debug!("{requested_account_id}.{requested_device_id} has not uploaded a key seed yet. Request will be defered.");
             state
                 .key_request_manager
-                .store_receiver(requested_account_id, sender_account_id)
+                .store_requester(requested_account_id, sender_account_id)
                 .await;
             return Ok(());
         }
@@ -120,12 +121,13 @@ pub async fn handle_seed_update<T: DenimStateType>(
 
     update_seed(state, sender_account_id, 1.into(), key_seed, key_id_seed).await?;
 
-    if let Some(receivers) = state
+    // defered key requests can now be processed
+    if let Some(requesters) = state
         .key_request_manager
-        .get_receivers(sender_account_id)
+        .remove_requesters(sender_account_id)
         .await
     {
-        for receiver in receivers {
+        for requester in requesters {
             let key_bundle = get_keys_for(state, sender_account_id, 1.into()).await?;
             let identity_key = state
                 .accounts
@@ -142,7 +144,7 @@ pub async fn handle_seed_update<T: DenimStateType>(
                     .build(),
             );
 
-            enqueue_message(state, msg_id, key_response, receiver).await?;
+            enqueue_message(state, msg_id, key_response, requester).await?;
         }
     }
 
@@ -190,6 +192,23 @@ pub async fn handle_user_message<T: DenimStateType>(
     // change message account id to sender
     message.account_id = sender_account_id.into();
 
+    match message.message_type() {
+        MessageType::SignalMessage => {
+            remove_pending_key(state, sender_account_id, receiver_id).await?;
+        }
+        // first convert to ciphertext when we actually need it
+        MessageType::PreKeySignalMessage => match message.ciphertext() {
+            Ok(CiphertextMessage::PreKeySignalMessage(pre)) => {
+                store_pending_key(state, &pre, sender_account_id, receiver_id).await?
+            }
+            Ok(_) => Err(DenimRouterError::MalformedUserMessage)?,
+            Err(e) => {
+                error!("Failed to decode CiphertextMessage '{e}' from '{sender_account_id}'")
+            }
+        },
+        _ => (),
+    };
+
     Ok(state
         .buffer_manager
         .enqueue_message(
@@ -200,4 +219,131 @@ pub async fn handle_user_message<T: DenimStateType>(
             },
         )
         .await?)
+}
+
+#[cfg(test)]
+mod test {
+    use denim_sam_common::{
+        denim_message::{MessageType, UserMessage},
+        rng::seed::{KeyIdSeed, KeySeed},
+    };
+    use libsignal_protocol::{
+        CiphertextMessage, IdentityKeyPair, PreKeySignalMessage, SignalMessage,
+    };
+    use rand::rngs::OsRng;
+    use sam_common::{address::DEFAULT_DEVICE_ID, AccountId};
+    use sam_server::managers::traits::key_manager::SignedPreKeyManager;
+    use sam_test_utils::server_utils::signed_ec_pre_key;
+
+    use crate::{
+        denim_routes::denim_router,
+        logic::keys::update_seed,
+        managers::{default::ClientRequest, DenimEcPreKeyManager},
+        state::{DenimState, InMemoryDenimStateType},
+    };
+
+    #[tokio::test]
+    async fn deletes_keys_when_reply_on_pre_key_message() {
+        let _ = env_logger::try_init();
+        let mut state =
+            DenimState::<InMemoryDenimStateType>::in_memory_test("127.0.0.1:8080".to_string());
+        let id_pair = IdentityKeyPair::generate(&mut OsRng);
+        let alice = AccountId::generate();
+        let bob = AccountId::generate();
+        let id = DEFAULT_DEVICE_ID.into();
+
+        let seed = KeySeed::random(&mut OsRng);
+        let id_seed = KeyIdSeed::random(&mut OsRng);
+
+        let signed_id = 23u32;
+        let signed = signed_ec_pre_key(signed_id, &id_pair, OsRng);
+
+        state
+            .keys
+            .signed_pre_keys
+            .set_signed_pre_key(bob, id, id_pair.identity_key(), signed)
+            .await
+            .expect("can set signed pre key");
+        update_seed(&mut state, bob, id, seed, id_seed)
+            .await
+            .expect("can update seed");
+
+        let ec_key = state
+            .keys
+            .pre_keys
+            .get_ec_pre_key(bob, id)
+            .await
+            .expect("can get ec pre key");
+
+        let sig_msg = SignalMessage::new(
+            3u8,
+            &[1; 32],
+            *id_pair.public_key(),
+            1u32,
+            0u32,
+            &[1, 2, 3],
+            id_pair.identity_key(),
+            id_pair.identity_key(),
+        )
+        .expect("can create signal message");
+        let pre_msg = PreKeySignalMessage::new(
+            3u8,
+            1u32,
+            Some(ec_key.key_id.into()),
+            signed_id.into(),
+            None,
+            *id_pair.public_key(),
+            *id_pair.identity_key(),
+            sig_msg.clone(),
+        )
+        .expect("can create prekey message");
+
+        let pre_cipher = CiphertextMessage::PreKeySignalMessage(pre_msg);
+        let cipher = CiphertextMessage::SignalMessage(sig_msg);
+
+        denim_router(
+            &mut state,
+            ClientRequest::UserMessage(
+                1u32,
+                UserMessage::builder()
+                    .account_id(bob.into())
+                    .content(pre_cipher.serialize().into())
+                    .message_type(MessageType::PreKeySignalMessage.into())
+                    .build(),
+            ),
+            alice,
+        )
+        .await
+        .expect("Can route prekey message");
+
+        assert!(
+            state
+                .keys
+                .pre_keys
+                .has_pending_key(alice, bob, DEFAULT_DEVICE_ID.into())
+                .await
+        );
+
+        denim_router(
+            &mut state,
+            ClientRequest::UserMessage(
+                1u32,
+                UserMessage::builder()
+                    .account_id(alice.into())
+                    .content(cipher.serialize().into())
+                    .message_type(MessageType::SignalMessage.into())
+                    .build(),
+            ),
+            bob,
+        )
+        .await
+        .expect("can route signal message");
+        assert!(
+            !state
+                .keys
+                .pre_keys
+                .has_pending_key(alice, bob, DEFAULT_DEVICE_ID.into())
+                .await
+        );
+    }
 }

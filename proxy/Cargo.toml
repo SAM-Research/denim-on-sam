@@ -37,3 +37,4 @@ sqlx = { workspace = true, features = ["postgres", "uuid", "runtime-tokio"] }
 
 [dev-dependencies]
 rstest = { workspace = true }
+sam-test-utils = { workspace = true }
