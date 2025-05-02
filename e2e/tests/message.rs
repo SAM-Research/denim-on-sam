@@ -72,12 +72,9 @@ async fn alice_send_to_charlie(
     )
     .await;
 
-    let alice_id = alice.account_id().await.expect("Can get alice account_id");
-    let bob_id = bob.account_id().await.expect("Can get bob account_id");
-    let charlie_id = charlie
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
+    let alice_id = alice.account_id();
+    let bob_id = bob.account_id();
+    let charlie_id = charlie.account_id();
 
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
@@ -240,16 +237,10 @@ async fn alice_cannot_send_to_charlie_if_blocked(
     )
     .await;
 
-    let alice_id = alice.account_id().await.expect("Can get alice account_id");
-    let bob_id = bob.account_id().await.expect("Can get bob account_id");
-    let charlie_id = charlie
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
-    let dorothy_id = dorothy
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
+    let alice_id = alice.account_id();
+    let bob_id = bob.account_id();
+    let charlie_id = charlie.account_id();
+    let dorothy_id = dorothy.account_id();
 
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
@@ -438,12 +429,9 @@ async fn key_request_waits_for_seed_update(
     )
     .await;
 
-    let alice_id = alice.account_id().await.expect("Can get alice account_id");
-    let bob_id = bob.account_id().await.expect("Can get bob account_id");
-    let charlie_id = charlie
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
+    let alice_id = alice.account_id();
+    let bob_id = bob.account_id();
+    let charlie_id = charlie.account_id();
 
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();
@@ -509,12 +497,9 @@ async fn conversation(
     bob: &mut DenimClient<impl DenimClientType>,
     charlie: &mut DenimClient<impl DenimClientType>,
 ) {
-    let alice_id = alice.account_id().await.expect("Can get alice account_id");
-    let bob_id = bob.account_id().await.expect("Can get bob account_id");
-    let charlie_id = charlie
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
+    let alice_id = alice.account_id();
+    let bob_id = bob.account_id();
+    let charlie_id = charlie.account_id();
 
     let recipe = r#"Here is the secret pasta recipe:
     Cook the spaghetti in salted boiling water until al dente. Drain and set aside.
@@ -620,12 +605,9 @@ async fn update_seed(
     )
     .await;
 
-    let alice_id = alice.account_id().await.expect("Can get alice account_id");
-    let bob_id = bob.account_id().await.expect("Can get bob account_id");
-    let charlie_id = charlie
-        .account_id()
-        .await
-        .expect("Can get charlie account_id");
+    let alice_id = alice.account_id();
+    let bob_id = bob.account_id();
+    let charlie_id = charlie.account_id();
 
     let _alice_deniable_messages = alice.deniable_subscribe();
     let _alice_regular = alice.regular_subscribe();

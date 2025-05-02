@@ -198,7 +198,7 @@ pub async fn alice_can_find_bobs_account_id(
     let result = alice.get_account_id_for(&bob_username).await;
 
     assert!(result.is_ok());
-    assert_eq!(bob.account_id().await.unwrap(), result.unwrap())
+    assert_eq!(bob.account_id(), result.unwrap())
 }
 
 #[rstest]

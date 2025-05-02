@@ -91,6 +91,8 @@ pub type SqliteDenimClientType = DefaultDenimClientType<
 >;
 
 pub struct DenimClient<T: DenimClientType> {
+    account_id: AccountId,
+    device_id: DeviceId,
     store: Store<T::Store>,
     deniable_store: DeniableStore<T::DeniableStore>,
     api_client: T::ApiClient,
@@ -136,15 +138,20 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let deniable_store = deniable_store_config.create_store().await?;
 
+        let account_id = store.account_store.get_account_id().await?;
+        let device_id = store.account_store.get_device_id().await?;
+
         let mut protocol_client = protocol_config.create(
-            store.account_store.get_account_id().await?,
-            store.account_store.get_device_id().await?,
+            account_id,
+            device_id,
             store.account_store.get_password().await?,
         )?;
 
         let queue = protocol_client.connect().await?;
 
         Ok(Self {
+            account_id,
+            device_id,
             store,
             deniable_store,
             api_client,
@@ -189,15 +196,20 @@ impl<T: DenimClientType> DenimClient<T> {
 
         let deniable_store = deniable_store_config.create_store().await?;
 
+        let account_id = store.account_store.get_account_id().await?;
+        let device_id = store.account_store.get_device_id().await?;
+
         let mut protocol_client = protocol_config.create(
-            store.account_store.get_account_id().await?,
-            store.account_store.get_device_id().await?,
+            account_id,
+            device_id,
             store.account_store.get_password().await?,
         )?;
 
         let queue = protocol_client.connect().await?;
 
         let mut client = Self {
+            account_id,
+            device_id,
             store,
             deniable_store,
             api_client,
@@ -222,15 +234,20 @@ impl<T: DenimClientType> DenimClient<T> {
         message_queue_config: impl MessageQueueConfig<MessageQueue = T::MessageQueue>,
         #[builder(default = <T::Rng as Default>::default())] rng: T::Rng,
     ) -> Result<Self, DenimClientError> {
+        let account_id = store.account_store.get_account_id().await?;
+        let device_id = store.account_store.get_device_id().await?;
+
         let mut protocol_client = protocol_config.create(
-            store.account_store.get_account_id().await?,
-            store.account_store.get_device_id().await?,
+            account_id,
+            device_id,
             store.account_store.get_password().await?,
         )?;
 
         let queue = protocol_client.connect().await?;
 
         Ok(Self {
+            account_id,
+            device_id,
             store,
             deniable_store,
             api_client: api_client_config.create().await?,
@@ -241,12 +258,12 @@ impl<T: DenimClientType> DenimClient<T> {
         })
     }
 
-    pub async fn account_id(&self) -> Result<AccountId, DenimClientError> {
-        Ok(self.store.account_store.get_account_id().await?)
+    pub fn account_id(&self) -> AccountId {
+        self.account_id
     }
 
-    pub async fn device_id(&self) -> Result<DeviceId, DenimClientError> {
-        Ok(self.store.account_store.get_device_id().await?)
+    pub fn device_id(&self) -> DeviceId {
+        self.device_id
     }
 
     async fn password(&self) -> Result<String, DenimClientError> {
@@ -264,17 +281,9 @@ impl<T: DenimClientType> DenimClient<T> {
     /// Delete Account and consumes the client.
     /// If account deletion fails, the client is returned along with the error.
     pub async fn delete_account(self) -> Result<(), (Self, DenimClientError)> {
-        let account_id = self.account_id().await;
-        let device_id = self.device_id().await;
+        let account_id = self.account_id();
+        let device_id = self.device_id();
         let password = self.password().await;
-
-        let Ok(account_id) = account_id else {
-            return Err((self, account_id.unwrap_err()));
-        };
-
-        let Ok(device_id) = device_id else {
-            return Err((self, device_id.unwrap_err()));
-        };
 
         let Ok(password) = password else {
             return Err((self, password.unwrap_err()));
@@ -297,19 +306,9 @@ impl<T: DenimClientType> DenimClient<T> {
     ///
     /// See `unlink_device` if you want to delete another device.
     pub async fn delete_device(self) -> Result<(), (Self, DenimClientError)> {
-        let account_id = self.account_id().await;
-        let device_id = self.device_id().await;
+        let account_id = self.account_id();
+        let device_id = self.device_id();
         let password = self.password().await;
-
-        let account_id = match account_id {
-            Ok(id) => id,
-            Err(err) => return Err((self, err)),
-        };
-
-        let device_id = match device_id {
-            Ok(id) => id,
-            Err(err) => return Err((self, err)),
-        };
 
         let password = match password {
             Ok(pwd) => pwd,
@@ -333,8 +332,8 @@ impl<T: DenimClientType> DenimClient<T> {
     pub async fn unlink_device(self, device_id: DeviceId) -> Result<(), DenimClientError> {
         self.api_client
             .delete_device(
-                self.account_id().await?,
-                self.device_id().await?,
+                self.account_id(),
+                self.device_id(),
                 &self.store.account_store.get_password().await?,
                 device_id,
             )
@@ -347,8 +346,8 @@ impl<T: DenimClientType> DenimClient<T> {
         let account_id = self
             .api_client
             .get_user_account_id(
-                self.account_id().await?,
-                self.device_id().await?,
+                self.account_id(),
+                self.device_id(),
                 self.store.account_store.get_password().await?.as_str(),
                 username,
             )
@@ -507,8 +506,8 @@ impl<T: DenimClientType> DenimClient<T> {
         Ok(self
             .api_client
             .provision_device(
-                self.account_id().await?,
-                self.device_id().await?,
+                self.account_id(),
+                self.device_id(),
                 &self.store.account_store.get_password().await?,
             )
             .await?)
