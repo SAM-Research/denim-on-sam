@@ -37,7 +37,6 @@ async fn alice_send_to_charlie(
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
 ) {
-    let _ = env_logger::try_init();
     let mut server = server_configs.sam.start().await;
     let mut proxy = server_configs.denim.start().await;
 
@@ -706,7 +705,6 @@ async fn ongoing_communication(
     #[case]
     server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
 ) {
-    let _ = env_logger::try_init();
     let mut server = server_configs.sam.start().await;
     let mut proxy = server_configs.denim.start().await;
 
