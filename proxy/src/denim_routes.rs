@@ -278,7 +278,7 @@ mod test {
         let sig_msg = SignalMessage::new(
             3u8,
             &[1; 32],
-            id_pair.public_key().clone(),
+            *id_pair.public_key(),
             1u32,
             0u32,
             &[1, 2, 3],
@@ -292,8 +292,8 @@ mod test {
             Some(ec_key.key_id.into()),
             signed_id.into(),
             None,
-            id_pair.public_key().clone(),
-            id_pair.identity_key().clone(),
+            *id_pair.public_key(),
+            *id_pair.identity_key(),
             sig_msg.clone(),
         )
         .expect("can create prekey message");
