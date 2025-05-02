@@ -67,7 +67,7 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
             let chunk_buffer = buffer_guard.entry(message_id).or_default();
             let seq = chunk.sequence_number();
 
-            let next = if !chunk_buffer.waiting_for.lock().await.contains(&seq) {
+            if !chunk_buffer.waiting_for.lock().await.contains(&seq) {
                 for id in 0..seq {
                     if !chunk_buffer.chunks.lock().await.contains_key(&id) {
                         chunk_buffer.waiting_for.lock().await.insert(id);
@@ -80,11 +80,10 @@ impl ReceivingBuffer for InMemoryReceivingBuffer {
                     chunk.message_id(),
                     chunk_buffer.waiting_for
                 );
-                seq + 1
             } else {
                 chunk_buffer.waiting_for.lock().await.remove(&seq);
-                seq + 1
             };
+            let next = seq + 1;
             if chunk.flag() != Flag::Final && !chunk_buffer.chunks.lock().await.contains_key(&next)
             {
                 chunk_buffer.waiting_for.lock().await.insert(next);
