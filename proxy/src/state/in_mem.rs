@@ -18,10 +18,6 @@ impl BufferManagerType for InMemoryBufferManagerType {
     type ReceivingBufferConfig = InMemoryReceivingBufferConfig;
 
     type SendingBufferConfig = InMemorySendingBufferConfig;
-
-    type MessageIdProvider = InMemoryMessageIdProvider;
-
-    type BlockList = InMemoryBlockList;
 }
 
 #[derive(Clone)]
@@ -37,4 +33,6 @@ impl DenimStateType for InMemoryDenimStateType {
     type DeviceManger = InMemoryDeviceManager;
 
     type KeyRequestManager = InMemoryKeyRequestManager;
+    type MessageIdProvider = InMemoryMessageIdProvider;
+    type BlockList = InMemoryBlockList;
 }

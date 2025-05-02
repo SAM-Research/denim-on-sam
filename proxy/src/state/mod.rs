@@ -16,10 +16,8 @@ pub use in_mem::InMemoryDenimStateType;
 pub use postgres::PostgresDenimStateType;
 
 pub trait BufferManagerType: 'static + Clone {
-    type BlockList: BlockList;
     type ReceivingBufferConfig: ReceivingBufferConfig;
     type SendingBufferConfig: SendingBufferConfig;
-    type MessageIdProvider: MessageIdProvider;
 }
 
 pub trait DenimStateType: 'static + Clone {
@@ -28,12 +26,16 @@ pub trait DenimStateType: 'static + Clone {
     type DenimKeyManagerType: DenimKeyManagerType;
     type AccountManager: AccountManager;
     type DeviceManger: DeviceManager;
+    type BlockList: BlockList;
+    type MessageIdProvider: MessageIdProvider;
 }
 
 #[derive(Clone)]
 pub struct DenimState<T: DenimStateType> {
     pub key_request_manager: T::KeyRequestManager,
     pub buffer_manager: BufferManager<T::BufferManager>,
+    pub message_id_provider: T::MessageIdProvider,
+    pub block_list: T::BlockList,
     pub keys: DenimKeyManager<T::DenimKeyManagerType>,
     pub devices: T::DeviceManger,
     pub accounts: T::AccountManager,
@@ -55,6 +57,8 @@ impl<T: DenimStateType> DenimState<T> {
         accounts: T::AccountManager,
         devices: T::DeviceManger,
         key_request_manager: T::KeyRequestManager,
+        message_id_provider: T::MessageIdProvider,
+        block_list: T::BlockList,
     ) -> Self {
         Self {
             key_request_manager,
@@ -65,6 +69,8 @@ impl<T: DenimStateType> DenimState<T> {
             keys,
             devices,
             accounts,
+            message_id_provider,
+            block_list,
         }
     }
 
@@ -90,16 +96,15 @@ impl<T: DenimStateType> DenimState<T> {
             keys::InMemorySignedPreKeyManager,
         };
 
+        use crate::managers::in_mem::InMemoryBlockList;
         use crate::managers::{
-            in_mem::{InMemoryBlockList, InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager},
+            in_mem::{InMemoryDenimEcPreKeyManager, InMemoryKeyRequestManager},
             InMemoryMessageIdProvider,
         };
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr =
-            BufferManager::new(InMemoryBlockList::default(), rcfg, scfg, id_provider, 1.0);
 
+        let buffer_mgr = BufferManager::new(rcfg, scfg, 1.0);
         DenimState::builder()
             .sam_addr(sam_addr.to_string())
             .channel_buffer_size(10)
@@ -111,6 +116,8 @@ impl<T: DenimStateType> DenimState<T> {
             .accounts(InMemoryAccountManager::default())
             .devices(InMemoryDeviceManager::new("Test".to_owned(), 120))
             .key_request_manager(InMemoryKeyRequestManager::default())
+            .message_id_provider(InMemoryMessageIdProvider::default())
+            .block_list(InMemoryBlockList::default())
             .build()
     }
 }

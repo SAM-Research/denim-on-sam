@@ -208,10 +208,8 @@ async fn denim_client_receiver<T: DenimStateType>(
             Ok(results) => {
                 for res in results {
                     let response = match res {
-                        Ok(Some(request)) => {
-                            denim_router(&mut state.clone(), request, account_id).await
-                        }
-                        Ok(None) => continue,
+                        Ok(request) => denim_router(&mut state.clone(), request, account_id).await,
+
                         Err(e) => {
                             error!("failed to process deniable message: '{e}'");
                             continue;

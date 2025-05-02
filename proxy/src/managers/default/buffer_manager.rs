@@ -15,28 +15,21 @@ use log::debug;
 use sam_common::AccountId;
 use tokio::sync::Mutex;
 
-use crate::{
-    managers::{
-        error::BufferManagerError,
-        traits::{BlockList, MessageIdProvider},
-    },
-    state::BufferManagerType,
-};
+use crate::{managers::error::BufferManagerError, state::BufferManagerType};
 
 pub enum ClientRequest {
     BlockRequest(MessageId, BlockRequest),
     KeyRequest(MessageId, KeyRequest),
     SeedUpdateRequest(MessageId, SeedUpdate),
+    UserMessage(MessageId, UserMessage),
 }
 
 #[derive(Clone)]
 pub struct BufferManager<T: BufferManagerType> {
-    block_list: T::BlockList,
     receiving_buffers:
         Arc<Mutex<HashMap<AccountId, <T::ReceivingBufferConfig as ReceivingBufferConfig>::Buffer>>>,
     sending_buffers:
         Arc<Mutex<HashMap<AccountId, <T::SendingBufferConfig as SendingBufferConfig>::Buffer>>>,
-    id_provider: T::MessageIdProvider,
     receiving_config: T::ReceivingBufferConfig,
     sending_config: T::SendingBufferConfig,
     q: f32,
@@ -44,17 +37,13 @@ pub struct BufferManager<T: BufferManagerType> {
 
 impl<T: BufferManagerType> BufferManager<T> {
     pub fn new(
-        block_list: T::BlockList,
         receiving_config: T::ReceivingBufferConfig,
         sending_config: T::SendingBufferConfig,
-        id_provider: T::MessageIdProvider,
         q: f32,
     ) -> Self {
         Self {
-            block_list,
             receiving_buffers: Arc::new(Mutex::new(HashMap::new())),
             sending_buffers: Arc::new(Mutex::new(HashMap::new())),
-            id_provider,
             receiving_config,
             sending_config,
             q,
@@ -112,7 +101,7 @@ impl<T: BufferManagerType> BufferManager<T> {
         &mut self,
         account_id: AccountId,
         chunks: Vec<DenimChunk>,
-    ) -> Result<Vec<Result<Option<ClientRequest>, BufferManagerError>>, BufferManagerError> {
+    ) -> Result<Vec<Result<ClientRequest, BufferManagerError>>, BufferManagerError> {
         let chunks = {
             let mut guard = self.receiving_buffers.lock().await;
             guard
@@ -138,10 +127,7 @@ impl<T: BufferManagerType> BufferManager<T> {
                 }
             };
             let res = match msg.message_kind {
-                Some(kind) => {
-                    self.handle_message_kind(account_id, msg.message_id, kind)
-                        .await
-                }
+                Some(kind) => self.handle_message_kind(msg.message_id, kind).await,
                 None => {
                     results.push(Err(BufferManagerError::MalformedMessage(msg.message_id)));
                     debug!("Malformed message from account '{account_id}'");
@@ -155,15 +141,11 @@ impl<T: BufferManagerType> BufferManager<T> {
 
     async fn handle_message_kind(
         &mut self,
-        account_id: AccountId,
         message_id: MessageId,
         kind: MessageKind,
-    ) -> Result<Option<ClientRequest>, BufferManagerError> {
+    ) -> Result<ClientRequest, BufferManagerError> {
         let request = match kind {
-            MessageKind::DeniableMessage(x) => {
-                self.handle_user_message(account_id, x).await?;
-                return Ok(None);
-            }
+            MessageKind::DeniableMessage(x) => ClientRequest::UserMessage(message_id, x),
             MessageKind::BlockRequest(x) => ClientRequest::BlockRequest(message_id, x),
             MessageKind::KeyRequest(x) => ClientRequest::KeyRequest(message_id, x),
             MessageKind::SeedUpdate(x) => ClientRequest::SeedUpdateRequest(message_id, x),
@@ -173,40 +155,7 @@ impl<T: BufferManagerType> BufferManager<T> {
                 Err(BufferManagerError::ClientSendServerResponse(message_id))?
             }
         };
-        Ok(Some(request))
-    }
-
-    async fn handle_user_message(
-        &mut self,
-        account_id: AccountId,
-        mut message: UserMessage,
-    ) -> Result<(), BufferManagerError> {
-        let id = self.id_provider.get_message_id(account_id).await;
-        let receiver_id = AccountId::try_from(message.account_id)
-            .map_err(|_| BufferManagerError::InvalidAccountId)?;
-        if self
-            .block_list
-            .check_for_blocked_user(&receiver_id, &account_id)
-            .await
-        {
-            return Ok(());
-        }
-        let sender_id = account_id;
-        message.account_id = sender_id.into();
-        self.enqueue_message(
-            receiver_id,
-            DeniableMessage {
-                message_id: id,
-                message_kind: Some(MessageKind::DeniableMessage(message)),
-            },
-        )
-        .await
-    }
-
-    pub async fn block_user(&mut self, user_account_id: AccountId, blocked_account_id: AccountId) {
-        self.block_list
-            .block_user(user_account_id, blocked_account_id)
-            .await;
+        Ok(request)
     }
 }
 
@@ -219,7 +168,7 @@ mod test {
         },
         denim_message::{
             deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, MessageType,
-            UserMessage,
+            SeedUpdate, UserMessage,
         },
     };
 
@@ -227,10 +176,7 @@ mod test {
     use sam_common::AccountId;
 
     use crate::{
-        managers::{
-            default::ClientRequest, in_mem::InMemoryBlockList, BufferManager,
-            InMemoryMessageIdProvider,
-        },
+        managers::{default::ClientRequest, BufferManager},
         state::InMemoryBufferManagerType,
     };
 
@@ -238,15 +184,10 @@ mod test {
     async fn buffer_mgr_enqueue_message_and_deqeue() {
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
+
         let q = 1.0;
-        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
-            InMemoryBlockList::default(),
-            receiver,
-            sender,
-            id_provider,
-            q,
-        );
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, q);
         let account_id = AccountId::generate();
         let user_msg = UserMessage::builder()
             .content(vec![1, 3, 3, 7])
@@ -273,40 +214,64 @@ mod test {
             .is_some_and(|x| x.flag() == Flag::Final));
     }
 
+    enum Request {
+        Key,
+        Block,
+        Seed,
+        Message,
+    }
+    impl Request {
+        fn kind(self) -> (AccountId, MessageKind) {
+            let acid = AccountId::generate();
+            let kind = match self {
+                Request::Key => MessageKind::KeyRequest(
+                    KeyRequest::builder()
+                        .account_id(acid.into())
+                        .specific_device_ids(vec![1])
+                        .build(),
+                ),
+                Request::Block => MessageKind::BlockRequest(
+                    BlockRequest::builder()
+                        .account_id(AccountId::generate().into())
+                        .build(),
+                ),
+                Request::Seed => MessageKind::SeedUpdate(
+                    SeedUpdate::builder()
+                        .pre_key_id_seed(vec![1, 2, 3])
+                        .pre_key_seed(vec![5, 3, 1])
+                        .build(),
+                ),
+                Request::Message => MessageKind::DeniableMessage(
+                    UserMessage::builder()
+                        .account_id(AccountId::generate().into())
+                        .content(vec![1, 2, 3])
+                        .message_type(MessageType::PlaintextContent.into())
+                        .build(),
+                ),
+            };
+            (acid, kind)
+        }
+    }
+
     #[rstest]
-    #[case(false)]
-    #[case(true)]
+    #[case(Request::Key, |req: &ClientRequest| matches!(req, ClientRequest::KeyRequest(_, _)))]
+    #[case(Request::Block, |req: &ClientRequest| matches!(req, ClientRequest::BlockRequest(_, _)))]
+    #[case(Request::Seed, |req: &ClientRequest| matches!(req, ClientRequest::SeedUpdateRequest(_, _)))]
+    #[case(Request::Message, |req: &ClientRequest| matches!(req, ClientRequest::UserMessage(_, _)))]
     #[tokio::test]
-    async fn buffer_mgr_enqueue_chunks(#[case] is_request: bool) {
+    async fn buffer_mgr_enqueue_chunks(
+        #[case] req: Request,
+        #[case] expected_pattern: fn(&ClientRequest) -> bool,
+    ) {
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
-        let q = 1.0;
-        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
-            InMemoryBlockList::default(),
-            receiver,
-            sender,
-            id_provider,
-            q,
-        );
 
-        let account_id = AccountId::generate();
-        let kind = if is_request {
-            MessageKind::KeyRequest(
-                KeyRequest::builder()
-                    .account_id(account_id.into())
-                    .specific_device_ids(vec![1])
-                    .build(),
-            )
-        } else {
-            MessageKind::DeniableMessage(
-                UserMessage::builder()
-                    .content(vec![1, 3, 3, 7])
-                    .account_id(account_id.into())
-                    .message_type(MessageType::PlaintextContent.into())
-                    .build(),
-            )
-        };
+        let q = 1.0;
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, q);
+
+        let (account_id, kind) = req.kind();
+
         let msg = DeniableMessage::builder()
             .message_id(1)
             .message_kind(kind)
@@ -327,23 +292,7 @@ mod test {
         assert!(results.len() == 1);
         for res in results {
             let request = res.expect("decoding chunks works");
-            if is_request {
-                assert!(request.is_some_and(|x| matches!(x, ClientRequest::KeyRequest(_, _))));
-            } else {
-                assert!(request.is_none());
-            }
-        }
-        if !is_request {
-            let payload = mgr
-                .get_deniable_payload(account_id, 50)
-                .await
-                .expect("Can get payload");
-
-            assert!(payload.denim_chunks().len() == 1);
-            assert!(payload
-                .denim_chunks()
-                .first()
-                .is_some_and(|x| x.flag() == Flag::Final));
+            assert!(expected_pattern(&request))
         }
     }
 
@@ -353,14 +302,9 @@ mod test {
         let expected_q = 2.3;
         let receiver = InMemoryReceivingBufferConfig;
         let sender = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
-        let mut mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
-            InMemoryBlockList::default(),
-            receiver,
-            sender,
-            id_provider,
-            init_q,
-        );
+
+        let mut mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(receiver, sender, init_q);
 
         let accounts = vec![AccountId::generate(); 32];
 

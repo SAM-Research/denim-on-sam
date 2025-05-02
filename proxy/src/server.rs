@@ -54,14 +54,8 @@ impl DenimConfig<PostgresDenimStateType> {
         let conn = PostgresConnector::connect(&db_url).await?;
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
-            InMemoryBlockList::default(),
-            rcfg,
-            scfg,
-            id_provider,
-            deniable_ratio,
-        );
+        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(rcfg, scfg, deniable_ratio);
 
         Ok(Self {
             addr,
@@ -78,6 +72,8 @@ impl DenimConfig<PostgresDenimStateType> {
                 .accounts(PostgresAccountManager::new(conn.pool()))
                 .devices(PostgresDeviceManager::new(conn.pool()))
                 .key_request_manager(InMemoryKeyRequestManager::default())
+                .message_id_provider(InMemoryMessageIdProvider::default())
+                .block_list(InMemoryBlockList::default())
                 .build(),
         })
     }
@@ -97,14 +93,9 @@ impl DenimConfig<InMemoryDenimStateType> {
     ) -> Self {
         let rcfg = InMemoryReceivingBufferConfig;
         let scfg = InMemorySendingBufferConfig::default();
-        let id_provider = InMemoryMessageIdProvider::default();
-        let buffer_mgr: BufferManager<InMemoryBufferManagerType> = BufferManager::new(
-            InMemoryBlockList::default(),
-            rcfg,
-            scfg,
-            id_provider,
-            deniable_ratio,
-        );
+
+        let buffer_mgr: BufferManager<InMemoryBufferManagerType> =
+            BufferManager::new(rcfg, scfg, deniable_ratio);
 
         Self {
             addr,
@@ -121,6 +112,8 @@ impl DenimConfig<InMemoryDenimStateType> {
                 .accounts(InMemoryAccountManager::default()) // TODO: When adding postgres manager, connect for device manager should not take these
                 .devices(InMemoryDeviceManager::new("Test".to_owned(), 120)) // params as they are already set by SAM.
                 .key_request_manager(InMemoryKeyRequestManager::default())
+                .message_id_provider(InMemoryMessageIdProvider::default())
+                .block_list(InMemoryBlockList::default())
                 .build(),
         }
     }
