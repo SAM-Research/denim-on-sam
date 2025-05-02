@@ -7,7 +7,7 @@ use libsignal_core::ProtocolAddress;
 use libsignal_protocol::{process_prekey_bundle, IdentityKey};
 use log::{debug, error};
 use rand::{CryptoRng, Rng};
-use sam_client::storage::{MessageStore, Store, StoreType};
+use sam_client::storage::{ContactStore, MessageStore, Store, StoreType};
 use sam_common::AccountId;
 
 use crate::{
@@ -68,7 +68,6 @@ async fn handle_key_response<R: Rng + CryptoRng>(
         .inspect_err(|err| error!("Failed to decode Identity key from keybundle: {err}"))?;
     let device_id = response.key_bundle.device_id;
 
-    debug!("Processing key bundle {:?}", &response.key_bundle);
     let signal_bundle = into_libsignal_bundle(&id_key, response.key_bundle)?;
     let addr = ProtocolAddress::new(account_id.to_string(), device_id.into());
     process_prekey_bundle(
@@ -80,5 +79,11 @@ async fn handle_key_response<R: Rng + CryptoRng>(
         rng,
     )
     .await?;
+
+    deniable_store
+        .contact_store
+        .add_device(account_id, device_id.into())
+        .await?;
+
     Ok(DenimResponse::KeyResponse(account_id))
 }

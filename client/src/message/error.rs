@@ -1,7 +1,7 @@
 use denim_sam_common::{DenimBufferError, DenimEncodeDecodeError};
 use derive_more::{Display, Error, From};
 use libsignal_protocol::SignalProtocolError;
-use sam_client::storage::error::MessageStoreError;
+use sam_client::storage::error::{ContactStoreError, MessageStoreError};
 
 use crate::encryption::error::{EncryptionError, KeyError};
 
@@ -21,4 +21,5 @@ pub enum MessageProcessingError {
     KeyError(KeyError),
     SignalProtocol(SignalProtocolError),
     ServerError(#[error(not(source))] String),
+    ContactStore(ContactStoreError),
 }
