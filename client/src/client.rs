@@ -38,6 +38,7 @@ use crate::protocol::{
     DenimProtocolConfig,
 };
 use crate::store::inmem::InMemoryDeniableStoreType;
+use crate::store::sqlite::SqliteDeniableStoreType;
 use crate::store::{DeniableStore, DeniableStoreConfig, DeniableStoreType, DenimPreKeySeedStore};
 use tokio::sync::mpsc::Receiver as MpscReceiver;
 
@@ -88,7 +89,7 @@ pub type SqliteDenimClientType = DefaultDenimClientType<
     SqliteStoreType,
     HttpClient,
     DenimProtocolClient<InMemorySendingBuffer, InMemoryReceivingBuffer>,
-    InMemoryDeniableStoreType,
+    SqliteDeniableStoreType,
 >;
 
 pub struct DenimClient<T: DenimClientType> {

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use denim_sam_common::rng::chacha::ChaChaRngState;
 use sam_client::storage::{
-    sqlite::sqlite_connector::SqliteConnector, SqliteContactStore, SqliteMessageStore,
-    SqlitePreKeyStore, SqliteSessionStore,
+    error::DatabaseError, sqlite::sqlite_connector::SqliteConnector, SqliteContactStore,
+    SqliteMessageStore, SqlitePreKeyStore, SqliteSessionStore,
 };
 
 use crate::DenimClientError;
@@ -32,6 +32,14 @@ impl SqliteDeniableStoreConfig {
             buffer_size,
             connector,
         }
+    }
+
+    pub async fn in_memory(buffer_size: usize) -> Result<Self, DatabaseError> {
+        let connector = SqliteConnector::migrate("sqlite::memory:").await?;
+        Ok(Self {
+            buffer_size,
+            connector,
+        })
     }
 }
 
