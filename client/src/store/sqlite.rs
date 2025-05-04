@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use denim_sam_common::rng::chacha::ChaChaRngState;
 use sam_client::storage::{
-    error::DatabaseError, sqlite::sqlite_connector::SqliteConnector, SqliteContactStore,
-    SqliteMessageStore, SqlitePreKeyStore, SqliteSessionStore,
+    sqlite::sqlite_connector::SqliteConnector, SqliteContactStore, SqliteMessageStore,
+    SqlitePreKeyStore, SqliteSessionStore,
 };
 
 use crate::DenimClientError;

@@ -61,7 +61,11 @@ async fn can_link_device(
         .expect("Can get id key pair");
 
     let new_device = DenimClient::<SqliteDenimClientType>::from_provisioning()
-        .store_config(SqliteStoreConfig::in_memory(10).await)
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
         .message_queue_config(InMemoryMessageQueueConfig)
@@ -126,7 +130,11 @@ async fn can_unlink_device(
 
     let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
-        .store_config(SqliteStoreConfig::in_memory(10).await)
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
@@ -191,7 +199,11 @@ async fn can_delete_device(
 
     let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
-        .store_config(SqliteStoreConfig::in_memory(10).await)
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .deniable_store_config(InMemoryDeniableStoreConfig::default())
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
