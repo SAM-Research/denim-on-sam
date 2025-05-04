@@ -27,7 +27,7 @@ pub struct SqliteDeniableStoreConfig {
 }
 
 impl SqliteDeniableStoreConfig {
-    fn new(connector: SqliteConnector, buffer_size: usize) -> Self {
+    pub fn new(connector: SqliteConnector, buffer_size: usize) -> Self {
         Self {
             buffer_size,
             connector,
