@@ -6,6 +6,8 @@ use sam_client::storage::{ContactStore, MessageStore, ProvidesKeyId};
 
 use crate::DenimClientError;
 
+pub mod sqlite;
+
 pub mod inmem;
 pub use inmem::InMemoryDeniableStoreConfig;
 mod seed;
