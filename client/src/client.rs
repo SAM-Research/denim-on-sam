@@ -10,6 +10,7 @@ use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use sam_client::encryption::DecryptedEnvelope;
 
+use sam_common::address::DEFAULT_DEVICE_ID;
 use sam_common::{address::AccountId, address::RegistrationId, api::LinkDeviceToken, DeviceId};
 
 use sam_client::logic::{
@@ -402,6 +403,10 @@ impl<T: DenimClientType> DenimClient<T> {
         recipient: AccountId,
         msg: Vec<u8>,
     ) -> Result<(), DenimClientError> {
+        if self.device_id != DEFAULT_DEVICE_ID.into() {
+            debug!("DenIM only supports primary devices");
+            return Err(DenimClientError::NotSupported);
+        }
         self.protocol_client
             .enqueue_deniable(MessageKind::DeniableMessage(
                 encrypt(msg, recipient, &mut self.store, &mut self.deniable_store).await?,
@@ -534,7 +539,7 @@ impl<T: DenimClientType> DenimClient<T> {
             .await;
     }
 
-    pub async fn update_key_seed(&mut self) -> Result<(), DenimClientError> {
+    async fn update_key_seed(&mut self) -> Result<(), DenimClientError> {
         let id_seed = KeyIdSeed::random(&mut self.rng);
         let key_seed = KeySeed::random(&mut self.rng);
 
