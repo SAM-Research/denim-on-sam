@@ -57,7 +57,12 @@ pub async fn decrypt<R: Rng + CryptoRng>(
         let key_id = prekey_message
             .pre_key_id()
             .ok_or(EncryptionError::NoPreKeyInMessage)?;
-        generate_key(key_id, deniable_store).await?;
+        generate_key(
+            message.rng_counter.ok_or(EncryptionError::NoRngCounter)?,
+            key_id,
+            deniable_store,
+        )
+        .await?;
     }
 
     let bytes = message_decrypt(
@@ -211,6 +216,7 @@ mod test {
         .expect("can encrypt");
         // proxy changes account id to sender
         cipher.account_id = sender.into();
+        cipher.rng_counter = Some(10);
 
         (expected, cipher)
     }

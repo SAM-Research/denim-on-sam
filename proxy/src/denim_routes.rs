@@ -3,14 +3,18 @@ use denim_sam_common::{
         deniable_message::MessageKind, BlockRequest, DeniableMessage, KeyRequest, KeyResponse,
         MessageType, SeedUpdate, UserMessage,
     },
-    rng::seed::{KeyIdSeed, KeySeed},
+    rng::{
+        seed::{KeyIdSeed, KeySeed},
+        RngState,
+    },
 };
 
 use libsignal_protocol::CiphertextMessage;
 use log::{debug, error};
-use sam_common::AccountId;
+use sam_common::{address::DEFAULT_DEVICE_ID, AccountId};
 use sam_server::managers::traits::account_manager::AccountManager;
 
+use crate::managers::DenimEcPreKeyManager;
 use crate::{
     error::{DenimRouterError, LogicError},
     logic::keys::{get_keys_for, remove_pending_key, store_pending_key, update_seed},
@@ -199,7 +203,23 @@ pub async fn handle_user_message<T: DenimStateType>(
         // first convert to ciphertext when we actually need it
         MessageType::PreKeySignalMessage => match message.ciphertext() {
             Ok(CiphertextMessage::PreKeySignalMessage(pre)) => {
-                store_pending_key(state, &pre, sender_account_id, receiver_id).await?
+                store_pending_key(state, &pre, sender_account_id, receiver_id).await?;
+                // This will be None if rng_counter > u64::MAX.
+                message.rng_counter = state
+                    .keys
+                    .pre_keys
+                    .get_key_seed_for(
+                        message
+                            .account_id
+                            .clone()
+                            .try_into()
+                            .map_err(|_| DenimRouterError::InvalidAccountId)?,
+                        DEFAULT_DEVICE_ID.into(),
+                    )
+                    .await?
+                    .offset()
+                    .try_into()
+                    .ok()
             }
             Ok(_) => Err(DenimRouterError::MalformedUserMessage)?,
             Err(e) => {
@@ -256,6 +276,34 @@ mod test {
 
         let signed_id = 23u32;
         let signed = signed_ec_pre_key(signed_id, &id_pair, OsRng);
+
+        state
+            .keys
+            .pre_keys
+            .store_key_seed_for(bob, DEFAULT_DEVICE_ID.into(), seed.clone().into())
+            .await
+            .expect("Can store seed for bob");
+
+        state
+            .keys
+            .pre_keys
+            .store_key_id_seed_for(bob, DEFAULT_DEVICE_ID.into(), id_seed.clone().into())
+            .await
+            .expect("Can store id seed for bob");
+
+        state
+            .keys
+            .pre_keys
+            .store_key_seed_for(alice, DEFAULT_DEVICE_ID.into(), seed.clone().into())
+            .await
+            .expect("Can store seed for bob");
+
+        state
+            .keys
+            .pre_keys
+            .store_key_id_seed_for(alice, DEFAULT_DEVICE_ID.into(), id_seed.clone().into())
+            .await
+            .expect("Can store id seed for bob");
 
         state
             .keys

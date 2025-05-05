@@ -12,6 +12,7 @@ pub enum EncryptionError {
     FailedToUnpad,
     NoPreKeyInMessage,
     Key(KeyError),
+    NoRngCounter,
 }
 
 #[derive(Debug, Error, Display, From)]
