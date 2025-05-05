@@ -31,7 +31,7 @@ pub fn into_libsignal_bundle(
 }
 
 pub async fn generate_key<T: DeniableStoreType>(
-    rng_counter: u32,
+    rng_counter: u64,
     prekey_id: PreKeyId,
     store: &mut DeniableStore<T>,
 ) -> Result<(), KeyError> {
