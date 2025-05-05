@@ -3,6 +3,9 @@ use denim_sam_common::rng::RngState;
 use derive_more::{Display, Error};
 use log::error;
 
+/// Keygen uses the rng this amount of times for each key generated.
+const KEYGEN_RNG_USE_AMOUNT: u128 = 8;
+
 #[derive(Debug, Display, Error)]
 pub enum SeedStoreError {}
 
@@ -40,7 +43,7 @@ impl<T: RngState> DenimPreKeySeedStore<T> for InMemoryPreKeySeedStore<T> {
     async fn get_rng_offset(&self) -> Result<u128, SeedStoreError> {
         let key_offset = self.key_seed.offset();
         let id_offset = self.key_id_seed.offset();
-        if key_offset / 8 != id_offset {
+        if key_offset / KEYGEN_RNG_USE_AMOUNT != id_offset {
             error!("Key offset ({key_offset}) did not match Key ID offset ({id_offset})");
         }
         Ok(id_offset)
