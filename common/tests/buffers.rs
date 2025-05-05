@@ -17,9 +17,9 @@ pub fn make_deniable_messages(lengths: Vec<usize>) -> VecDeque<DeniableMessage> 
             message_id: i as u32,
             message_kind: Some(MessageKind::DeniableMessage(UserMessage {
                 account_id: vec![i as u8],
-
                 message_type: MessageType::SignalMessage.into(),
                 content,
+                rng_counter: None,
             })),
         });
     }
@@ -91,6 +91,7 @@ pub async fn send_recv_buffer(
                     account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
                     content,
+                    rng_counter: None
                 })
             )
         }

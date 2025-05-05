@@ -219,6 +219,7 @@ mod test {
                     account_id: vec![i as u8],
                     message_type: MessageType::SignalMessage.into(),
                     content: random_bytes,
+                    rng_counter: None,
                 })),
             });
         }

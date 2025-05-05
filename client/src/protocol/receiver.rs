@@ -299,6 +299,7 @@ pub mod test {
             account_id: vec![1_u8],
             message_type: MessageType::SignalMessage.into(),
             content: random_bytes,
+            rng_counter: None,
         })
     }
 

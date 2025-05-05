@@ -58,6 +58,7 @@ pub enum DenimRouterError {
     Logic(LogicError),
     AccountManager(AccountManagerError),
     BufferManager(BufferManagerError),
+    KeyManager(DenimKeyManagerError),
     NoDeviceIdInRequest,
     InvalidAccountId,
     MalformedUserMessage,

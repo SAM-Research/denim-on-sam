@@ -47,6 +47,9 @@ impl RngState for ChaChaRngState {
     fn into_rng(self) -> Self::Rng {
         ChaCha20Rng::from(self)
     }
+    fn offset(&self) -> u128 {
+        self.1
+    }
 }
 
 impl From<ChaChaRngState> for ChaCha20Rng {
