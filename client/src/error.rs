@@ -26,7 +26,7 @@ pub enum DenimProtocolError {
     FailedToReceiveQStatus,
 }
 
-#[derive(From, Debug)]
+#[derive(Debug, Error, Display, From)]
 pub enum DenimClientError {
     StoreCreation(StoreCreationError),
     Logic(LogicError),

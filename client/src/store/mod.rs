@@ -6,10 +6,12 @@ use sam_client::storage::{ContactStore, MessageStore, ProvidesKeyId};
 
 use crate::DenimClientError;
 
+pub mod sqlite;
+
 pub mod inmem;
 pub use inmem::InMemoryDeniableStoreConfig;
 mod seed;
-pub use seed::{DenimPreKeySeedStore, SeedStoreError};
+pub use seed::{DenimPreKeySeedStore, InMemoryPreKeySeedStore, SeedStoreError};
 
 #[async_trait]
 pub trait DeniableStoreConfig {

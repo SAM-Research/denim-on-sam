@@ -50,7 +50,7 @@ fn welcome(config: &DenimCliConfig) {
 }
 
 async fn cli() -> Result<(), CliError> {
-    let matches = Command::new("sam_server")
+    let matches = Command::new("denim_sam_proxy")
         .arg(
             Arg::new("database_url")
                 .short('d')

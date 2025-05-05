@@ -1,6 +1,7 @@
+use denim_sam_client::store::sqlite::SqliteDeniableStoreConfig;
 use denim_sam_client::{
     client::SqliteDenimClientType, message::queue::InMemoryMessageQueueConfig,
-    protocol::DenimProtocolClientConfig, store::InMemoryDeniableStoreConfig, DenimClient,
+    protocol::DenimProtocolClientConfig, DenimClient,
 };
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use denim_sam_proxy::state::DenimStateType;
@@ -61,8 +62,16 @@ async fn can_link_device(
         .expect("Can get id key pair");
 
     let new_device = DenimClient::<SqliteDenimClientType>::from_provisioning()
-        .store_config(SqliteStoreConfig::in_memory(10).await)
-        .deniable_store_config(InMemoryDeniableStoreConfig::default())
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
+        .deniable_store_config(
+            SqliteDeniableStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
@@ -126,8 +135,16 @@ async fn can_unlink_device(
 
     let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
-        .store_config(SqliteStoreConfig::in_memory(10).await)
-        .deniable_store_config(InMemoryDeniableStoreConfig::default())
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
+        .deniable_store_config(
+            SqliteDeniableStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
             proxy.address().to_owned(),
@@ -191,8 +208,16 @@ async fn can_delete_device(
 
     let other_client: DenimClient<SqliteDenimClientType> = DenimClient::from_provisioning()
         .api_client_config(HttpClientConfig::new(server.address().to_owned()))
-        .store_config(SqliteStoreConfig::in_memory(10).await)
-        .deniable_store_config(InMemoryDeniableStoreConfig::default())
+        .store_config(
+            SqliteStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
+        .deniable_store_config(
+            SqliteDeniableStoreConfig::in_memory(10)
+                .await
+                .expect("can create inmemory"),
+        )
         .message_queue_config(InMemoryMessageQueueConfig)
         .protocol_config(DenimProtocolClientConfig::new(
             proxy.address().to_owned(),
