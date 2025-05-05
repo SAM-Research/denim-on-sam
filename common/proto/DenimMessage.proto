@@ -11,7 +11,7 @@ message UserMessage {
   required bytes account_id = 1; // sender or receiver
   required MessageType message_type = 2;
   required bytes content = 3;
-  optional uint32 rng_counter = 4;
+  optional uint64 rng_counter = 4;
 }
 
 message BlockRequest { required bytes account_id = 1; }

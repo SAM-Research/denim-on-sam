@@ -204,6 +204,7 @@ pub async fn handle_user_message<T: DenimStateType>(
         MessageType::PreKeySignalMessage => match message.ciphertext() {
             Ok(CiphertextMessage::PreKeySignalMessage(pre)) => {
                 store_pending_key(state, &pre, sender_account_id, receiver_id).await?;
+                // This will be None if rng_counter > u64::MAX.
                 message.rng_counter = state
                     .keys
                     .pre_keys
