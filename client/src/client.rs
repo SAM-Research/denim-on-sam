@@ -5,7 +5,7 @@ use denim_sam_common::denim_message::deniable_message::MessageKind;
 use denim_sam_common::denim_message::{BlockRequest, KeyRequest, SeedUpdate};
 use denim_sam_common::rng::seed::{KeyIdSeed, KeySeed};
 use libsignal_protocol::{IdentityKeyPair, IdentityKeyStore};
-use log::{debug, error};
+use log::debug;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use sam_client::encryption::DecryptedEnvelope;
