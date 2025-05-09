@@ -4,6 +4,7 @@ use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use denim_sam_proxy::state::DenimStateType;
 use rstest::rstest;
 use sam_client::encryption::DecryptedEnvelope;
+use sam_common::AccountId;
 use sam_server::StateType;
 use sam_test_utils::get_next_port;
 use std::time::Duration;
@@ -12,7 +13,7 @@ use tokio::time::{sleep, timeout};
 use utils::server::TestServerConfigs;
 use uuid::Uuid;
 mod utils;
-use crate::utils::server::{connection_str, postgres_configs};
+use crate::utils::server::{connection_str, in_memory_configs, postgres_configs};
 use utils::client::client_with_proxy;
 use utils::server::TestServerConfig as _;
 
@@ -694,6 +695,48 @@ async fn update_seed(
 
     assert_eq!(received_message, secret_message)
 }*/
+
+#[rstest]
+#[case(in_memory_configs(get_next_port(), get_next_port(), None))]
+#[timeout(Duration::from_secs(TIMEOUT_SECS))]
+#[tokio::test]
+async fn deniable_messages_gets_enqueued_when_no_bundle_received(
+    #[future(awt)]
+    #[case]
+    server_configs: TestServerConfigs<impl StateType, impl DenimStateType>,
+) {
+    let mut server = server_configs.sam.start().await;
+    let mut proxy = server_configs.denim.start().await;
+
+    server
+        .started_rx()
+        .await
+        .expect("Should be able to start server");
+
+    proxy
+        .started_rx()
+        .await
+        .expect("Should be able to start server");
+
+    let mut alice = client_with_proxy(
+        proxy.address(),
+        server.address(),
+        &Uuid::new_v4().to_string(),
+        "alice device",
+        None,
+        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemoryReceivingBuffer::default(),
+    )
+    .await;
+
+    let bob = AccountId::generate();
+
+    alice
+        .enqueue_message(bob, "hello bob")
+        .await
+        .expect("can enqueue first message");
+    assert!(alice.enqueue_message(bob, "how goes?").await.is_ok())
+}
 
 #[rstest]
 #[ignore = "requires a postgres test database"]

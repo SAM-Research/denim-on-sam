@@ -383,18 +383,22 @@ impl<T: DenimClientType> DenimClient<T> {
             debug!("Clients are not allowed to send deniable messages to themselves");
             return Err(DenimClientError::NotSupported);
         }
-        if !self
+        let contact_not_exists = !self
             .deniable_store
             .contact_store
             .contains_contact(recipient)
-            .await?
-            && self.waiting_messages.len(recipient).await == 0
-        {
+            .await?;
+        if contact_not_exists && self.waiting_messages.len(recipient).await == 0 {
             self.fetch_denim_prekeys(recipient).await;
 
             self.waiting_messages.enqueue(recipient, msg.into()).await;
             return Ok(());
         }
+        if contact_not_exists {
+            self.waiting_messages.enqueue(recipient, msg.into()).await;
+            return Ok(());
+        }
+
         self.enqueue_deniable(recipient, msg.into()).await
     }
 
