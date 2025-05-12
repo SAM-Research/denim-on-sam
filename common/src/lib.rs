@@ -2,11 +2,13 @@ pub mod buffers;
 mod error;
 pub mod rng;
 
+use std::fmt::Display;
+
 pub use error::{ConversionError, DenimBufferError, DenimEncodeDecodeError};
 
 include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 
-use denim_message::{MessageType, UserMessage};
+use denim_message::{deniable_message::MessageKind, MessageType, UserMessage};
 use libsignal_protocol::{
     CiphertextMessage, CiphertextMessageType, PlaintextContent, PreKeySignalMessage,
     SenderKeyMessage, SignalMessage, SignalProtocolError,
@@ -50,5 +52,18 @@ impl UserMessage {
                 PlaintextContent::try_from(self.content.as_slice())?,
             ),
         })
+    }
+}
+
+impl Display for MessageKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageKind::DeniableMessage(_) => write!(f, "Deniable Message"),
+            MessageKind::BlockRequest(_) => write!(f, "Block Request"),
+            MessageKind::KeyRequest(_) => write!(f, "Key Request"),
+            MessageKind::KeyResponse(_) => write!(f, "Key Response"),
+            MessageKind::SeedUpdate(_) => write!(f, "Seed Update"),
+            MessageKind::Error(_) => write!(f, "Error"),
+        }
     }
 }

@@ -46,7 +46,7 @@ async fn can_link_device(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -78,7 +78,7 @@ async fn can_link_device(
             proxy.address().to_owned(),
             None,
             10,
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         ))
         .device_name("Alice's Other Device")
@@ -118,7 +118,7 @@ async fn can_unlink_device(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -150,7 +150,7 @@ async fn can_unlink_device(
             proxy.address().to_owned(),
             None,
             10,
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         ))
         .device_name("Alice's Other Device")
@@ -191,7 +191,7 @@ async fn can_delete_device(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -223,7 +223,7 @@ async fn can_delete_device(
             proxy.address().to_owned(),
             None,
             10,
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         ))
         .device_name("Alice's Other Device")
@@ -263,7 +263,7 @@ async fn can_delete_account(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;

@@ -5,6 +5,7 @@ use crate::buffers::{
 use crate::denim_message::DeniableMessage;
 use crate::error::DenimBufferError;
 use async_trait::async_trait;
+use atomic_float::AtomicF32;
 use log::debug;
 use prost::Message;
 use rand::RngCore;
@@ -22,7 +23,7 @@ struct Buffer {
 
 #[derive(Clone)]
 pub struct InMemorySendingBuffer {
-    q: f32,
+    q: Arc<AtomicF32>,
     chunk_size_without_payload: usize,
     outgoing_messages: Arc<Mutex<VecDeque<DeniableMessage>>>,
     buffer: Arc<Mutex<Buffer>>,
@@ -42,16 +43,16 @@ impl SendingBufferConfig for InMemorySendingBufferConfig {
 #[async_trait]
 impl SendingBuffer for InMemorySendingBuffer {
     async fn set_q(&mut self, q: f32) {
-        self.q = q;
+        self.q.store(q, std::sync::atomic::Ordering::Relaxed);
     }
     async fn get_q(&self) -> f32 {
-        self.q
+        self.q.load(std::sync::atomic::Ordering::Relaxed)
     }
     async fn get_deniable_payload(
         &mut self,
         reg_message_len: u32,
     ) -> Result<DeniablePayload, DenimBufferError> {
-        if self.q == 0.0 {
+        if self.q.load(std::sync::atomic::Ordering::Relaxed) == 0.0 {
             return Ok(DeniablePayload::default());
         }
 
@@ -127,7 +128,7 @@ impl InMemorySendingBuffer {
         let chunk_size_without_payload = DenimChunk::get_size_without_payload()?;
 
         Ok(Self {
-            q,
+            q: Arc::new(AtomicF32::new(q)),
             chunk_size_without_payload,
             outgoing_messages: Arc::new(Mutex::new(VecDeque::new())),
             buffer: Arc::new(Mutex::new(Buffer {
@@ -138,7 +139,7 @@ impl InMemorySendingBuffer {
         })
     }
     fn calculate_deniable_payload_length(&self, reg_message_len: u32) -> usize {
-        (reg_message_len as f32 * self.q).ceil() as usize
+        (reg_message_len as f32 * self.q.load(std::sync::atomic::Ordering::Relaxed)).ceil() as usize
     }
 
     async fn get_next_chunk(&mut self, available_bytes: usize) -> Option<DenimChunk> {

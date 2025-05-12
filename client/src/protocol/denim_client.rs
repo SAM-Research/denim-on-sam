@@ -113,6 +113,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
     }
 
     async fn enqueue_deniable(&mut self, message: MessageKind) {
+        debug!("Enqueued {}", message);
         self.sending_buffer
             .enqueue_message(
                 DeniableMessage::builder()

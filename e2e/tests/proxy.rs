@@ -58,7 +58,7 @@ async fn can_connect(
             &Uuid::new_v4().to_string(),
             "alice device",
             client_tls,
-            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -101,7 +101,7 @@ async fn can_send_message(
             &Uuid::new_v4().to_string(),
             "alice device",
             client_tls.clone(),
-            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -111,7 +111,7 @@ async fn can_send_message(
             &Uuid::new_v4().to_string(),
             "bob device",
             client_tls,
-            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
