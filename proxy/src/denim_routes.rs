@@ -33,15 +33,19 @@ pub async fn denim_router<T: DenimStateType>(
 ) -> Result<(), DenimRouterError> {
     match request {
         ClientRequest::BlockRequest(_, block_request) => {
+            debug!("Received Block Request");
             handle_block_request(state, block_request, account_id).await
         }
         ClientRequest::KeyRequest(msg_id, key_request) => {
+            debug!("Received Key Request");
             handle_key_request(state, msg_id, key_request, account_id).await
         }
         ClientRequest::SeedUpdateRequest(msg_id, seed_update) => {
+            debug!("Received Seed Update Request");
             handle_seed_update(state, msg_id, seed_update, account_id).await
         }
         ClientRequest::UserMessage(_, message) => {
+            debug!("Received User Message Request");
             handle_user_message(state, message, account_id).await
         }
     }
@@ -161,6 +165,7 @@ pub async fn enqueue_message<T: DenimStateType>(
     message: MessageKind,
     receiver: AccountId,
 ) -> Result<(), DenimRouterError> {
+    debug!("Enqueued {}", message);
     state
         .buffer_manager
         .enqueue_message(

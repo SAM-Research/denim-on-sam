@@ -57,7 +57,7 @@ async fn alice_send_to_charlie(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -68,7 +68,7 @@ async fn alice_send_to_charlie(
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -79,7 +79,7 @@ async fn alice_send_to_charlie(
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -206,7 +206,7 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -217,7 +217,7 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -228,7 +228,7 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -239,7 +239,7 @@ async fn alice_cannot_send_to_charlie_if_blocked(
         &Uuid::new_v4().to_string(),
         "dorothy device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -403,7 +403,7 @@ async fn key_request_waits_for_seed_update(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -414,7 +414,7 @@ async fn key_request_waits_for_seed_update(
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -425,7 +425,7 @@ async fn key_request_waits_for_seed_update(
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -573,7 +573,7 @@ async fn update_seed(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -584,7 +584,7 @@ async fn update_seed(
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -595,7 +595,7 @@ async fn update_seed(
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -724,7 +724,7 @@ async fn deniable_messages_gets_enqueued_when_no_bundle_received(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -767,7 +767,7 @@ async fn ongoing_communication(
         &Uuid::new_v4().to_string(),
         "alice device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -778,7 +778,7 @@ async fn ongoing_communication(
         &Uuid::new_v4().to_string(),
         "bob device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -789,7 +789,7 @@ async fn ongoing_communication(
         &Uuid::new_v4().to_string(),
         "charlie device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -800,7 +800,7 @@ async fn ongoing_communication(
         &Uuid::new_v4().to_string(),
         "dorothy device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;

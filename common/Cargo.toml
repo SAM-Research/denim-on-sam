@@ -20,5 +20,6 @@ rand = { workspace = true, features = ["std_rng"] }
 bincode = { workspace = true }
 libsignal-protocol = { workspace = true }
 rand_chacha = { workspace = true }
+atomic_float = { workspace = true }
 [build-dependencies]
 prost-build = { workspace = true }

@@ -64,7 +64,7 @@ pub async fn one_client_can_register(
             &Uuid::new_v4().to_string(),
             "alice device",
             client_tls,
-            InMemorySendingBuffer::new(0.5).expect("Can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         )
         .await;
@@ -101,7 +101,7 @@ pub async fn can_delete_account(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -137,7 +137,7 @@ pub async fn can_delete_a_device(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -178,7 +178,7 @@ pub async fn alice_can_find_bobs_account_id(
         &Uuid::new_v4().to_string(),
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -190,7 +190,7 @@ pub async fn alice_can_find_bobs_account_id(
         &bob_username,
         "Bob's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -231,7 +231,7 @@ pub async fn two_clients_cannot_have_the_same_username(
         &username,
         "Alice's device",
         None,
-        InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+        InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
     .await;
@@ -247,7 +247,7 @@ pub async fn two_clients_cannot_have_the_same_username(
             proxy.address().to_string(),
             None,
             10,
-            InMemorySendingBuffer::new(0.5).expect("can make sending buffer"),
+            InMemorySendingBuffer::new(0.0).expect("can make sending buffer"),
             InMemoryReceivingBuffer::default(),
         ))
         .call()
