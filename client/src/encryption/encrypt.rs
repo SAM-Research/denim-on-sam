@@ -9,7 +9,7 @@ use sam_client::{
     encryption::DecryptedEnvelope,
     storage::{Store, StoreType},
 };
-use sam_common::AccountId;
+use sam_common::{time_now_millis, AccountId};
 
 use crate::store::{DeniableStore, DeniableStoreType};
 
@@ -81,6 +81,7 @@ pub async fn decrypt<R: Rng + CryptoRng>(
         .source_account_id(source)
         .source_device_id(1.into())
         .content(bytes)
+        .timestamp(time_now_millis())
         .build())
 }
 
