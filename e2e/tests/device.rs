@@ -4,18 +4,17 @@ use denim_sam_client::{
     protocol::DenimProtocolClientConfig, DenimClient,
 };
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_e2e::utils::client::client_with_proxy;
+use denim_sam_e2e::utils::server::in_memory_configs;
+use denim_sam_e2e::utils::server::TestServerConfig;
+use denim_sam_e2e::utils::server::TestServerConfigs;
 use denim_sam_proxy::state::DenimStateType;
 use rstest::rstest;
 use sam_client::{net::HttpClientConfig, storage::SqliteStoreConfig};
 use sam_server::StateType;
 use sam_test_utils::get_next_port;
 use std::time::Duration;
-use utils::client::client_with_proxy;
-use utils::server::in_memory_configs;
-use utils::server::TestServerConfig;
-use utils::server::TestServerConfigs;
 use uuid::Uuid;
-mod utils;
 
 const TIMEOUT_SECS: u64 = 20;
 

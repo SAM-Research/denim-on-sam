@@ -3,6 +3,12 @@ use denim_sam_client::store::inmem::InMemoryDeniableStoreConfig;
 use denim_sam_client::DenimClient;
 use denim_sam_client::{client::InMemoryDenimClientType, protocol::DenimProtocolClientConfig};
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_e2e::utils::server::TestServerConfigs;
+use denim_sam_e2e::utils::server::{in_memory_configs, TestServerConfig};
+use denim_sam_e2e::utils::{
+    client::{client_with_proxy, http_config},
+    tls::client_config,
+};
 use denim_sam_proxy::state::DenimStateType;
 use rstest::rstest;
 use rustls::ClientConfig;
@@ -11,18 +17,10 @@ use sam_server::StateType;
 use sam_test_utils::get_next_port;
 use std::time::Duration;
 use tokio::time::timeout;
-use utils::server::TestServerConfigs;
-use utils::server::{in_memory_configs, TestServerConfig};
-use utils::{
-    client::{client_with_proxy, http_config},
-    tls::client_config,
-};
 use uuid::Uuid;
 
-use crate::utils::server::{connection_str, postgres_configs};
-use crate::utils::tls::tls_configs;
-
-mod utils;
+use denim_sam_e2e::utils::server::{connection_str, postgres_configs};
+use denim_sam_e2e::utils::tls::tls_configs;
 
 const TIMEOUT_SECS: u64 = 120;
 

@@ -1,6 +1,7 @@
 use denim_sam_client::client::DenimClientType;
 use denim_sam_client::DenimClient;
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_e2e::utils::server::TestServerConfigs;
 use denim_sam_proxy::state::DenimStateType;
 use rstest::rstest;
 use sam_client::encryption::DecryptedEnvelope;
@@ -10,12 +11,11 @@ use sam_test_utils::get_next_port;
 use std::time::Duration;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::{sleep, timeout};
-use utils::server::TestServerConfigs;
 use uuid::Uuid;
-mod utils;
-use crate::utils::server::{connection_str, in_memory_configs, postgres_configs};
-use utils::client::client_with_proxy;
-use utils::server::TestServerConfig as _;
+
+use denim_sam_e2e::utils::client::client_with_proxy;
+use denim_sam_e2e::utils::server::TestServerConfig as _;
+use denim_sam_e2e::utils::server::{connection_str, in_memory_configs, postgres_configs};
 
 const TIMEOUT_SECS: u64 = 20;
 
