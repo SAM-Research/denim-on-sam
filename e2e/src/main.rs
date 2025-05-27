@@ -103,6 +103,7 @@ async fn main() {
     // alice upload keys + key request to charlie to proxy
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
 
+    // ???
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
 
     // charlie upload keys to proxy

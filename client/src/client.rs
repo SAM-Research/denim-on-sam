@@ -443,8 +443,6 @@ impl<T: DenimClientType> DenimClient<T> {
         let now = time_now_millis();
         info!("[{now}] {me} -({msg_len})-> {recipient}");
         let status = self.protocol_client.send_message(client_envelope).await?;
-        let now = time_now_millis();
-        info!("[{now}] {me} SERVER ACKED");
         handle_message_response(&mut self.store, &self.api_client, &mut self.rng, status).await?;
         Ok(())
     }
