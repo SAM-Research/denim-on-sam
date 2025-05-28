@@ -33,7 +33,19 @@ pub async fn process_deniable_message<R: Rng + CryptoRng>(
 
     let envelope = match kind {
         MessageKind::DeniableMessage(message) => {
-            decrypt(message, store, deniable_store, rng).await?
+            let env = decrypt(message, store, deniable_store, rng).await?;
+            let source = env.source_account_id();
+            if !deniable_store
+                .contact_store
+                .contains_contact(source)
+                .await?
+            {
+                deniable_store
+                    .contact_store
+                    .add_device(env.source_account_id(), env.source_device_id())
+                    .await?;
+            }
+            env
         }
         MessageKind::KeyResponse(res) => {
             return handle_key_response(res, store, deniable_store, rng)
