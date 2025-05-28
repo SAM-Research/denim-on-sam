@@ -399,11 +399,6 @@ impl<T: DenimClientType> DenimClient<T> {
             self.waiting_messages.enqueue(recipient, msg.into()).await;
             return Ok(());
         }
-
-        let me = self.account_id();
-        let now = time_now_millis();
-        let msg_len = msg.clone().into().len();
-        info!("CLIENT ENQUEUE: [{now}] {me} -({msg_len})-> {recipient}");
         self.enqueue_deniable(recipient, msg.into()).await
     }
 
@@ -440,8 +435,7 @@ impl<T: DenimClientType> DenimClient<T> {
         )
         .await?;
         let me = self.account_id();
-        let now = time_now_millis();
-        info!("[{now}] {me} -({msg_len})-> {recipient}");
+        info!("{me} -({msg_len})-> {recipient}");
         let status = self.protocol_client.send_message(client_envelope).await?;
         handle_message_response(&mut self.store, &self.api_client, &mut self.rng, status).await?;
         Ok(())
@@ -478,8 +472,7 @@ impl<T: DenimClientType> DenimClient<T> {
             };
             if let Some(DenimResponse::KeyResponse(account_id)) = denim_res {
                 let me = self.account_id();
-                let now = time_now_millis();
-                info!("[{now}] {me} <-(KEY)- {account_id}");
+                info!("{me} <-(KEY)- {account_id}");
                 let message = self.waiting_messages.dequeue(account_id).await;
                 if let Some(bytes) = message {
                     self.enqueue_deniable(account_id, bytes).await?;

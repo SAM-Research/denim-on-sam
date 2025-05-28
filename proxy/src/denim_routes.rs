@@ -233,7 +233,7 @@ pub async fn handle_user_message<T: DenimStateType>(
         },
         _ => (),
     };
-
+    debug!("Enqueued Deniable Message");
     Ok(state
         .buffer_manager
         .enqueue_message(

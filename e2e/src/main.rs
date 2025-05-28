@@ -15,8 +15,9 @@ use uuid::Uuid;
 async fn main() {
     // wireshark filter: tcp.port == 8443  || tcp.port == 9443
     env_logger::builder()
-        .parse_filters("denim_sam_e2e=info,denim_sam_client=info")
-        //.parse_filters("info")
+        .parse_filters(
+            "denim_sam_e2e=info,denim_sam_client=info,denim_sam_proxy::denim_routes=debug,denim_sam_client::client=info",
+        )
         .init();
     let _ = rustls::crypto::ring::default_provider().install_default();
     let config = postgres_configs(8443, 9443, tls_configs(true), connection_str()).await;
@@ -65,22 +66,38 @@ async fn main() {
         InMemoryReceivingBuffer::default(),
     )
     .await;
+    let mut dorothy = client_with_proxy(
+        proxy.address(),
+        server.address(),
+        &Uuid::new_v4().to_string(),
+        "dorothy device",
+        client_config(true),
+        InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
+        InMemoryReceivingBuffer::default(),
+    )
+    .await;
 
     let alice_id = alice.account_id();
     let bob_id = bob.account_id();
     let charlie_id = charlie.account_id();
+    let dorothy_id = dorothy.account_id();
 
     let mut a_denim_rx = alice.deniable_subscribe();
     let mut a_sam_rx = alice.regular_subscribe();
-    let mut b_denim_rx = bob.deniable_subscribe();
+
     let mut b_sam_rx = bob.regular_subscribe();
+
     let mut c_denim_rx = charlie.deniable_subscribe();
     let mut c_sam_rx = charlie.regular_subscribe();
+
+    let mut d_denim_rx = dorothy.deniable_subscribe();
+    let mut d_sam_rx = dorothy.regular_subscribe();
 
     let a_msg = [8u8; 400];
     let b_msg = [16u8; 450];
     let c_msg = [32u8; 500];
-    let denim_msg = [64u8; 200];
+    let d_msg = [64u8; 550];
+    let denim_msg = [128u8; 200];
 
     // ##### Expirment #####
     info!("Alice {alice_id}");
@@ -92,49 +109,50 @@ async fn main() {
     info!("Charlie {charlie_id}");
     info!("Charlie msg {}", c_msg.len());
     info!("---------");
+    info!("Dorothy {dorothy_id}");
+    info!("Dorothy msg {}", d_msg.len());
+    info!("---------");
     info!("Denim msg {}", denim_msg.len());
     info!("---------");
 
-    // alice enqueues denim key request + message to charlie
+    // key uploads
+    send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
+    send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
+    send_recv(&mut charlie, &mut dorothy, &mut d_sam_rx, c_msg).await;
+    send_recv(&mut dorothy, &mut charlie, &mut c_sam_rx, d_msg).await;
+
+    // key request + inital deniable message
     alice
-        .enqueue_message(charlie_id, denim_msg)
+        .enqueue_message(dorothy_id, denim_msg)
         .await
-        .expect("can send denim");
-    // alice upload keys + key request to charlie to proxy
+        .expect("can enqueue");
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
 
-    // ???
+    // key response
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
 
-    // charlie upload keys to proxy
-    send_recv(&mut charlie, &mut bob, &mut b_sam_rx, c_msg).await;
-
-    // alice receives charlie keys through bob message
-    send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
-
-    // alice's denim message to charlie gets uploaded to server
+    // piggy back denim message
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
 
-    // bob sends message to charlie and alice message gets piggy backed
-    send_recv(&mut bob, &mut charlie, &mut c_sam_rx, b_msg).await;
+    // dorothy receives denim message
+    send_recv(&mut charlie, &mut dorothy, &mut d_sam_rx, c_msg).await;
 
-    // charlie reads denim message
-    let env = c_denim_rx.recv().await.expect("recv");
-    log_recv(charlie_id, env, true);
+    // dorothy reads alice denim message
+    let env = d_denim_rx.recv().await.expect("can recv");
+    log_recv(dorothy_id, env, true);
 
-    // charlie enqueues denim message to alice
-    charlie
+    // piggy back denim message
+    dorothy
         .enqueue_message(alice_id, denim_msg)
         .await
-        .expect("can send denim");
+        .expect("can enqueue");
+    send_recv(&mut dorothy, &mut charlie, &mut c_sam_rx, d_msg).await;
 
-    // charlie sends bob a message to upload denim message for alice
-    send_recv(&mut charlie, &mut bob, &mut b_sam_rx, c_msg).await;
-    // bob piggy backs charlie message to alice
+    // alice receives dorothy denim message
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
 
-    // alice reads message
-    let env = a_denim_rx.recv().await.expect("recv");
+    // alice reads dorothy denim message
+    let env = a_denim_rx.recv().await.expect("can recv");
     log_recv(alice_id, env, true);
 }
 
@@ -156,7 +174,6 @@ async fn send_recv(
 fn log_recv(me: AccountId, env: DecryptedEnvelope, denim: bool) {
     let sender = env.source_account_id();
     let len = env.content_bytes().len();
-    let now = env.timestamp();
     let x = if denim { "DENIM " } else { "" };
-    info!("[{now}] {me} <-({len})- {sender} {x}");
+    info!("{me} <-({len})- {sender} {x}");
 }
