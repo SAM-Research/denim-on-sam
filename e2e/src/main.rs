@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use denim_sam_client::{client::DenimClientType, DenimClient};
 use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
 use denim_sam_e2e::utils::{
@@ -5,18 +7,26 @@ use denim_sam_e2e::utils::{
     server::{connection_str, postgres_configs, TestServerConfig},
     tls::{client_config, tls_configs},
 };
+use env_logger::fmt::Formatter;
 use log::info;
 use sam_client::encryption::DecryptedEnvelope;
-use sam_common::AccountId;
+use sam_common::{time_now_millis, AccountId};
+use std::io::Write;
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 #[tokio::main]
 async fn main() {
     // wireshark filter: tcp.port == 8443  || tcp.port == 9443
+    let millis = 5000;
     env_logger::builder()
+    .format(|buf: &mut Formatter, record: &log::Record| {
+        let now = time_now_millis();
+        
+        writeln!(buf, "{} |{}| {}", now, record.target(), record.args())
+    })
         .parse_filters(
-            "denim_sam_e2e=info,denim_sam_client=info,denim_sam_proxy::denim_routes=debug,denim_sam_client::client=info",
+            "denim_sam_e2e=info,denim_sam_client=info,denim_sam_proxy::denim_routes=debug,denim_sam_client::client=info,denim_sam_proxy::proxy=debug",
         )
         .init();
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -33,7 +43,7 @@ async fn main() {
         .started_rx()
         .await
         .expect("Should be able to start server");
-
+    tokio::time::sleep(Duration::from_millis(millis)).await;
     let mut alice = client_with_proxy(
         proxy.address(),
         server.address(),
@@ -116,12 +126,16 @@ async fn main() {
     info!("---------");
 
     // key uploads
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n-------------------- SEED UPDATES ------------------");
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
     send_recv(&mut charlie, &mut dorothy, &mut d_sam_rx, c_msg).await;
     send_recv(&mut dorothy, &mut charlie, &mut c_sam_rx, d_msg).await;
 
     // key request + inital deniable message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n------------- ALICE KEY REQ + ENQUEUE DENIM --------");
     alice
         .enqueue_message(dorothy_id, denim_msg)
         .await
@@ -129,19 +143,28 @@ async fn main() {
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
 
     // key response
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n--------------- KEY RESPONSE ----------------------");
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
 
     // piggy back denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n--------------- SEND DENIM ------------------------");
     send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
 
     // dorothy receives denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n---------------- RECEIVE DENIM --------------------");
     send_recv(&mut charlie, &mut dorothy, &mut d_sam_rx, c_msg).await;
 
     // dorothy reads alice denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
     let env = d_denim_rx.recv().await.expect("can recv");
     log_recv(dorothy_id, env, true);
 
     // piggy back denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n--------------- SEND DENIM ------------------------");
     dorothy
         .enqueue_message(alice_id, denim_msg)
         .await
@@ -149,9 +172,12 @@ async fn main() {
     send_recv(&mut dorothy, &mut charlie, &mut c_sam_rx, d_msg).await;
 
     // alice receives dorothy denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    info!("\n\n---------------- RECEIVE DENIM --------------------");
     send_recv(&mut bob, &mut alice, &mut a_sam_rx, b_msg).await;
 
     // alice reads dorothy denim message
+    tokio::time::sleep(Duration::from_millis(millis)).await;
     let env = a_denim_rx.recv().await.expect("can recv");
     log_recv(alice_id, env, true);
 }

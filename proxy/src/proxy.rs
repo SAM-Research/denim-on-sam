@@ -7,7 +7,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use log::{error, info};
+use log::{debug, error, info};
 use prost::{bytes::Bytes, Message};
 use sam_common::{AccountId, DeviceId};
 use sam_net::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
@@ -155,6 +155,7 @@ async fn denim_client_receiver<T: DenimStateType>(
 ) {
     // Client sends proxy a message
     while let Some(Ok(msg)) = client_receiver.next().await {
+        debug!("Received Message From {account_id}");
         let msg = match msg {
             AxumMessage::Binary(msg) => msg,
             AxumMessage::Close(_) => break,
