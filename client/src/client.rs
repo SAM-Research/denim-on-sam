@@ -260,6 +260,14 @@ impl<T: DenimClientType> DenimClient<T> {
         })
     }
 
+    pub fn deniable_store(&self) -> &DeniableStore<T::DeniableStore> {
+        &self.deniable_store
+    }
+
+    pub fn store(&self) -> &Store<T::Store> {
+        &self.store
+    }
+
     pub fn account_id(&self) -> AccountId {
         self.account_id
     }
