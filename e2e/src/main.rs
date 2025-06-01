@@ -30,7 +30,7 @@ async fn main() {
         )
         .init();
     let _ = rustls::crypto::ring::default_provider().install_default();
-    let config = postgres_configs(8443, 9443, tls_configs(true), connection_str()).await;
+    let config = postgres_configs(8443, 9443, None, connection_str()).await;
     let mut server = config.sam.start().await;
     let mut proxy = config.denim.start().await;
 
@@ -49,7 +49,7 @@ async fn main() {
         server.address(),
         &Uuid::new_v4().to_string(),
         "alice device",
-        client_config(true),
+        None,
         InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
@@ -60,7 +60,7 @@ async fn main() {
         server.address(),
         &Uuid::new_v4().to_string(),
         "bob device",
-        client_config(true),
+        None,
         InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
@@ -71,7 +71,7 @@ async fn main() {
         server.address(),
         &Uuid::new_v4().to_string(),
         "charlie device",
-        client_config(true),
+        None,
         InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
@@ -81,7 +81,7 @@ async fn main() {
         server.address(),
         &Uuid::new_v4().to_string(),
         "dorothy device",
-        client_config(true),
+        None,
         InMemorySendingBuffer::new(0.0).expect("Can make sending buffer"),
         InMemoryReceivingBuffer::default(),
     )
@@ -180,6 +180,11 @@ async fn main() {
     tokio::time::sleep(Duration::from_millis(millis)).await;
     let env = a_denim_rx.recv().await.expect("can recv");
     log_recv(alice_id, env, true);
+
+    info!("\n\n--------------------------alie message to bob without denim-----");
+    tokio::time::sleep(Duration::from_millis(millis)).await;
+    send_recv(&mut alice, &mut bob, &mut b_sam_rx, a_msg).await;
+
 }
 
 async fn send_recv(

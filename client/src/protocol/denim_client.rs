@@ -7,7 +7,7 @@ use denim_sam_common::{
     buffers::{ReceivingBuffer, SendingBuffer},
     denim_message::{deniable_message::MessageKind, DeniableMessage},
 };
-use log::{debug, error};
+use log::{debug, error, info};
 
 use prost::Message as PMessage;
 use sam_client::net::protocol::{decode::ServerStatus, MessageStatus};
@@ -144,6 +144,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
             .id(id.into())
             .build();
         let msg = create_message(&mut self.sending_buffer, message).await?;
+        info!("MESSAGE SIZE: {}", msg.encode_to_vec().len());
         self.client
             .lock()
             .await
