@@ -31,9 +31,11 @@ pub async fn encrypt(
         SystemTime::now(),
     )
     .await?;
+    let msg_type = MessageType::from(cipher.message_type());
+    debug!("Encrypted {:?} for recipient {recipient}", msg_type);
     Ok(UserMessage::builder()
         .account_id(recipient.into())
-        .message_type(MessageType::from(cipher.message_type()).into())
+        .message_type(msg_type.into())
         .content(cipher.serialize().into())
         .build())
 }
