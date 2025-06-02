@@ -7,7 +7,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use log::{error, info};
+use log::{debug, error, info};
 use prost::{bytes::Bytes, Message};
 use sam_common::{AccountId, DeviceId};
 use sam_net::websocket::{WebSocket, WebSocketClient, WebSocketReceiver};
@@ -139,9 +139,11 @@ async fn sam_server_handler<T: DenimStateType>(
             .await
             .is_err()
         {
+            info!("Client Disconnected");
             break; // disconnected
         }
     }
+    debug!("SAM Server Handler Closed for '{account_id}'");
 }
 
 /// Handles messages from Denim Client and forward them to SAM Server
@@ -232,6 +234,7 @@ async fn denim_client_receiver<T: DenimStateType>(
             }
         };
     }
+    debug!("DenIM Client Receiver Closed")
 }
 
 struct ProxyWebSocketReceiver {
