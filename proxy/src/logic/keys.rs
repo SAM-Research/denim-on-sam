@@ -122,7 +122,7 @@ pub async fn store_pending_key<T: DenimStateType>(
         )
         .await
     {
-        debug!("'{sender_account_id}' already sent a prekey message for '{receiver_account_id}'");
+        debug!("'{sender_account_id}' already sent a prekey message for '{receiver_account_id}', prekey id {pre_key_id}");
     }
     Ok(state
         .keys
