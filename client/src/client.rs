@@ -468,9 +468,11 @@ impl<T: DenimClientType> DenimClient<T> {
                 }
             };
             if let Some(DenimResponse::KeyResponse(account_id)) = denim_res {
-                let message = self.waiting_messages.dequeue(account_id).await;
-                if let Some(bytes) = message {
-                    self.enqueue_deniable(account_id, bytes).await?;
+                while self.waiting_messages.len(account_id).await != 0 {
+                    let message = self.waiting_messages.dequeue(account_id).await;
+                    if let Some(bytes) = message {
+                        self.enqueue_deniable(account_id, bytes).await?;
+                    }
                 }
             }
             if self.envelope_queue.is_empty() {
