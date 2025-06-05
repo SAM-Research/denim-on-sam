@@ -143,6 +143,7 @@ impl<T: SendingBuffer, U: ReceivingBuffer> DenimSamClient for DenimProtocolClien
             .r#type(ClientMessageType::ClientMessage.into())
             .id(id.into())
             .build();
+        info!("REGULAR MESSAGE: {}", message.encode_to_vec().len());
         let msg = create_message(&mut self.sending_buffer, message).await?;
         info!("MESSAGE SIZE: {}", msg.encode_to_vec().len());
         self.client

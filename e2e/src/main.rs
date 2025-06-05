@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use denim_sam_client::{client::DenimClientType, DenimClient};
-use denim_sam_common::buffers::{InMemoryReceivingBuffer, InMemorySendingBuffer};
+use denim_sam_common::{buffers::{DeniablePayload, DenimMessage, InMemoryReceivingBuffer, InMemorySendingBuffer}, denim_message::DenimEnvelope};
 use denim_sam_e2e::utils::{
     client::client_with_proxy,
     server::{connection_str, postgres_configs, TestServerConfig},
@@ -14,6 +14,7 @@ use sam_common::{time_now_millis, AccountId};
 use std::io::Write;
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
+use prost::Message;
 
 #[tokio::main]
 async fn main() {
@@ -110,6 +111,7 @@ async fn main() {
     let denim_msg = [128u8; 200];
 
     // ##### Expirment #####
+
     info!("Alice {alice_id}");
     info!("Alice msg {}", a_msg.len());
     info!("---------");
